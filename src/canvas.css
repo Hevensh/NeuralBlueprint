@@ -1,0 +1,58 @@
+.workspace {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr) 320px;
+  grid-template-rows: 72px minmax(0, 1fr);
+  background: #020617;
+  overflow: hidden;
+}
+
+/* canvas  */
+.canvas-wrap {
+  width: 100%;
+  height: 100%;
+  background:
+    radial-gradient(circle at top left, rgba(34, 211, 238, 0.12), transparent 64%),
+    linear-gradient(135deg, #0f172a, #111827);
+  overflow: hidden;
+}
+
+/* panels  */
+.left-panel,
+.right-panel {
+  height: 100%;
+  background:
+    radial-gradient(circle at top, rgba(34, 211, 238, 0.08), transparent 72%);
+  border-color: rgba(34, 211, 238, 0.22);
+  box-sizing: border-box;
+  padding: 14px;
+  overflow-y: auto;
+  color: #e2e8f0;
+  position: relative;
+}
+.left-panel {
+  border-right: 1px solid rgba(34, 211, 238, 0.6);
+  box-shadow: 8px 0 24px rgba(0, 0, 0, 0.22);
+}
+.right-panel {
+  border-left: 1px solid rgba(34, 211, 238, 0.6);
+  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.22);
+}
+.left-panel::before,
+.right-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at top, rgba(34, 211, 238, 0.12), transparent 42%);
+}
+
+/* fonts  */
+.title {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #67e8f9;
+}
