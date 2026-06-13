@@ -7,22 +7,18 @@ export type LinearInitializationMode = 'standard_normal' | 'xavier_normal';
 export type BiasInitializationMode = 'zeros' | 'standard_normal';
 export type ModuleBackwardFunction = (gradient: unknown) => unknown;
 
-export interface ModuleRankStats {
+export interface ModuleStats {
   /** Output dimension / potential rank of the module output. */
   rank: number;
+  /** Optional display override for invalid or non-numeric output dimension. */
+  dimLabel?: string;
   /** Estimated effective rank carried by the module output. */
   effectiveRank: number;
   /** effectiveRank / rank. This can exceed 1 after Sum composition. */
   saturation: number;
-  /**
-   * Linear information correlation from this output to each direct input output.
-   * This belongs to rank analysis: Linear keeps linear information unless it
-   * compresses dimension, while ReLU weakens recoverability by activation loss.
-   */
-  inputLinearCorr?: Record<string, number>;
-}
+  /** Rank trace used only for linear-correlation rho estimation. */
+  minRank?: number;
 
-export interface ModuleVarianceStats {
   /** Mean of the module output activation. */
   mean: number;
   /** Variance of the module output activation. */
@@ -31,11 +27,19 @@ export interface ModuleVarianceStats {
   zeroRate: number;
   /** Probability mass below zero before possible ReLU-style clipping. */
   negativeRate?: number;
+
   /**
    * Element-level activation correlation from this output to each direct input
    * output. This belongs to variance analysis and is used for Sum covariance.
    */
   inputElementCorr?: Record<string, number>;
+
+  /**
+   * Linear information correlation from this output to each direct input output.
+   * This belongs to rank analysis: Linear keeps linear information unless it
+   * compresses dimension, while ReLU weakens recoverability by activation loss.
+   */
+  inputLinearCorr?: Record<string, number>;
 }
 
 export interface SumInputPairStats {
@@ -47,22 +51,23 @@ export interface SumInputPairStats {
   covariance: number;
 }
 
-export interface ModuleForwardContext {
+export interface ModuleStatsForwardContext {
   node: ModuleBaseNodeData;
-  inputs: ModuleVarianceStats[];
-  inputNodes?: ModuleBaseNodeData[];
-  nodeMap?: Map<string, ModuleBaseNodeData>;
-  statsByNodeId?: Map<string, ModuleVarianceStats>;
+  inputs: ModuleStats[];
+  inputNodes: ModuleBaseNodeData[];
+  nodeMap: Map<string, ModuleBaseNodeData>;
+  statsByNodeId: Map<string, ModuleStats>;
 }
 
-export interface ModuleForwardResult {
-  stat: ModuleVarianceStats;
+export interface ModuleStatsForwardResult {
+  stats: ModuleStats;
+  sumInputPairStats?: SumInputPairStats[];
   message?: string;
 }
 
-export type ModuleForwardFunction = (
-  context: ModuleForwardContext
-) => ModuleForwardResult;
+export type ModuleStatsForwardFunction = (
+  context: ModuleStatsForwardContext
+) => ModuleStatsForwardResult;
 
 export interface ModuleBaseNodeData extends Record<string, unknown> {
   id: string;
@@ -71,7 +76,7 @@ export interface ModuleBaseNodeData extends Record<string, unknown> {
   kind: ModuleBaseNodeKind;
   predecessors: ModuleBaseNodeData[];
   successors: ModuleBaseNodeData[];
-  forward?: ModuleForwardFunction;
+  forwardStats?: ModuleStatsForwardFunction;
   backward?: ModuleBackwardFunction;
   forwardTopologyOrder?: number;
   backwardTopologyOrder?: number;
@@ -82,8 +87,7 @@ export interface ModuleBaseNodeData extends Record<string, unknown> {
   inFeatures?: number;
   outFeatures?: number;
   useBias?: boolean;
-  rankStats?: ModuleRankStats;
-  varianceStats?: ModuleVarianceStats;
+  stats?: ModuleStats;
   sumInputPairStats?: SumInputPairStats[];
   position: {
     x: number;
@@ -108,18 +112,41 @@ export function isModuleBaseNodeKind(kind: string): kind is ModuleBaseNodeKind {
   return moduleBaseNodeKinds.includes(kind as ModuleBaseNodeKind);
 }
 
-export function getDefaultRankStats(kind: ModuleBaseNodeKind): ModuleRankStats {
+export function getDefaultStats(kind: ModuleBaseNodeKind): ModuleStats {
   if (kind === 'Input') {
     return {
       rank: DEFAULT_OUTPUT_DIM,
       effectiveRank: DEFAULT_INPUT_EFFECTIVE_RANK,
       saturation: DEFAULT_INPUT_EFFECTIVE_RANK / DEFAULT_OUTPUT_DIM,
+      minRank: DEFAULT_OUTPUT_DIM,
+      mean: 0.5,
+      variance: 1 / 12,
+      zeroRate: 0,
+      negativeRate: 0,
+    };
+  }
+
+  if (kind === 'Linear') {
+    return {
+      rank: DEFAULT_OUTPUT_DIM,
+      effectiveRank: Number.NaN,
+      saturation: Number.NaN,
+      minRank: Number.NaN,
+      mean: Number.NaN,
+      variance: Number.NaN,
+      zeroRate: Number.NaN,
+      negativeRate: Number.NaN,
     };
   }
 
   return {
-    rank: DEFAULT_OUTPUT_DIM,
+    rank: Number.NaN,
     effectiveRank: Number.NaN,
     saturation: Number.NaN,
+    minRank: Number.NaN,
+    mean: Number.NaN,
+    variance: Number.NaN,
+    zeroRate: Number.NaN,
+    negativeRate: Number.NaN,
   };
 }

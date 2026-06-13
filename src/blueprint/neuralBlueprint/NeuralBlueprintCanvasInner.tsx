@@ -33,7 +33,7 @@ import type {
   ModuleBaseNodeKind,
 } from './ModuleBaseNodeTypes';
 import {
-  getDefaultRankStats,
+  getDefaultStats,
   isModuleBaseNodeKind,
 } from './ModuleBaseNodeTypes';
 import { createCorrelationLines } from './utils/correlationLines';
@@ -149,7 +149,7 @@ export function NeuralBlueprintCanvasInner({
       normalizationMode: kind === 'Input' ? '0-1' : undefined,
       initializationMode: kind === 'Linear' ? 'xavier_normal' : undefined,
       biasInitializationMode: kind === 'Linear' ? 'zeros' : undefined,
-      rankStats: getDefaultRankStats(kind),
+      stats: getDefaultStats(kind),
       position,
     };
     const node: ModuleBaseNode = {

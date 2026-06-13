@@ -12,11 +12,13 @@ export function NeuralBlueprintNode({
   showRankAnalysis = false,
   showVarianceAnalysis = false,
 }: NeuralBlueprintNodeProps) {
-  const outputDim = formatInteger(data.rankStats?.rank);
-  const effectiveRank = formatFixed(data.rankStats?.effectiveRank, 2);
-  const saturation = formatFixed(data.rankStats?.saturation, 3);
-  const mean = formatFixed(data.varianceStats?.mean, 3);
-  const standardDeviation = formatStandardDeviation(data.varianceStats?.variance);
+  const outputDim = data.kind === 'Sum' && data.stats?.dimLabel
+    ? data.stats.dimLabel
+    : formatInteger(data.stats?.rank);
+  const effectiveRank = formatFixed(data.stats?.effectiveRank, 2);
+  const saturation = formatFixed(data.stats?.saturation, 3);
+  const mean = formatFixed(data.stats?.mean, 3);
+  const standardDeviation = formatStandardDeviation(data.stats?.variance);
 
   return (
     <div className={`neural-blueprint-node ${data.kind}`}>
@@ -28,7 +30,7 @@ export function NeuralBlueprintNode({
       <div className="neural-blueprint-node-kind">{data.kind}</div>
       <div className="neural-blueprint-node-name">{data.name}</div>
       <div className="neural-blueprint-node-preview">
-        <NodePreviewItem label="out" value={outputDim} />
+        <NodePreviewItem label="dim" value={outputDim} />
         {showRankAnalysis && (
           <>
             <NodePreviewItem label="rank" value={effectiveRank} />
@@ -67,16 +69,16 @@ function NodePreviewItem({
 }
 
 function formatInteger(value: number | undefined) {
-  return Number.isFinite(value) ? String(Math.round(value as number)) : '';
+  return Number.isFinite(value) ? String(Math.round(value as number)) : '---';
 }
 
 function formatFixed(value: number | undefined, digits: number) {
-  return Number.isFinite(value) ? (value as number).toFixed(digits) : '';
+  return Number.isFinite(value) ? (value as number).toFixed(digits) : '---';
 }
 
 function formatStandardDeviation(variance: number | undefined) {
   if (!Number.isFinite(variance)) {
-    return '';
+    return '---';
   }
 
   return Math.sqrt(Math.max(variance as number, 0)).toFixed(3);

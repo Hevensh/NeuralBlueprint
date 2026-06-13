@@ -56,20 +56,30 @@ export function NeuralBlueprintRightPanel({
   const handleOutputDimChange = (event: ChangeEvent<HTMLInputElement>) => {
     const rank = parseIntegerPropertyNumber(event.target.value);
     updateSelectedNode({
-      rankStats: {
+      stats: {
+        ...selectedNode?.stats,
         rank,
-        effectiveRank: selectedNode?.rankStats?.effectiveRank ?? rank,
-        saturation: selectedNode?.rankStats?.saturation ?? 0,
+        effectiveRank: selectedNode?.stats?.effectiveRank ?? rank,
+        saturation: selectedNode?.stats?.saturation ?? 0,
+        mean: selectedNode?.stats?.mean ?? Number.NaN,
+        variance: selectedNode?.stats?.variance ?? Number.NaN,
+        zeroRate: selectedNode?.stats?.zeroRate ?? Number.NaN,
+        negativeRate: selectedNode?.stats?.negativeRate,
       },
     });
   };
 
   const handleEffectiveRankChange = (event: ChangeEvent<HTMLInputElement>) => {
     updateSelectedNode({
-      rankStats: {
-        rank: selectedNode?.rankStats?.rank ?? 64,
+      stats: {
+        ...selectedNode?.stats,
+        rank: selectedNode?.stats?.rank ?? 64,
         effectiveRank: parseIntegerPropertyNumber(event.target.value),
-        saturation: selectedNode?.rankStats?.saturation ?? 0,
+        saturation: selectedNode?.stats?.saturation ?? 0,
+        mean: selectedNode?.stats?.mean ?? Number.NaN,
+        variance: selectedNode?.stats?.variance ?? Number.NaN,
+        zeroRate: selectedNode?.stats?.zeroRate ?? Number.NaN,
+        negativeRate: selectedNode?.stats?.negativeRate,
       },
     });
   };
@@ -113,7 +123,7 @@ export function NeuralBlueprintRightPanel({
             <span className="property-label">Output Dim</span>
             <input
               className="property-input"
-              value={formatIntegerPropertyNumber(selectedNode.rankStats?.rank)}
+              value={formatIntegerPropertyNumber(selectedNode.stats?.rank)}
               onChange={handleOutputDimChange}
             />
           </label>
@@ -124,12 +134,12 @@ export function NeuralBlueprintRightPanel({
               {selectedNode.kind === 'Input' ? (
                 <input
                   className="property-input"
-                  value={formatIntegerPropertyNumber(selectedNode.rankStats?.effectiveRank)}
+                  value={formatIntegerPropertyNumber(selectedNode.stats?.effectiveRank)}
                   onChange={handleEffectiveRankChange}
                 />
               ) : (
                 <div className="property-value">
-                  {formatDecimalPropertyNumber(selectedNode.rankStats?.effectiveRank, 3)}
+                  {formatDecimalPropertyNumber(selectedNode.stats?.effectiveRank, 3)}
                 </div>
               )}
             </label>
@@ -182,7 +192,7 @@ export function NeuralBlueprintRightPanel({
               <div className="property-field">
                 <span className="property-label">Output Mean</span>
                 <div className="property-value">
-                  {formatDecimalPropertyNumber(selectedNode.varianceStats?.mean, 3)}
+                  {formatDecimalPropertyNumber(selectedNode.stats?.mean, 3)}
                 </div>
               </div>
 
@@ -215,7 +225,7 @@ function formatDecimalPropertyNumber(value: number | undefined, digits: number) 
 }
 
 function getOutputStandardError(node: ModuleBaseNodeData) {
-  const variance = node.varianceStats?.variance;
+  const variance = node.stats?.variance;
   return typeof variance === 'number' && !Number.isNaN(variance)
     ? Math.sqrt(Math.max(variance, 0))
     : undefined;

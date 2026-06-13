@@ -1,4 +1,4 @@
-import type { ModuleBaseNodeData, ModuleRankStats, ModuleVarianceStats } from '../ModuleBaseNodeTypes';
+import type { ModuleBaseNodeData, ModuleStats } from '../ModuleBaseNodeTypes';
 
 export const CORRELATION_DECAY = 0.35;
 export const LINEAR_TRANSFORM_DECORRELATION = 0.24;
@@ -84,7 +84,7 @@ export function estimateNodeCorrelationByCommonSources(
 export function getElementCorrBetweenNodes(
   nodeAId: string,
   nodeBId: string,
-  statsByNodeId: Map<string, ModuleVarianceStats>,
+  statsByNodeId: ReadonlyMap<string, ModuleStats>,
   nodeMap: Map<string, ModuleBaseNodeData>,
 ): number {
   return getVarianceCorrBetweenNodes(
@@ -98,7 +98,7 @@ export function getElementCorrBetweenNodes(
 export function getLinearCorrBetweenNodes(
   nodeAId: string,
   nodeBId: string,
-  statsByNodeId: Map<string, ModuleRankStats>,
+  statsByNodeId: ReadonlyMap<string, ModuleStats>,
   nodeMap: Map<string, ModuleBaseNodeData>,
 ): number {
   return getRankCorrBetweenNodes(
@@ -112,7 +112,7 @@ export function getLinearCorrBetweenNodes(
 function getVarianceCorrBetweenNodes(
   nodeAId: string,
   nodeBId: string,
-  statsByNodeId: Map<string, ModuleVarianceStats>,
+  statsByNodeId: ReadonlyMap<string, ModuleStats>,
   nodeMap: Map<string, ModuleBaseNodeData>,
   visiting = new Set<string>(),
 ): number {
@@ -189,7 +189,7 @@ function getVarianceCorrBetweenNodes(
 function getRankCorrBetweenNodes(
   nodeAId: string,
   nodeBId: string,
-  statsByNodeId: Map<string, ModuleRankStats>,
+  statsByNodeId: ReadonlyMap<string, ModuleStats>,
   nodeMap: Map<string, ModuleBaseNodeData>,
   visiting = new Set<string>(),
 ): number {
@@ -357,7 +357,7 @@ export function getModuleInputSize(node: ModuleBaseNodeData): number {
     node.inputSize
       ?? node.inFeatures
       ?? node.inputDim
-      ?? node.rankStats?.rank
+      ?? node.stats?.rank
       ?? 1,
   );
 }
@@ -367,7 +367,7 @@ export function getModuleOutputSize(node: ModuleBaseNodeData): number {
     node.outputSize
       ?? node.outFeatures
       ?? node.outputDim
-      ?? node.rankStats?.rank
+      ?? node.stats?.rank
       ?? getModuleInputSize(node),
   );
 }
@@ -390,7 +390,7 @@ function computeSourceTransformPath(
       committedPath = [
         ...committedPath,
         ...pendingPath,
-        getReluTransformStep(node, nodeMap.get(pathNodeIds[index - 1])?.varianceStats),
+        getReluTransformStep(node, nodeMap.get(pathNodeIds[index - 1])?.stats),
       ];
       pendingPath = [];
     }
@@ -435,7 +435,7 @@ function getLinearTransformStep(node: ModuleBaseNodeData): ModuleTransformStep {
 
 function getReluTransformStep(
   node: ModuleBaseNodeData,
-  inputStats?: ModuleVarianceStats,
+  inputStats?: ModuleStats,
 ): ModuleTransformStep {
   const lostRatio = getReluLostRatio(inputStats);
   const forwardStrength = RELU_TRANSFORM_BASE_STRENGTH + lostRatio;
@@ -448,7 +448,7 @@ function getReluTransformStep(
   };
 }
 
-function getReluLostRatio(inputStats?: ModuleVarianceStats) {
+function getReluLostRatio(inputStats?: ModuleStats) {
   if (!inputStats) {
     return 0;
   }
