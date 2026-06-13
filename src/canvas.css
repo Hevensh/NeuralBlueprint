@@ -48,6 +48,9 @@
   background:
     radial-gradient(circle at top, rgba(34, 211, 238, 0.12), transparent 42%);
 }
+.panel-section-spacer {
+  height: 16px;
+}
 
 /* fonts  */
 .title {

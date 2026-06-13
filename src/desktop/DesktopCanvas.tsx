@@ -1,178 +1,146 @@
 import {
-  Background,
-  ReactFlow,
   ReactFlowProvider,
-  useNodesState,
-  useReactFlow,
-  useViewport,
   type Edge,
-  type NodeChange,
   type ReactFlowInstance,
   type Viewport,
 } from '@xyflow/react';
 
 import '@xyflow/react/dist/style.css';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
-import type { DesktopFile, DesktopFileType, DesktopIconNodeType } from './desktopTypes';
-import { DesktopIconNode } from './DesktopIconNode';
-import { loadDesktopView, saveDesktopView, loadDesktopFiles, saveDesktopFiles } from '../dataStorage/desktopStorage';
-import type { setPageStatesType } from '../dataStorage/systemType';
-
-
-const nodeTypes = {
-  desktopIcon: DesktopIconNode,
-};
-
-function toDesktopNode(
-  file: DesktopFile,
-  onOpenFile: (file: DesktopFile) => void,
-): DesktopIconNodeType {
-  return {
-    id: file.id,
-    type: 'desktopIcon',
-    position: file.position,
-    data: {
-      file,
-      onOpenFile,
-    },
-    draggable: true,
-    selectable: true,
-  };
-}
-
-
-interface DesktopCanvasInnerProp {
-  initFiles: DesktopIconNodeType[];
-  setCanvas: React.Dispatch<React.SetStateAction<ReactFlowInstance<DesktopIconNodeType, Edge> | null>>;
-  initViewport: Viewport;
-}
-function DesktopCanvasInner(
-  { initFiles, setCanvas, initViewport }: DesktopCanvasInnerProp) {
-
-  // const createDesktopFile = (type: DesktopFileType) => {
-  //   if (!contextMenu) return;
-
-  //   const id = `${type}_${Date.now()}`;
-
-  //   const nextFile: DesktopFile = {
-  //     id,
-  //     type,
-  //     name:
-  //       type === 'nbp'
-  //         ? 'Untitled Blueprint'
-  //         : type === 'rep'
-  //           ? 'Untitled Report'
-  //           : 'New Folder',
-  //     position: {
-  //       x: contextMenu.flowX,
-  //       y: contextMenu.flowY,
-  //     },
-  //   };
-
-  //   const nextNode = toDesktopNode(
-  //     nextFile,
-  //     handleOpenFile,
-  //   );
-
-  //   setNodes((currentNodes) => [...currentNodes, nextNode]);
-  // };
-  // const deleteDesktopFile = (file: DesktopFile) => {
-  //   setNodes((currentNodes) =>
-  //     currentNodes.filter((node) => node.id !== file.id),
-  //   );
-  // };
-
-  // import nodes state
-
-  const [nodes, setNodes, onNodesChange] = useNodesState<DesktopIconNodeType>(initFiles);
-  const handleNodesChange = (changes: NodeChange<DesktopIconNodeType>[]) => {
-    onNodesChange(changes);
-  };
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      saveDesktopFiles(nodes);
-    }, 500);
-    return () => window.clearTimeout(timer);
-  }, [nodes]);
-
-  const viewport = useViewport();
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      saveDesktopView(viewport);
-    }, 500);
-    return () => window.clearTimeout(timer);
-  })
-
-  return (
-    <div className="canvas-wrap">
-      <ReactFlow<DesktopIconNodeType>
-        nodes={nodes}
-        edges={[]}
-        nodeTypes={nodeTypes}
-        onNodesChange={handleNodesChange}
-        onInit={setCanvas}
-
-        defaultViewport={initViewport}
-        nodesDraggable
-        nodesConnectable={false}
-
-        elementsSelectable
-        selectionOnDrag
-
-        fitView={false}
-        zoomOnPinch={false}
-        zoomOnDoubleClick={false}
-        proOptions={{ hideAttribution: true }}
-      >
-        <Background />
-      </ReactFlow>
-    </div>
-  );
-}
+import { loadDesktopFiles, loadDesktopView, saveDesktopFiles, saveDesktopView } from '../dataStorage/desktopStorage';
+import type { FileWorkspaceType, OpenFileType } from '../dataStorage/systemType';
+import { DesktopCanvasInner } from './DesktopCanvasInner';
+import { DesktopLeftPanel } from './leftPanel';
+import { DesktopRightPanel } from './rightPanel';
+import type { DesktopFile, DesktopIconNodeType } from './desktopTypes';
 
 interface DesktopCanvasProp {
-  setPage: setPageStatesType;
+  openFile: OpenFileType;
 }
-export function DesktopCanvas({ setPage }: DesktopCanvasProp) {
-  // init nodes;
-  const handleOpenFile = useCallback((file: DesktopFile) => {
-    console.log('open file:', file);
-    setPage(file.type == 'nbp' ? 'blueprint' : 'report');
-  }, [setPage]);
-  const [initFiles, ] = useState<DesktopIconNodeType[]>(()=>loadDesktopFiles().map((file) => toDesktopNode(file, handleOpenFile)));
-  const [initViewport, ] = useState<Viewport>(loadDesktopView);
 
+export function DesktopCanvas({ openFile }: DesktopCanvasProp) {
+  const [selectedFile, setSelectedFile] = useState<DesktopFile | null>(null);
+  const [saveNotice, setSaveNotice] = useState('');
+  const [initFiles] = useState<DesktopFile[]>(loadDesktopFiles);
+  
+  const [initViewport] = useState<Viewport>(loadDesktopView);
+  const [canvas, setCanvas] =
+    useState<ReactFlowInstance<DesktopIconNodeType, Edge> | null>(null);
+
+  const historyRef = useRef<DesktopIconNodeType[][]>([]);
+  const saveNoticeTimerRef = useRef<number | null>(null);
+
+  const showSaveNotice = useCallback((message: string) => {
+    setSaveNotice(message);
+    if (saveNoticeTimerRef.current !== null) {
+      window.clearTimeout(saveNoticeTimerRef.current);
+    }
+    saveNoticeTimerRef.current = window.setTimeout(() => {
+      setSaveNotice('');
+    }, 1400);
+  }, []);
+
+  const pushHistory = useCallback(() => {
+    historyRef.current = [...historyRef.current, canvas?.getNodes() ?? []];
+  }, [canvas]);
+
+  const handleOpenFile = useCallback((file: DesktopFile) => {
+    saveDesktopFiles(canvas?.getNodes() ?? []);
+    const viewport = canvas?.getViewport();
+    if (viewport) {
+      saveDesktopView(viewport);
+    }
+    console.log('open file:', file.id);
+    const workspace: FileWorkspaceType = file.type === 'nbp' ? 'blueprint' : 'report';
+    openFile(workspace, file.id);
+  }, [canvas, openFile]);
+
+  const renameDesktopFile = useCallback((fileId: string, name: string) => {
+    pushHistory();
+    const renamedFile = selectedFile?.id === fileId
+      ? { ...selectedFile, name }
+      : null;
+    if (renamedFile) {
+      setSelectedFile(renamedFile);
+    }
+    canvas?.updateNodeData(fileId, (node) => ({
+      file: {
+        ...node.data.file,
+        name,
+      },
+    }));
+  }, [canvas, pushHistory, selectedFile]);
+
+  const deleteDesktopFile = useCallback((fileId: string) => {
+    if (!selectedFile?.deletable) return;
+    pushHistory();
+    setSelectedFile(null);
+    canvas?.deleteElements({ nodes: [{ id: fileId }] });
+  }, [canvas, pushHistory, selectedFile?.deletable]);
+
+  const undo = useCallback(() => {
+    const previousNodes = historyRef.current.at(-1);
+    if (!previousNodes) return;
+
+    historyRef.current = historyRef.current.slice(0, -1);
+    canvas?.setNodes(previousNodes);
+    setSelectedFile(previousNodes.find((node) => node.selected)?.data.file ?? null);
+  }, [canvas]);
 
   const fitView = () => {
     canvas?.fitView({
       padding: 0.2,
       duration: 300,
     });
-  }
+  };
 
-  // init canvas
-  const [canvas, setCanvas] =
-    useState<ReactFlowInstance<DesktopIconNodeType, Edge> | null>(null);
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.ctrlKey && event.key.toLowerCase() === 'z') {
+        event.preventDefault();
+        undo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undo]);
+
+  useEffect(() => () => {
+    if (saveNoticeTimerRef.current !== null) {
+      window.clearTimeout(saveNoticeTimerRef.current);
+    }
+  }, []);
 
   return (
     <ReactFlowProvider>
       <div className="workspace">
         <header className="top-bar">
-          <button className="action-button" onClick={() => fitView()}> fitView </button>
           <div className="desktop-title">Neural BluePrint</div>
         </header>
 
-        <aside className="left-panel">
-          <div className="title">Modules</div>
-        </aside>
+        <DesktopLeftPanel onFitView={fitView} />
 
-        <DesktopCanvasInner initFiles={initFiles} setCanvas={setCanvas} initViewport={initViewport} />
+        <DesktopCanvasInner
+          initFiles={initFiles}
+          initViewport={initViewport}
+          onOpenFile={handleOpenFile}
+          showSaveNotice={showSaveNotice}
+          pushHistory={pushHistory}
+          setCanvas={setCanvas}
+          setSelectedFile={setSelectedFile}
+        />
 
-        <aside className="right-panel">
-          <div className="title">Properties</div>
-        </aside>
+        <DesktopRightPanel
+          selectedFile={selectedFile}
+          onRenameFile={renameDesktopFile}
+          onDeleteFile={deleteDesktopFile}
+        />
+
+        <div className={`desktop-save-toast ${saveNotice ? 'visible' : ''}`}>
+          {saveNotice}
+        </div>
       </div>
     </ReactFlowProvider>
   );

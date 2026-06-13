@@ -1,3 +1,9 @@
-import type { SetStateAction } from "react";
+export type FileWorkspaceType = 'blueprint' | 'report';
 
-export type setPageStatesType = (setPage: SetStateAction<"desktop" | "blueprint" | "report">) => void;
+export interface ActiveFileState {
+  workspace: FileWorkspaceType;
+  fileId: string;
+}
+
+export type OpenFileType = (workspace: FileWorkspaceType, fileId: string) => void;
+export type CloseFileType = () => void;

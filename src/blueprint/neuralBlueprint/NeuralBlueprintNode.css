@@ -1,0 +1,152 @@
+.neural-blueprint-node {
+  position: relative;
+  min-width: 120px;
+  padding: 10px 12px;
+  border: 1px solid rgba(34, 211, 238, 0.52);
+  border-radius: 8px;
+  background: rgba(8, 47, 73, 0.78);
+  color: #ecfeff;
+  display: grid;
+  gap: 4px;
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
+  filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.24));
+}
+
+.neural-blueprint-node-kind {
+  color: #67e8f9;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.neural-blueprint-node-name {
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.neural-blueprint-node.Input {
+  border-color: rgba(52, 211, 153, 0.52);
+  background: rgba(6, 78, 59, 0.72);
+}
+
+.neural-blueprint-node.Linear {
+  border-color: rgba(34, 211, 238, 0.52);
+  background: rgba(8, 47, 73, 0.78);
+}
+
+.neural-blueprint-node.ReLU {
+  border-color: rgba(56, 189, 248, 0.52);
+  background: rgba(12, 74, 110, 0.72);
+}
+
+.neural-blueprint-node.Sum {
+  border-color: rgba(45, 212, 191, 0.52);
+  background: rgba(15, 118, 110, 0.62);
+}
+
+.neural-blueprint-node.Output {
+  border-color: rgba(125, 211, 252, 0.52);
+  background: rgba(30, 64, 175, 0.58);
+}
+
+.react-flow__node.selected .neural-blueprint-node {
+  border-color: rgba(103, 232, 249, 0.72);
+  background:
+    linear-gradient(180deg, rgba(14, 116, 144, 0.9), rgba(8, 47, 73, 0.72));
+  box-shadow:
+    0 0 0 2px rgba(34, 211, 238, 0.16),
+    0 0 22px rgba(34, 211, 238, 0.32),
+    0 14px 30px rgba(0, 0, 0, 0.24);
+}
+
+.react-flow__node:hover .neural-blueprint-node {
+  border-color: rgba(103, 232, 249, 0.9);
+  box-shadow:
+    0 0 0 2px rgba(34, 211, 238, 0.22),
+    0 0 22px rgba(34, 211, 238, 0.36),
+    0 14px 30px rgba(0, 0, 0, 0.32);
+}
+
+.module-base-node-icon {
+  border: 1px solid rgba(103, 232, 249, 0.34);
+  border-radius: 8px;
+  color: #ecfeff;
+  font-size: 18px;
+  font-weight: 850;
+  background: rgba(8, 47, 73, 0.42);
+}
+
+.module-base-node-handle {
+  width: 10px;
+  height: 10px;
+  border: 1px solid rgba(103, 232, 249, 0.42);
+  background: #155e75;
+  box-shadow:
+    0 0 0 3px rgba(8, 47, 73, 0.78),
+    0 0 8px rgba(34, 211, 238, 0.16);
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+.module-base-node-handle.output-handle {
+  border: 1px solid rgba(103, 232, 249, 0.42);
+  background: #157553;
+  box-shadow:
+    0 0 0 3px rgba(8, 73, 58, 0.78),
+    0 0 8px rgba(34, 238, 190, 0.16);
+
+}
+
+.react-flow__node.selected .module-base-node-handle {
+  border-color: rgba(207, 250, 254, 0.92);
+  background: #06b6d4;
+  box-shadow:
+    0 0 0 3px rgba(8, 47, 73, 0.82),
+    0 0 14px rgba(34, 211, 238, 0.52);
+}
+.react-flow__node.selected .module-base-node-handle.output-handle {
+  border-color: rgba(207, 250, 254, 0.92);
+  background: #06d488;
+  box-shadow:
+    0 0 0 3px rgba(8, 73, 45, 0.82),
+    0 0 14px rgba(34, 238, 184, 0.52);
+}
+
+.module-base-node-handle.input-handle {
+  left: -2px;
+}
+
+.module-base-node-handle.output-handle {
+  right: -2px;
+}
+
+.neural-blueprint-node.Input .input-handle,
+.neural-blueprint-node.Output .output-handle {
+  display: none;
+}
+
+.react-flow__edge-path {
+  filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.18));
+}
+
+.react-flow__edge:hover {
+  stroke: #67e8f9;
+  stroke-width: 6;
+  filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.64));
+}
+
+.react-flow__edge.selected {
+  stroke: #67e8f9;
+  stroke-width: 6;
+  filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.72));
+}
+
+.react-flow__edge.selected:hover {
+  stroke: #67e8f9;
+  stroke-width: 6;
+  filter: drop-shadow(0 0 8px rgba(34, 211, 238, 1));
+}

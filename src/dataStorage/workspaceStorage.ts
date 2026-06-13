@@ -1,5 +1,13 @@
 import type { DesktopFile } from "../desktop/desktopTypes";
+import type { Edge } from "@xyflow/react";
+import type { PageNodeData } from "../blueprint/PageTypes";
+import { appStorage } from "./storageAdapter";
 
+
+export interface GraphSchema {
+  nodes: PageNodeData[];
+  edges: Edge[];
+}
 
 
 
@@ -26,7 +34,7 @@ export interface WorkspaceState {
 
 export function loadWorkspace(STORAGE_KEY: string): WorkspaceState | null {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = appStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
 
     const parsed = JSON.parse(raw) as WorkspaceState;
@@ -42,7 +50,7 @@ export function loadWorkspace(STORAGE_KEY: string): WorkspaceState | null {
 }
 
 export function saveWorkspace(STORAGE_KEY: string, workspace: WorkspaceState): void {
-  window.localStorage.setItem(
+  appStorage.setItem(
     STORAGE_KEY,
     JSON.stringify({
       ...workspace,
@@ -52,5 +60,5 @@ export function saveWorkspace(STORAGE_KEY: string, workspace: WorkspaceState): v
 }
 
 export function clearWorkspace(STORAGE_KEY: string): void {
-  window.localStorage.removeItem(STORAGE_KEY);
+  appStorage.removeItem(STORAGE_KEY);
 }

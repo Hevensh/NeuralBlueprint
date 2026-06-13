@@ -1,0 +1,10 @@
+.training-process-node {
+  min-width: 140px;
+  padding: 10px 12px;
+  border: 1px solid rgba(45, 212, 191, 0.52);
+  border-radius: 8px;
+  background: rgba(19, 78, 74, 0.74);
+  color: #ccfbf1;
+  font-size: 13px;
+  font-weight: 750;
+}

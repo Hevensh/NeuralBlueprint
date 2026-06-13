@@ -6,6 +6,7 @@ export interface DesktopFile {
   id: string;
   name: string;
   type: DesktopFileType;
+  deletable: boolean;
   position: {
     x: number;
     y: number;
@@ -14,7 +15,6 @@ export interface DesktopFile {
 
 export interface DesktopIconData extends Record<string, unknown> {
   file: DesktopFile;
-  onOpenFile: (file: DesktopFile) => void;
 }
 
 export type DesktopIconNodeType = Node<DesktopIconData>;
