@@ -1,6 +1,6 @@
 .neural-blueprint-node {
   position: relative;
-  min-width: 120px;
+  min-width: 96px;
   padding: 10px 12px;
   border: 1px solid rgba(34, 211, 238, 0.52);
   border-radius: 8px;
@@ -25,6 +25,41 @@
 .neural-blueprint-node-name {
   font-size: 13px;
   font-weight: 750;
+}
+
+.neural-blueprint-node-preview {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 3px;
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(186, 230, 253, 0.16);
+}
+
+.neural-blueprint-node-preview-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  padding: 2px 6px;
+  border: 1px solid rgba(7, 89, 133, 0.48);
+  border-radius: 5px;
+  background: rgba(2, 6, 23, 0.18);
+  color: rgba(224, 242, 254, 0.82);
+  font-size: 10px;
+  line-height: 1.25;
+}
+
+.neural-blueprint-node-preview-item span {
+  color: rgba(125, 211, 252, 0.78);
+  font-weight: 700;
+}
+
+.neural-blueprint-node-preview-item strong {
+  color: #ecfeff;
+  font-weight: 780;
+  font-variant-numeric: tabular-nums;
 }
 
 .neural-blueprint-node.Input {
@@ -149,4 +184,66 @@
   stroke: #67e8f9;
   stroke-width: 6;
   filter: drop-shadow(0 0 8px rgba(34, 211, 238, 1));
+}
+
+.correlation-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.correlation-overlay-line-group {
+  pointer-events: auto;
+}
+
+.correlation-overlay-hit-line {
+  stroke: transparent;
+  pointer-events: stroke;
+}
+
+.correlation-overlay-line {
+  stroke: #38bdf8;
+  opacity: 0.34;
+  pointer-events: none;
+  transition:
+    opacity 0.16s ease,
+    stroke 0.16s ease,
+    filter 0.16s ease;
+}
+
+.correlation-overlay-line-group:hover .correlation-overlay-line {
+  stroke: #7dd3fc;
+  opacity: 0.96;
+  filter:
+    drop-shadow(0 0 6px rgba(125, 211, 252, 0.72))
+    drop-shadow(0 0 14px rgba(56, 189, 248, 0.42));
+}
+
+.correlation-overlay-label {
+  fill: #bae6fd;
+  opacity: 0.78;
+  pointer-events: visiblePainted;
+  transition:
+    opacity 0.16s ease,
+    fill 0.16s ease,
+    filter 0.16s ease;
+  paint-order: stroke;
+  stroke: rgba(7, 35, 52, 0.9);
+  stroke-width: 5;
+  stroke-linejoin: round;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  font-weight: 720;
+}
+
+.correlation-overlay-line-group:hover .correlation-overlay-label {
+  fill: #e0f2fe;
+  opacity: 1;
+  filter:
+    drop-shadow(0 0 6px rgba(125, 211, 252, 0.64))
+    drop-shadow(0 0 12px rgba(56, 189, 248, 0.34));
 }

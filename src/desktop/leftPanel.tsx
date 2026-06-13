@@ -1,6 +1,6 @@
 import type { DragEvent } from 'react';
-import { getFileIcon } from './DesktopIconNode';
 import type { DesktopFileType } from './desktopTypes';
+import { getFileIcon } from './fileIcons';
 
 export const DESKTOP_FILE_DRAG_TYPE = 'application/neural-blueprint-desktop-file';
 

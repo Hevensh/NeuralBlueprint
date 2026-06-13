@@ -2,7 +2,10 @@ import {
   Background,
   ReactFlow,
   addEdge,
+  applyEdgeChanges,
+  applyNodeChanges,
   MarkerType,
+  useViewport,
   useEdgesState,
   useNodesState,
   useReactFlow,
@@ -10,9 +13,10 @@ import {
   type Edge,
   type EdgeChange,
   type NodeChange,
+  type NodeProps,
   type ReactFlowInstance,
 } from '@xyflow/react';
-import { type Dispatch, type DragEvent, type SetStateAction, useCallback, useEffect, useRef, useState } from 'react';
+import { type Dispatch, type DragEvent, type SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   loadNeuralBlueprintGraph,
   saveNeuralBlueprintGraph,
@@ -28,10 +32,22 @@ import type {
   ModuleBaseNodeData,
   ModuleBaseNodeKind,
 } from './ModuleBaseNodeTypes';
-
-const nodeTypes = {
-  [PageType.NeuralBlueprint]: NeuralBlueprintNode,
-};
+import {
+  getDefaultRankStats,
+  isModuleBaseNodeKind,
+} from './ModuleBaseNodeTypes';
+import { createCorrelationLines } from './utils/correlationLines';
+import { CorrelationOverlay } from './utils/correlationOverlay';
+import {
+  createGraphSnapshot,
+  type NeuralBlueprintGraphSnapshot,
+} from './utils/graphSnapshot';
+import {
+  addEdgeLink,
+  removeEdgeLinks,
+  removeNodeLinks,
+} from './utils/nodeLinks';
+import { syncSelectedNode } from './utils/selection';
 
 const defaultEdgeOptions = {
   type: 'smoothstep',
@@ -44,11 +60,6 @@ const defaultEdgeOptions = {
     strokeWidth: 4,
   },
 };
-
-interface NeuralBlueprintGraphSnapshot {
-  nodes: ModuleBaseNode[];
-  edges: Edge[];
-}
 
 interface NeuralBlueprintCanvasInnerProp {
   fileId: string;
@@ -64,16 +75,46 @@ export function NeuralBlueprintCanvasInner({
   setSelectedNode,
 }: NeuralBlueprintCanvasInnerProp) {
   const { screenToFlowPosition } = useReactFlow<ModuleBaseNode, Edge>();
+  const viewport = useViewport();
   const [, setReactFlowInstance] =
     useState<ReactFlowInstance<ModuleBaseNode, Edge> | null>(null);
   const [initialGraph] = useState(() => {
     const graph = loadNeuralBlueprintGraph(fileId);
-    updateState(graph.nodes);
-    return graph;
+    return {
+      ...graph,
+      nodes: updateState(graph.nodes),
+    };
   });
   const [nodes, setNodes, onNodesChange] = useNodesState<ModuleBaseNode>(initialGraph.nodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(initialGraph.edges);
+  const [edges, setEdges] = useEdgesState<Edge>(initialGraph.edges);
+  const [hoveredSumNodeId, setHoveredSumNodeId] = useState<string | null>(null);
   const historyRef = useRef<NeuralBlueprintGraphSnapshot[]>([]);
+  const hoverTimerRef = useRef<number | null>(null);
+  const selectedNodeIdRef = useRef<string | null>(null);
+  const selectedSumNode = useMemo(() => (
+    nodes.find((node) => node.selected && node.data.kind === 'Sum') ?? null
+  ), [nodes]);
+  const nodeTypes = useMemo(() => ({
+    [PageType.NeuralBlueprint]: (props: NodeProps<ModuleBaseNode>) => (
+      <NeuralBlueprintNode
+        {...props}
+        showRankAnalysis={showRankAnalysis}
+        showVarianceAnalysis={showVarianceAnalysis}
+      />
+    ),
+  }), [showRankAnalysis, showVarianceAnalysis]);
+  const visibleCorrelationNode = selectedSumNode
+    ?? nodes.find((node) => node.id === hoveredSumNodeId && node.data.kind === 'Sum')
+    ?? null;
+  const correlationLines = useMemo(() => (
+    createCorrelationLines(
+      visibleCorrelationNode,
+      nodes,
+      viewport,
+      showVarianceAnalysis,
+      showRankAnalysis,
+    )
+  ), [nodes, showRankAnalysis, showVarianceAnalysis, viewport, visibleCorrelationNode]);
 
   const pushHistory = useCallback(() => {
     historyRef.current = [
@@ -104,14 +145,11 @@ export function NeuralBlueprintCanvasInner({
       successors: [],
       forwardTopologyOrder: 0,
       backwardTopologyOrder: 0,
+      inCycle: false,
       normalizationMode: kind === 'Input' ? '0-1' : undefined,
-      initializationMode: kind === 'Linear' ? 'normal' : undefined,
+      initializationMode: kind === 'Linear' ? 'xavier_normal' : undefined,
       biasInitializationMode: kind === 'Linear' ? 'zeros' : undefined,
-      rankStats: {
-        rank: getDefaultOutputDim(),
-        effectiveRank: getDefaultOutputDim(),
-        saturation: 0,
-      },
+      rankStats: getDefaultRankStats(kind),
       position,
     };
     const node: ModuleBaseNode = {
@@ -126,89 +164,123 @@ export function NeuralBlueprintCanvasInner({
       selectable: true,
     };
 
-    setSelectedNode(data);
-    setNodes((currentNodes) => [
-      ...currentNodes.map((currentNode) => ({ ...currentNode, selected: false })),
+    const nextNodes = updateState([
+      ...nodes.map((currentNode) => ({ ...currentNode, selected: false })),
       {
         ...node,
         selected: true,
       },
     ]);
-  }, [pushHistory, setNodes, setSelectedNode]);
+    const nextSelectedNode = nextNodes.find((currentNode) => currentNode.id === id)?.data ?? data;
+
+    selectedNodeIdRef.current = id;
+    setSelectedNode(nextSelectedNode);
+    setNodes(nextNodes);
+  }, [nodes, pushHistory, setNodes, setSelectedNode]);
 
   const handleNodesChange = useCallback((changes: NodeChange<ModuleBaseNode>[]) => {
-    if (changes.some((change) => change.type === 'remove')) {
+    const removedNodeIds = changes
+      .filter((change) => change.type === 'remove')
+      .map((change) => change.id);
+
+    if (removedNodeIds.length > 0) {
       pushHistory();
+      selectedNodeIdRef.current = null;
       setSelectedNode(null);
     }
-    onNodesChange(changes);
-  }, [onNodesChange, pushHistory, setSelectedNode]);
+
+    if (removedNodeIds.length === 0) {
+      onNodesChange(changes);
+      return;
+    }
+
+    const removedNodeIdSet = new Set(removedNodeIds);
+    const nextEdges = edges.filter((edge) => (
+      !removedNodeIdSet.has(edge.source) && !removedNodeIdSet.has(edge.target)
+    ));
+    const nextNodes = updateState(removeNodeLinks(
+      applyNodeChanges(changes, nodes),
+      removedNodeIdSet,
+    ));
+
+    setEdges(nextEdges);
+    setNodes(nextNodes);
+    syncSelectedNode(nextNodes, selectedNodeIdRef, setSelectedNode);
+  }, [edges, nodes, onNodesChange, pushHistory, setEdges, setNodes, setSelectedNode]);
 
   const handleEdgesChange = useCallback((changes: EdgeChange<Edge>[]) => {
-    if (changes.some((change) => change.type === 'remove')) {
+    const removedEdgeIds = changes
+      .filter((change) => change.type === 'remove')
+      .map((change) => change.id);
+    const removedEdges = edges.filter((edge) => removedEdgeIds.includes(edge.id));
+
+    if (removedEdges.length > 0) {
       pushHistory();
     }
-    onEdgesChange(changes);
-  }, [onEdgesChange, pushHistory]);
+
+    const nextEdges = applyEdgeChanges(changes, edges);
+    setEdges(nextEdges);
+
+    if (removedEdges.length > 0) {
+      const nextNodes = updateState(removeEdgeLinks(nodes, removedEdges));
+      setNodes(nextNodes);
+      syncSelectedNode(nextNodes, selectedNodeIdRef, setSelectedNode);
+    }
+  }, [edges, nodes, pushHistory, setEdges, setNodes, setSelectedNode]);
 
   const selectNode = useCallback((node: ModuleBaseNode) => {
+    selectedNodeIdRef.current = node.id;
     setSelectedNode(node.data);
   }, [setSelectedNode]);
 
   const connectNodes = useCallback((connection: Connection) => {
     if (!connection.source || !connection.target) return;
 
-    setNodes((currentNodes) => {
-      const sourceNode = currentNodes.find((node) => node.id === connection.source);
-      const targetNode = currentNodes.find((node) => node.id === connection.target);
-      if (!sourceNode || !targetNode) return currentNodes;
-      if (sourceNode.data.kind === 'Output' || targetNode.data.kind === 'Input') return currentNodes;
-      if (targetNode.data.kind !== 'Sum' && targetNode.data.predecessors.length > 0) return currentNodes;
-
-      const nextNodes = currentNodes.map((node) => {
-        if (node.id === connection.source) {
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              successors: [...node.data.successors, targetNode.data],
-            },
-          };
-        }
-        if (node.id === connection.target) {
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              predecessors: [...node.data.predecessors, sourceNode.data],
-            },
-          };
-        }
-        return node;
-      });
-      const selectedNode = nextNodes.find((node) => node.selected);
-      if (selectedNode) {
-        setSelectedNode(selectedNode.data);
-      }
-      return nextNodes;
-    });
     const sourceNode = nodes.find((node) => node.id === connection.source);
     const targetNode = nodes.find((node) => node.id === connection.target);
     if (!sourceNode || !targetNode) return;
     if (sourceNode.data.kind === 'Output' || targetNode.data.kind === 'Input') return;
-    if (targetNode.data.kind !== 'Sum' && targetNode.data.predecessors.length > 0) return;
+    if (targetNode.data.kind !== 'Sum' && edges.some((edge) => edge.target === targetNode.id)) return;
+    if (edges.some((edge) => edge.source === sourceNode.id && edge.target === targetNode.id)) return;
 
     pushHistory();
-    setEdges((currentEdges) => addEdge({
+    const nextEdges = addEdge({
       ...connection,
       id: `${connection.source}-${connection.target}`,
-    }, currentEdges));
-  }, [nodes, pushHistory, setEdges, setNodes, setSelectedNode]);
+    }, edges);
+    const nextNodes = updateState(addEdgeLink(nodes, sourceNode.data, targetNode.data));
+
+    setEdges(nextEdges);
+    setNodes(nextNodes);
+    syncSelectedNode(nextNodes, selectedNodeIdRef, setSelectedNode);
+  }, [edges, nodes, pushHistory, setEdges, setNodes, setSelectedNode]);
 
   const startNodeDrag = useCallback((node: ModuleBaseNode) => {
     pushHistory();
     selectNode(node);
   }, [pushHistory, selectNode]);
+
+  const startNodeHover = useCallback((node: ModuleBaseNode) => {
+    if (node.data.kind !== 'Sum' || node.data.sumInputPairStats?.length === 0) return;
+
+    if (hoverTimerRef.current !== null) {
+      window.clearTimeout(hoverTimerRef.current);
+    }
+    hoverTimerRef.current = window.setTimeout(() => {
+      setHoveredSumNodeId(node.id);
+      hoverTimerRef.current = null;
+    }, 1000);
+  }, []);
+
+  const endNodeHover = useCallback((node: ModuleBaseNode) => {
+    if (hoverTimerRef.current !== null) {
+      window.clearTimeout(hoverTimerRef.current);
+      hoverTimerRef.current = null;
+    }
+    if (hoveredSumNodeId === node.id) {
+      setHoveredSumNodeId(null);
+    }
+  }, [hoveredSumNodeId]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -272,7 +344,12 @@ export function NeuralBlueprintCanvasInner({
         onConnect={connectNodes}
         onNodeClick={(_, node) => selectNode(node)}
         onNodeDragStart={(_, node) => startNodeDrag(node)}
-        onPaneClick={() => setSelectedNode(null)}
+        onNodeMouseEnter={(_, node) => startNodeHover(node)}
+        onNodeMouseLeave={(_, node) => endNodeHover(node)}
+        onPaneClick={() => {
+          selectedNodeIdRef.current = null;
+          setSelectedNode(null);
+        }}
         onInit={setReactFlowInstance}
         nodesDraggable
         nodesConnectable
@@ -287,51 +364,7 @@ export function NeuralBlueprintCanvasInner({
       >
         <Background />
       </ReactFlow>
+      <CorrelationOverlay lines={correlationLines} />
     </div>
   );
-}
-
-function isModuleBaseNodeKind(kind: string): kind is ModuleBaseNodeKind {
-  return kind === 'Input' || kind === 'Linear' || kind === 'ReLU' || kind === 'Sum' || kind === 'Output';
-}
-
-function getDefaultOutputDim() {
-  return 64;
-}
-
-function createGraphSnapshot(
-  nodes: ModuleBaseNode[],
-  edges: Edge[],
-): NeuralBlueprintGraphSnapshot {
-  const snapshotEdges = edges.map((edge) => ({ ...edge }));
-  const dataById = new Map<string, ModuleBaseNodeData>();
-
-  nodes.forEach((node) => {
-    dataById.set(node.id, {
-      ...node.data,
-      predecessors: [],
-      successors: [],
-      position: { ...node.data.position },
-    });
-  });
-
-  snapshotEdges.forEach((edge) => {
-    const source = dataById.get(edge.source);
-    const target = dataById.get(edge.target);
-    if (!source || !target) return;
-
-    source.successors = [...source.successors, target];
-    target.predecessors = [...target.predecessors, source];
-  });
-
-  const snapshotNodes = nodes.map((node) => ({
-    ...node,
-    position: { ...node.position },
-    data: dataById.get(node.id) as ModuleBaseNodeData,
-  }));
-
-  return {
-    nodes: snapshotNodes,
-    edges: snapshotEdges,
-  };
 }

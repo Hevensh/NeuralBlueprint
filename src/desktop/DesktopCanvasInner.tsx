@@ -99,7 +99,7 @@ export function DesktopCanvasInner({
         selected: true,
       },
     ]);
-  }, [onOpenFile, pushHistory, setNodes, setSelectedFile]);
+  }, [pushHistory, setNodes, setSelectedFile]);
 
   const selectNode = useCallback((node: DesktopIconNodeType) => {
     setSelectedFile(node.data.file);
@@ -134,7 +134,7 @@ export function DesktopCanvasInner({
     const timer = window.setTimeout(() => {
       saveDesktopFiles(nodes);
       showSaveNotice('File status saved');
-    }, 500);
+    }, 5000);
     return () => window.clearTimeout(timer);
   }, [nodes, showSaveNotice]);
 
@@ -143,7 +143,7 @@ export function DesktopCanvasInner({
     const timer = window.setTimeout(() => {
       saveDesktopView(viewport);
       showSaveNotice('View saved');
-    }, 500);
+    }, 5000);
     return () => window.clearTimeout(timer);
   }, [showSaveNotice, viewport]);
 

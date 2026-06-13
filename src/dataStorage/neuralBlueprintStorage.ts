@@ -8,6 +8,7 @@ import type {
   ModuleBaseNodeData,
   ModuleBaseNodeKind,
   ModuleVarianceStats,
+  SumInputPairStats,
 } from '../blueprint/neuralBlueprint/ModuleBaseNodeTypes';
 import { appStorage } from './storageAdapter';
 
@@ -21,9 +22,11 @@ interface StoredModuleBaseNode {
   };
   forwardTopologyOrder?: number;
   backwardTopologyOrder?: number;
+  inCycle?: boolean;
   outputDim: number;
   effectiveRank?: number;
   varianceStats?: ModuleVarianceStats;
+  sumInputPairStats?: SumInputPairStats[];
   normalizationMode?: InputNormalizationMode;
   initializationMode?: LinearInitializationMode;
   biasInitializationMode?: BiasInitializationMode;
@@ -134,8 +137,9 @@ function buildNodes(
       successors: [],
       forwardTopologyOrder: node.forwardTopologyOrder,
       backwardTopologyOrder: node.backwardTopologyOrder,
+      inCycle: node.inCycle ?? false,
       normalizationMode: node.kind === 'Input' ? node.normalizationMode ?? '0-1' : undefined,
-      initializationMode: node.kind === 'Linear' ? node.initializationMode ?? 'normal' : undefined,
+      initializationMode: node.kind === 'Linear' ? node.initializationMode ?? 'xavier_normal' : undefined,
       biasInitializationMode: node.kind === 'Linear' ? node.biasInitializationMode ?? 'zeros' : undefined,
       rankStats: {
         rank: node.outputDim,
@@ -143,6 +147,7 @@ function buildNodes(
         saturation: 0,
       },
       varianceStats: node.varianceStats,
+      sumInputPairStats: node.sumInputPairStats,
       position: node.position,
     });
   });
@@ -174,11 +179,13 @@ function toStoredNode(node: ModuleBaseNode): StoredModuleBaseNode {
     position: node.position,
     forwardTopologyOrder: node.data.forwardTopologyOrder,
     backwardTopologyOrder: node.data.backwardTopologyOrder,
+    inCycle: node.data.inCycle,
     outputDim: node.data.rankStats?.rank ?? 64,
     effectiveRank: node.data.kind === 'Input' ? node.data.rankStats?.effectiveRank ?? 64 : undefined,
     varianceStats: node.data.varianceStats,
+    sumInputPairStats: node.data.kind === 'Sum' ? node.data.sumInputPairStats : undefined,
     normalizationMode: node.data.kind === 'Input' ? node.data.normalizationMode ?? '0-1' : undefined,
-    initializationMode: node.data.kind === 'Linear' ? node.data.initializationMode ?? 'normal' : undefined,
+    initializationMode: node.data.kind === 'Linear' ? node.data.initializationMode ?? 'xavier_normal' : undefined,
     biasInitializationMode: node.data.kind === 'Linear' ? node.data.biasInitializationMode ?? 'zeros' : undefined,
   };
 }

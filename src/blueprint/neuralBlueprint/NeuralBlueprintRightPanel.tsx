@@ -1,6 +1,7 @@
 import { useReactFlow, type Edge } from '@xyflow/react';
 import { type ChangeEvent, type Dispatch, type SetStateAction } from 'react';
 import { PropertyDropdown } from '../../PropertyDropdown';
+import { updateState } from './analysis';
 import type {
   BiasInitializationMode,
   InputNormalizationMode,
@@ -26,17 +27,26 @@ export function NeuralBlueprintRightPanel({
   setShowVarianceAnalysis,
   setSelectedNode,
 }: NeuralBlueprintRightPanelProp) {
-  const { updateNodeData } = useReactFlow<ModuleBaseNode, Edge>();
+  const { getNodes, setNodes } = useReactFlow<ModuleBaseNode, Edge>();
 
   const updateSelectedNode = (patch: Partial<ModuleBaseNodeData>) => {
     if (!selectedNode) return;
 
-    const nextData = {
-      ...selectedNode,
-      ...patch,
-    };
-    setSelectedNode(nextData);
-    updateNodeData(selectedNode.id, () => nextData);
+    const nextNodes = updateState(getNodes().map((node) => (
+      node.id === selectedNode.id
+        ? {
+          ...node,
+          data: {
+            ...node.data,
+            ...patch,
+          },
+        }
+        : node
+    )));
+    const nextSelectedNode = nextNodes.find((node) => node.id === selectedNode.id)?.data ?? null;
+
+    setNodes(nextNodes);
+    setSelectedNode(nextSelectedNode);
   };
 
   const handleNameChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -145,10 +155,10 @@ export function NeuralBlueprintRightPanel({
                 <span className="property-label">Weight Initialization</span>
                 <PropertyDropdown<LinearInitializationMode>
                   options={[
-                    { label: 'Normal', value: 'normal' },
-                    { label: 'Xavier', value: 'xavier' },
+                    { label: 'Standard Normal', value: 'standard_normal' },
+                    { label: 'Xavier Normal', value: 'xavier_normal' },
                   ]}
-                  value={selectedNode.initializationMode ?? 'normal'}
+                  value={selectedNode.initializationMode ?? 'xavier_normal'}
                   onChange={(initializationMode) => updateSelectedNode({ initializationMode })}
                 />
               </div>
@@ -158,8 +168,7 @@ export function NeuralBlueprintRightPanel({
                 <PropertyDropdown<BiasInitializationMode>
                   options={[
                     { label: 'Zeros', value: 'zeros' },
-                    { label: 'Normal', value: 'normal' },
-                    { label: 'Xavier', value: 'xavier' },
+                    { label: 'Standard Normal', value: 'standard_normal' },
                   ]}
                   value={selectedNode.biasInitializationMode ?? 'zeros'}
                   onChange={(biasInitializationMode) => updateSelectedNode({ biasInitializationMode })}
