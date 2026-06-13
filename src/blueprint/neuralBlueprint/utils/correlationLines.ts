@@ -28,13 +28,20 @@ export function createCorrelationLines(
   }
 
   const nodeById = new Map(nodes.map((node) => [node.id, node]));
+  const drawnPairKeys = new Set<string>();
 
   return sumNode.data.sumInputPairStats
     .map((pair) => {
+      if (pair.leftNodeId === pair.rightNodeId) return null;
+
+      const pairKey = getPairKey(pair.leftNodeId, pair.rightNodeId);
+      if (drawnPairKeys.has(pairKey)) return null;
+
       const leftNode = nodeById.get(pair.leftNodeId);
       const rightNode = nodeById.get(pair.rightNodeId);
       if (!leftNode || !rightNode) return null;
 
+      drawnPairKeys.add(pairKey);
       const leftCenter = getNodeScreenCenter(leftNode, viewport);
       const rightCenter = getNodeScreenCenter(rightNode, viewport);
       const labels = [
@@ -58,6 +65,12 @@ export function createCorrelationLines(
       };
     })
     .filter((line): line is CorrelationLine => Boolean(line));
+}
+
+function getPairKey(leftNodeId: string, rightNodeId: string) {
+  return leftNodeId < rightNodeId
+    ? `${leftNodeId}:${rightNodeId}`
+    : `${rightNodeId}:${leftNodeId}`;
 }
 
 function getNodeScreenCenter(node: ModuleBaseNode, viewport: Viewport) {
