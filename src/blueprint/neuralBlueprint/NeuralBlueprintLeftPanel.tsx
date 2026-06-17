@@ -26,6 +26,11 @@ const moduleBaseNodeTemplates: ModuleBaseNodeTemplate[] = [
     description: 'Activation and sparsity',
   },
   {
+    kind: 'Dropout',
+    title: 'Dropout',
+    description: 'Random feature deletion',
+  },
+  {
     kind: 'Sum',
     title: 'Sum',
     description: 'Merge multiple inputs',
@@ -42,11 +47,13 @@ function getModuleBaseNodeIcon(kind: ModuleBaseNodeKind) {
     ? 'W'
     : kind === 'ReLU'
       ? 'R'
-    : kind === 'Sum'
-      ? '+'
-      : kind === 'Output'
-        ? 'Y'
-        : 'X';
+      : kind === 'Dropout'
+        ? 'D'
+        : kind === 'Sum'
+          ? '+'
+          : kind === 'Output'
+            ? 'Y'
+            : 'X';
 }
 
 function handleDragStart(
@@ -57,9 +64,18 @@ function handleDragStart(
   event.dataTransfer.effectAllowed = 'copy';
 }
 
-export function NeuralBlueprintLeftPanel() {
+interface NeuralBlueprintLeftPanelProp {
+  onArrangeNodes: () => void;
+}
+
+export function NeuralBlueprintLeftPanel({ onArrangeNodes }: NeuralBlueprintLeftPanelProp) {
   return (
     <aside className="left-panel">
+      <div className="panel-section-spacer" />
+      <button className="action-button" onClick={onArrangeNodes} type="button">
+        Arrange Nodes
+      </button>
+      <div className="panel-section-spacer" />
       <div className="title">Neural Modules</div>
       <div className="module-list">
         {moduleBaseNodeTemplates.map((module) => (

@@ -1,22 +1,8 @@
 import type { ModuleStats } from '../../../ModuleBaseNodeTypes';
 import { EPS, RELU_CORR_GAMMA } from './constants';
 
-export function getReluSaturationRho(input?: ModuleStats) {
-  if (!input) {
-    return 0.5;
-  }
-
-  const negativeRate = input.negativeRate ?? 0.5;
-  const positiveRate = 1 - negativeRate;
-  const magnitude = Math.abs(input.mean) + Math.sqrt(Math.max(input.variance, 0));
-  const mPlus = positiveRate * magnitude;
-  const mMinus = negativeRate * magnitude;
-
-  if (mPlus + mMinus <= EPS) {
-    return 0;
-  }
-
-  return mPlus / (mPlus + mMinus);
+export function clamp01(value: number) {
+  return Math.min(Math.max(value, 0), 1);
 }
 
 export function getReluCorrByNegativeRate(negativeRateInput: number | undefined) {
@@ -27,6 +13,82 @@ export function getReluCorrByNegativeRate(negativeRateInput: number | undefined)
   return preservedMass <= 0
     ? 0
     : Math.pow(preservedMass, RELU_CORR_GAMMA);
+}
+
+export function getConditionalNegativeRate(input: ModuleStats) {
+  const nonZeroRate = clamp01(1 - input.zeroRate);
+  if (nonZeroRate <= EPS) {
+    return 1;
+  }
+
+  return clamp01((input.negativeRate ?? 0) / nonZeroRate);
+}
+
+export function getNonZeroRate(input: ModuleStats) {
+  return clamp01(1 - input.zeroRate);
+}
+
+export function statsFromMoments(mean: number, secondMoment: number) {
+  return {
+    mean,
+    variance: Math.max(secondMoment - mean ** 2, 0),
+  };
+}
+
+export function getNonZeroContinuousMoments(input: ModuleStats) {
+  const nonZeroRate = getNonZeroRate(input);
+  if (nonZeroRate <= EPS) {
+    return {
+      nonZeroRate,
+      mean: 0,
+      variance: 0,
+      secondMoment: 0,
+    };
+  }
+
+  const mean = input.mean / nonZeroRate;
+  const secondMoment = (input.variance + input.mean ** 2) / nonZeroRate;
+
+  return {
+    nonZeroRate,
+    mean,
+    secondMoment,
+    variance: Math.max(secondMoment - mean ** 2, 0),
+  };
+}
+
+export function getConditionalPositiveRate(input: ModuleStats) {
+  return 1 - getConditionalNegativeRate(input);
+}
+
+export function getReluSaturation(input: ModuleStats) {
+  return Math.pow(
+    clamp01(input.saturation),
+    getConditionalPositiveRate(input),
+  );
+}
+
+export function getDropoutSaturation(input: ModuleStats, dropoutRate: number) {
+  const beforeNonZeroRate = clamp01(1 - input.zeroRate);
+  const afterNonZeroRate = beforeNonZeroRate * (1 - clamp01(dropoutRate));
+  if (beforeNonZeroRate <= EPS) {
+    return 0;
+  }
+
+  return Math.pow(
+    clamp01(input.saturation),
+    afterNonZeroRate / beforeNonZeroRate,
+  );
+}
+
+export function getGateLinearCorr(input: ModuleStats, outputSaturation: number) {
+  const inputSaturation = clamp01(input.saturation);
+  const nextSaturation = clamp01(outputSaturation);
+  if (nextSaturation <= EPS) {
+    return 0;
+  }
+
+  return clamp01(inputSaturation / nextSaturation);
 }
 
 export function estimateSumNegativeRate(mean: number, variance: number) {

@@ -14,11 +14,13 @@ export function NeuralBlueprintWorkspace({ fileId }: NeuralBlueprintWorkspacePro
   const [selectedNode, setSelectedNode] = useState<ModuleBaseNodeData | null>(null);
   const [showVarianceAnalysis, setShowVarianceAnalysis] = useState(initialUi.showVarianceAnalysis);
   const [showRankAnalysis, setShowRankAnalysis] = useState(initialUi.showRankAnalysis);
+  const [arrangeRequest, setArrangeRequest] = useState(0);
 
   return (
     <>
-      <NeuralBlueprintLeftPanel />
+      <NeuralBlueprintLeftPanel onArrangeNodes={() => setArrangeRequest((request) => request + 1)} />
       <NeuralBlueprintCanvasInner
+        arrangeRequest={arrangeRequest}
         fileId={fileId}
         showRankAnalysis={showRankAnalysis}
         showVarianceAnalysis={showVarianceAnalysis}

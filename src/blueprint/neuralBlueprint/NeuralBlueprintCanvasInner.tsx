@@ -13,7 +13,6 @@ import {
   type Edge,
   type EdgeChange,
   type NodeChange,
-  type NodeProps,
   type ReactFlowInstance,
 } from '@xyflow/react';
 import { type Dispatch, type DragEvent, type SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -36,6 +35,7 @@ import {
   getDefaultStats,
   isModuleBaseNodeKind,
 } from './ModuleBaseNodeTypes';
+import { arrangeModuleNodes } from './utils/arrangeNodes';
 import { createCorrelationLines } from './utils/correlationLines';
 import { CorrelationOverlay } from './utils/correlationOverlay';
 import {
@@ -50,7 +50,7 @@ import {
 import { syncSelectedNode } from './utils/selection';
 
 const defaultEdgeOptions = {
-  type: 'smoothstep',
+  // type: 'smoothstep',
   markerEnd: {
     type: MarkerType.ArrowClosed,
     color: '#38bdf8',
@@ -61,7 +61,12 @@ const defaultEdgeOptions = {
   },
 };
 
+const nodeTypes = {
+  [PageType.NeuralBlueprint]: NeuralBlueprintNode,
+};
+
 interface NeuralBlueprintCanvasInnerProp {
+  arrangeRequest: number;
   fileId: string;
   showRankAnalysis: boolean;
   showVarianceAnalysis: boolean;
@@ -69,6 +74,7 @@ interface NeuralBlueprintCanvasInnerProp {
 }
 
 export function NeuralBlueprintCanvasInner({
+  arrangeRequest,
   fileId,
   showRankAnalysis,
   showVarianceAnalysis,
@@ -90,19 +96,11 @@ export function NeuralBlueprintCanvasInner({
   const [hoveredSumNodeId, setHoveredSumNodeId] = useState<string | null>(null);
   const historyRef = useRef<NeuralBlueprintGraphSnapshot[]>([]);
   const hoverTimerRef = useRef<number | null>(null);
+  const handledArrangeRequestRef = useRef(0);
   const selectedNodeIdRef = useRef<string | null>(null);
   const selectedSumNode = useMemo(() => (
     nodes.find((node) => node.selected && node.data.kind === 'Sum') ?? null
   ), [nodes]);
-  const nodeTypes = useMemo(() => ({
-    [PageType.NeuralBlueprint]: (props: NodeProps<ModuleBaseNode>) => (
-      <NeuralBlueprintNode
-        {...props}
-        showRankAnalysis={showRankAnalysis}
-        showVarianceAnalysis={showVarianceAnalysis}
-      />
-    ),
-  }), [showRankAnalysis, showVarianceAnalysis]);
   const visibleCorrelationNode = selectedSumNode
     ?? nodes.find((node) => node.id === hoveredSumNodeId && node.data.kind === 'Sum')
     ?? null;
@@ -122,6 +120,14 @@ export function NeuralBlueprintCanvasInner({
       createGraphSnapshot(nodes, edges),
     ];
   }, [edges, nodes]);
+
+  const arrangeNodes = useCallback(() => {
+    pushHistory();
+    const nextNodes = arrangeModuleNodes(updateState(nodes));
+
+    setNodes(nextNodes);
+    syncSelectedNode(nextNodes, selectedNodeIdRef, setSelectedNode);
+  }, [nodes, pushHistory, setNodes, setSelectedNode]);
 
   const undo = useCallback(() => {
     const previousGraph = historyRef.current.at(-1);
@@ -149,6 +155,7 @@ export function NeuralBlueprintCanvasInner({
       normalizationMode: kind === 'Input' ? '0-1' : undefined,
       initializationMode: kind === 'Linear' ? 'xavier_normal' : undefined,
       biasInitializationMode: kind === 'Linear' ? 'zeros' : undefined,
+      dropoutRate: kind === 'Dropout' ? 0.5 : undefined,
       stats: getDefaultStats(kind),
       position,
     };
@@ -291,6 +298,16 @@ export function NeuralBlueprintCanvasInner({
     }, 500);
     return () => window.clearTimeout(timer);
   }, [edges, fileId, nodes, showRankAnalysis, showVarianceAnalysis]);
+
+  useEffect(() => {
+    if (
+      arrangeRequest === 0
+      || handledArrangeRequestRef.current === arrangeRequest
+    ) return;
+
+    handledArrangeRequestRef.current = arrangeRequest;
+    arrangeNodes();
+  }, [arrangeNodes, arrangeRequest]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {

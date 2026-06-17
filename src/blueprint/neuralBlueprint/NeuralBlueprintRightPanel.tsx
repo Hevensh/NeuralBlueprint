@@ -1,11 +1,8 @@
 import { useReactFlow, type Edge } from '@xyflow/react';
 import { type ChangeEvent, type Dispatch, type SetStateAction } from 'react';
-import { PropertyDropdown } from '../../PropertyDropdown';
 import { updateState } from './analysis';
+import { NeuralBlueprintModuleProperties } from './NeuralBlueprintModuleProperties';
 import type {
-  BiasInitializationMode,
-  InputNormalizationMode,
-  LinearInitializationMode,
   ModuleBaseNode,
   ModuleBaseNodeData,
 } from './ModuleBaseNodeTypes';
@@ -69,21 +66,6 @@ export function NeuralBlueprintRightPanel({
     });
   };
 
-  const handleEffectiveRankChange = (event: ChangeEvent<HTMLInputElement>) => {
-    updateSelectedNode({
-      stats: {
-        ...selectedNode?.stats,
-        rank: selectedNode?.stats?.rank ?? 64,
-        effectiveRank: parseIntegerPropertyNumber(event.target.value),
-        saturation: selectedNode?.stats?.saturation ?? 0,
-        mean: selectedNode?.stats?.mean ?? Number.NaN,
-        variance: selectedNode?.stats?.variance ?? Number.NaN,
-        zeroRate: selectedNode?.stats?.zeroRate ?? Number.NaN,
-        negativeRate: selectedNode?.stats?.negativeRate,
-      },
-    });
-  };
-
   return (
     <aside className="right-panel">
       <div className="title">Properties</div>
@@ -128,64 +110,20 @@ export function NeuralBlueprintRightPanel({
             />
           </label>
 
-          {showRankAnalysis && (
+          {showRankAnalysis && selectedNode.kind !== 'Input' && (
             <label className="property-field">
               <span className="property-label">Effective Rank</span>
-              {selectedNode.kind === 'Input' ? (
-                <input
-                  className="property-input"
-                  value={formatIntegerPropertyNumber(selectedNode.stats?.effectiveRank)}
-                  onChange={handleEffectiveRankChange}
-                />
-              ) : (
-                <div className="property-value">
-                  {formatDecimalPropertyNumber(selectedNode.stats?.effectiveRank, 3)}
-                </div>
-              )}
+              <div className="property-value">
+                {formatDecimalPropertyNumber(selectedNode.stats?.effectiveRank, 3)}
+              </div>
             </label>
           )}
 
-          {selectedNode.kind === 'Input' && (
-            <div className="property-field">
-              <span className="property-label">Normalization</span>
-              <PropertyDropdown<InputNormalizationMode>
-                options={[
-                  { label: '0-1', value: '0-1' },
-                  { label: 'Standard', value: 'standard' },
-                ]}
-                value={selectedNode.normalizationMode ?? '0-1'}
-                onChange={(normalizationMode) => updateSelectedNode({ normalizationMode })}
-              />
-            </div>
-          )}
-
-          {selectedNode.kind === 'Linear' && (
-            <>
-              <div className="property-field">
-                <span className="property-label">Weight Initialization</span>
-                <PropertyDropdown<LinearInitializationMode>
-                  options={[
-                    { label: 'Standard Normal', value: 'standard_normal' },
-                    { label: 'Xavier Normal', value: 'xavier_normal' },
-                  ]}
-                  value={selectedNode.initializationMode ?? 'xavier_normal'}
-                  onChange={(initializationMode) => updateSelectedNode({ initializationMode })}
-                />
-              </div>
-
-              <div className="property-field">
-                <span className="property-label">Bias Initialization</span>
-                <PropertyDropdown<BiasInitializationMode>
-                  options={[
-                    { label: 'Zeros', value: 'zeros' },
-                    { label: 'Standard Normal', value: 'standard_normal' },
-                  ]}
-                  value={selectedNode.biasInitializationMode ?? 'zeros'}
-                  onChange={(biasInitializationMode) => updateSelectedNode({ biasInitializationMode })}
-                />
-              </div>
-            </>
-          )}
+          <NeuralBlueprintModuleProperties
+            selectedNode={selectedNode}
+            showRankAnalysis={showRankAnalysis}
+            updateSelectedNode={updateSelectedNode}
+          />
 
           {showVarianceAnalysis && (
             <>

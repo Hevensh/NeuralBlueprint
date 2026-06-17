@@ -23,6 +23,7 @@ interface StoredModuleBaseNode {
   normalizationMode?: InputNormalizationMode;
   initializationMode?: LinearInitializationMode;
   biasInitializationMode?: BiasInitializationMode;
+  dropoutRate?: number;
 }
 
 interface StoredModuleEdge {
@@ -134,6 +135,7 @@ function buildNodes(
       normalizationMode: node.kind === 'Input' ? node.normalizationMode ?? '0-1' : undefined,
       initializationMode: node.kind === 'Linear' ? node.initializationMode ?? 'xavier_normal' : undefined,
       biasInitializationMode: node.kind === 'Linear' ? node.biasInitializationMode ?? 'zeros' : undefined,
+      dropoutRate: node.kind === 'Dropout' ? node.dropoutRate ?? 0.5 : undefined,
       stats: {
         rank: node.outputDim ?? 64,
         effectiveRank: node.kind === 'Input' ? node.effectiveRank ?? 32 : Number.NaN,
@@ -177,5 +179,6 @@ function toStoredNode(node: ModuleBaseNode): StoredModuleBaseNode {
     normalizationMode: node.data.kind === 'Input' ? node.data.normalizationMode ?? '0-1' : undefined,
     initializationMode: node.data.kind === 'Linear' ? node.data.initializationMode ?? 'xavier_normal' : undefined,
     biasInitializationMode: node.data.kind === 'Linear' ? node.data.biasInitializationMode ?? 'zeros' : undefined,
+    dropoutRate: node.data.kind === 'Dropout' ? node.data.dropoutRate ?? 0.5 : undefined,
   };
 }

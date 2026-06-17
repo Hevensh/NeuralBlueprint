@@ -25,14 +25,14 @@ const initialFiles: DesktopFile[] = [
 ];
 
 export function loadDesktopFiles(): DesktopFile[] {
-  console.log('loading files');
+  // console.log('loading files');
   try {
     const raw = appStorage.getItem(DESKTOP_DATA_STORAGE_KEY);
     if (!raw) return initialFiles;
 
     const parsed = JSON.parse(raw) as DesktopFile[];
 
-    console.log('files loaded');
+    // console.log('files loaded');
     return parsed;
   } catch {
     return initialFiles;
@@ -48,20 +48,20 @@ export function saveDesktopFiles(nodes: DesktopIconNodeType[]): void {
     }))),
   );
 
-  console.log('files saved');
+  // console.log('files saved');
 }
 
 
 const initialViewport: Viewport = { x: 0, y: 0, zoom: 1 };
 export function loadDesktopView(): Viewport {
-  console.log('loading viewport');
+  // console.log('loading viewport');
   try {
     const raw = appStorage.getItem(DESKTOP_VIEW_STORAGE_KEY);
     if (!raw) return initialViewport;
 
     const viewport = JSON.parse(raw) as Viewport;
 
-    console.log('viewport loaded');
+    // console.log('viewport loaded');
     return viewport;
   } catch {
     return initialViewport;
@@ -74,7 +74,7 @@ export function saveDesktopView(viewport: Viewport): void {
     JSON.stringify(viewport),
   );
 
-  console.log('viewport saved');
+  // console.log('viewport saved');
 }
 
 export function clearWorkspace(): void {

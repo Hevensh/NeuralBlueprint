@@ -2,16 +2,9 @@ import { Handle, Position, type NodeProps } from '@xyflow/react';
 import './NeuralBlueprintNode.css';
 import type { ModuleBaseNode } from './ModuleBaseNodeTypes';
 
-interface NeuralBlueprintNodeProps extends NodeProps<ModuleBaseNode> {
-  showRankAnalysis?: boolean;
-  showVarianceAnalysis?: boolean;
-}
-
 export function NeuralBlueprintNode({
   data,
-  showRankAnalysis = false,
-  showVarianceAnalysis = false,
-}: NeuralBlueprintNodeProps) {
+}: NodeProps<ModuleBaseNode>) {
   const outputDim = data.kind === 'Sum' && data.stats?.dimLabel
     ? data.stats.dimLabel
     : formatInteger(data.stats?.rank);
@@ -31,18 +24,10 @@ export function NeuralBlueprintNode({
       <div className="neural-blueprint-node-name">{data.name}</div>
       <div className="neural-blueprint-node-preview">
         <NodePreviewItem label="dim" value={outputDim} />
-        {showRankAnalysis && (
-          <>
-            <NodePreviewItem label="rank" value={effectiveRank} />
-            <NodePreviewItem label="sat" value={saturation} />
-          </>
-        )}
-        {showVarianceAnalysis && (
-          <>
-            <NodePreviewItem label="mean" value={mean} />
-            <NodePreviewItem label="std" value={standardDeviation} />
-          </>
-        )}
+        <NodePreviewItem className="rank-analysis-preview" label="rank" value={effectiveRank} />
+        <NodePreviewItem className="rank-analysis-preview" label="sat" value={saturation} />
+        <NodePreviewItem className="variance-analysis-preview" label="mean" value={mean} />
+        <NodePreviewItem className="variance-analysis-preview" label="std" value={standardDeviation} />
       </div>
       <Handle
         className="module-base-node-handle output-handle"
@@ -54,14 +39,16 @@ export function NeuralBlueprintNode({
 }
 
 function NodePreviewItem({
+  className = '',
   label,
   value,
 }: {
+  className?: string;
   label: string;
   value: string;
 }) {
   return (
-    <div className="neural-blueprint-node-preview-item">
+    <div className={`neural-blueprint-node-preview-item ${className}`}>
       <span>{label}</span>
       <strong>{value}</strong>
     </div>

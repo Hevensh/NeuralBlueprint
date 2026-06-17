@@ -106,7 +106,7 @@ function computeSumRankStats(
     statsByNodeId,
     getLinearCorrBetweenNodes,
   );
-  const effectiveRank = computeSumEffectiveRankByEvidence(inputs, inputNodes, nodeMap, statsByNodeId);
+  const effectiveRank = computeSumEffectiveRankByEvidence(inputs, linearPairCorrelation);
   const minRank = computeSumMinRank(inputs, linearPairCorrelation);
 
   return {
@@ -124,26 +124,21 @@ function computeSumRankStats(
 
 function computeSumEffectiveRankByEvidence(
   inputs: ModuleStats[],
-  inputNodes: ModuleBaseNodeData[],
-  nodeMap: Map<string, ModuleBaseNodeData>,
-  statsByNodeId: Map<string, ModuleStats>,
+  inputPairCorrelation: Map<string, number>,
 ) {
-  const correlationSums = inputs.map((_, leftIndex) => (
-    inputs.reduce((sum, __, rightIndex) => {
-      if (leftIndex === rightIndex) return sum;
+  return inputs.reduce((sum, input, leftIndex) => {
+    const inputStd = Math.sqrt(input.variance);
+    if (inputStd <= 0) return sum;
 
-      return sum + getLinearCorrBetweenNodes(
-        inputNodes[leftIndex].id,
-        inputNodes[rightIndex].id,
-        statsByNodeId,
-        nodeMap,
-      );
-    }, 0)
-  ));
+    const correlatedStd = inputs.reduce((stdSum, otherInput, rightIndex) => {
+      if (leftIndex === rightIndex) return stdSum;
 
-  return inputs.reduce((sum, input, index) => (
-    sum + input.effectiveRank / (1 + correlationSums[index])
-  ), 0);
+      return stdSum + getInputPairCorrelation(inputPairCorrelation, leftIndex, rightIndex)
+        * Math.sqrt(otherInput.variance);
+    }, inputStd);
+
+    return sum + (input.effectiveRank * inputStd) / correlatedStd;
+  }, 0);
 }
 
 function computeSumMinRank(

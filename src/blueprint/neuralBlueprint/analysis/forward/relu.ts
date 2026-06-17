@@ -4,12 +4,15 @@ import type {
 } from '../../ModuleBaseNodeTypes';
 import { EMPTY_STATS, EPS } from './utils/constants';
 import {
+  getGateLinearCorr,
+  getNonZeroContinuousMoments,
   getReluCorrByNegativeRate,
-  getReluSaturationRho,
+  getReluSaturation,
   isNonNegative,
   negativeRateFromNormal,
   normalCdf,
   normalPdf,
+  statsFromMoments,
 } from './utils/math';
 
 export function forwardReLUStats({
@@ -19,9 +22,9 @@ export function forwardReLUStats({
   const input = inputs[0] ?? EMPTY_STATS;
   const inputNode = inputNodes[0];
   const directCorr = getReluCorrByNegativeRate(input.negativeRate);
-  const reluRankRho = getReluSaturationRho(input);
-  const saturation = input.saturation ** reluRankRho;
+  const saturation = getReluSaturation(input);
   const effectiveRank = input.rank * saturation;
+  const rankCorr = getGateLinearCorr(input, saturation);
 
   if (isNonNegative(input)) {
     return {
@@ -34,12 +37,17 @@ export function forwardReLUStats({
     };
   }
 
-  const std = Math.sqrt(Math.max(input.variance, 0) + EPS);
-  const alpha = input.mean / std;
+  const continuous = getNonZeroContinuousMoments(input);
+  const std = Math.sqrt(continuous.variance + EPS);
+  const alpha = continuous.mean / std;
   const phi = normalPdf(alpha);
   const Phi = normalCdf(alpha);
-  const mean = std * phi + input.mean * Phi;
-  const secondMoment = (input.mean ** 2 + input.variance) * Phi + input.mean * std * phi;
+  const reluMean = std * phi + continuous.mean * Phi;
+  const reluSecondMoment = continuous.secondMoment * Phi + continuous.mean * std * phi;
+  const outputMoments = statsFromMoments(
+    continuous.nonZeroRate * reluMean,
+    continuous.nonZeroRate * reluSecondMoment,
+  );
 
   return {
     stats: {
@@ -47,12 +55,12 @@ export function forwardReLUStats({
       effectiveRank,
       saturation,
       minRank: input.minRank,
-      mean,
-      variance: Math.max(secondMoment - mean ** 2, 0),
+      mean: outputMoments.mean,
+      variance: outputMoments.variance,
       zeroRate: input.zeroRate + (input.negativeRate ?? negativeRateFromNormal(input.mean, input.variance)),
       negativeRate: 0,
       inputElementCorr: inputNode ? { [inputNode.id]: directCorr } : undefined,
-      inputLinearCorr: inputNode ? { [inputNode.id]: directCorr } : undefined,
+      inputLinearCorr: inputNode ? { [inputNode.id]: rankCorr } : undefined,
     },
   };
 }

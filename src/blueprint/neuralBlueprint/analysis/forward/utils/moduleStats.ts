@@ -18,7 +18,12 @@ export function getEmptyStats(node: ModuleBaseNodeData): ModuleStats {
 }
 
 export function getDisconnectedStats(node: ModuleBaseNodeData): ModuleStats {
-  if (node.kind === 'Sum' || node.kind === 'ReLU' || node.kind === 'Output') {
+  if (
+    node.kind === 'Sum'
+    || node.kind === 'ReLU'
+    || node.kind === 'Dropout'
+    || node.kind === 'Output'
+  ) {
     return EMPTY_STATS;
   }
 

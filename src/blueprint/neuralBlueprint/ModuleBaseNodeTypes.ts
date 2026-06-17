@@ -1,7 +1,7 @@
 import type { Node } from '@xyflow/react';
 import type { NeuralBlueprintPageType } from '../PageTypes';
 
-export type ModuleBaseNodeKind = 'Input' | 'Linear' | 'ReLU' | 'Sum' | 'Output';
+export type ModuleBaseNodeKind = 'Input' | 'Linear' | 'ReLU' | 'Dropout' | 'Sum' | 'Output';
 export type InputNormalizationMode = '0-1' | 'standard';
 export type LinearInitializationMode = 'standard_normal' | 'xavier_normal';
 export type BiasInitializationMode = 'zeros' | 'standard_normal';
@@ -84,6 +84,7 @@ export interface ModuleBaseNodeData extends Record<string, unknown> {
   normalizationMode?: InputNormalizationMode;
   initializationMode?: LinearInitializationMode;
   biasInitializationMode?: BiasInitializationMode;
+  dropoutRate?: number;
   inFeatures?: number;
   outFeatures?: number;
   useBias?: boolean;
@@ -104,6 +105,7 @@ const moduleBaseNodeKinds: ModuleBaseNodeKind[] = [
   'Input',
   'Linear',
   'ReLU',
+  'Dropout',
   'Sum',
   'Output',
 ];

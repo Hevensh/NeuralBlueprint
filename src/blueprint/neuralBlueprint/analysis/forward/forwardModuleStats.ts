@@ -6,6 +6,7 @@ import type {
 import { forwardInputStats } from './input';
 import { forwardLinearStats } from './linear';
 import { forwardReLUStats } from './relu';
+import { forwardDropoutStats } from './dropout';
 import { forwardSumStats } from './sum';
 import { DEFAULT_INPUT_STATS } from './utils/constants';
 
@@ -19,6 +20,8 @@ export function forwardModuleStats(
       return forwardLinearStats(context);
     case 'ReLU':
       return forwardReLUStats(context);
+    case 'Dropout':
+      return forwardDropoutStats(context);
     case 'Sum':
       return forwardSumStats(context);
     default:

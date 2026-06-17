@@ -1,6 +1,6 @@
 .neural-blueprint-node {
   position: relative;
-  min-width: 96px;
+  min-width: 128px;
   padding: 10px 12px;
   border: 1px solid rgba(34, 211, 238, 0.52);
   border-radius: 8px;
@@ -62,6 +62,16 @@
   font-variant-numeric: tabular-nums;
 }
 
+.neural-blueprint-node-preview-item.rank-analysis-preview,
+.neural-blueprint-node-preview-item.variance-analysis-preview {
+  display: none;
+}
+
+.canvas-wrap[data-rank-analysis="true"] .neural-blueprint-node-preview-item.rank-analysis-preview,
+.canvas-wrap[data-variance-analysis="true"] .neural-blueprint-node-preview-item.variance-analysis-preview {
+  display: flex;
+}
+
 .neural-blueprint-node.Input {
   border-color: rgba(52, 211, 153, 0.52);
   background: rgba(6, 78, 59, 0.72);
@@ -75,6 +85,11 @@
 .neural-blueprint-node.ReLU {
   border-color: rgba(56, 189, 248, 0.52);
   background: rgba(12, 74, 110, 0.72);
+}
+
+.neural-blueprint-node.Dropout {
+  border-color: rgba(96, 165, 250, 0.52);
+  background: rgba(30, 58, 138, 0.66);
 }
 
 .neural-blueprint-node.Sum {
