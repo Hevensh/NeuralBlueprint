@@ -1,11 +1,19 @@
 import type { ModuleBaseNode, ModuleBaseNodeData } from '../ModuleBaseNodeTypes';
 import {
+  preprocessArrangeCycleBlocks,
+  type ArrangeNodeBlock,
+} from './arrangeCycleBlocks';
+import {
+  findLargestRemainingBranch,
+  getBlockColumnWidth,
+  getBranchColumnOrder,
+  removeRootsCoveredByBranch,
+  type CandidateBranch,
+} from './arrangeBranchUtils';
+import {
   buildArrangeReachabilityMaps,
-  collectAncestorsWithoutPassingThroughBlocked,
-  collectDescendantsWithoutPassingThroughBlocked,
   collectIslandBackwardFromSink,
   collectIslandForwardFromSource,
-  getDataBackwardTopologyOrder,
   getDataTopologyOrder,
   type HeightCollectionResult,
 } from './arrangeNodesUtils';
@@ -14,13 +22,6 @@ const COLUMN_GAP = 240;
 const START_X = 120;
 const START_Y = 180;
 const DEFAULT_NODE_HEIGHT = 72;
-
-type BranchSide = 'source' | 'sink';
-
-interface CandidateBranch {
-  side: BranchSide;
-  nodeIds: Set<string>;
-}
 
 interface LayoutState {
   nodeHeights: Map<string, number>;
@@ -32,13 +33,24 @@ interface LayoutState {
 export function arrangeModuleNodes(nodes: ModuleBaseNode[]) {
   if (nodes.length === 0) return [];
 
-  const layout = buildLayout(nodes);
+  const {
+    layoutNodes,
+    blockById,
+    blockByMemberId,
+  } = preprocessArrangeCycleBlocks(nodes);
+  const layout = buildLayout(layoutNodes, blockById);
 
   return nodes.map((node) => {
-    if (!layout.visitedNodeIds.has(node.id)) return node;
+    const block = blockByMemberId.get(node.id)!;
+    if (!layout.visitedNodeIds.has(block.id)) return node;
 
-    const columnOrder = layout.nodeColumnOrders.get(node.id) ?? getTopologyOrder(node);
-    const level = layout.nodeHeights.get(node.id) ?? layout.ridgeHeights[columnOrder] ?? 0;
+    const memberIndex = block.members.findIndex((member) => member.id === node.id);
+    const columnOffset = memberIndex % block.columnWidth;
+    const rowOffset = Math.floor(memberIndex / block.columnWidth);
+    const blockColumn = layout.nodeColumnOrders.get(block.id) ?? getTopologyOrder(block.node);
+    const blockLevel = layout.nodeHeights.get(block.id) ?? 0;
+    const columnOrder = blockColumn + columnOffset;
+    const level = blockLevel + rowOffset * 2;
     const position = {
       x: START_X + columnOrder * COLUMN_GAP,
       y: START_Y + level * getNodeHeight(node) / 2,
@@ -55,7 +67,10 @@ export function arrangeModuleNodes(nodes: ModuleBaseNode[]) {
   });
 }
 
-function buildLayout(nodes: ModuleBaseNode[]): LayoutState {
+function buildLayout(
+  nodes: ModuleBaseNode[],
+  blockById: Map<string, ArrangeNodeBlock>,
+): LayoutState {
   const layout: LayoutState = {
     nodeHeights: new Map(),
     nodeColumnOrders: new Map(),
@@ -63,8 +78,8 @@ function buildLayout(nodes: ModuleBaseNode[]): LayoutState {
     visitedNodeIds: new Set(),
   };
 
-  collectConnectedNodeIslands(nodes).forEach((islandNodes, index) => {
-    layoutIsland(islandNodes, layout, index === 0);
+  collectConnectedNodeIslands(nodes, blockById).forEach((islandNodes, index) => {
+    layoutIsland(islandNodes, layout, blockById, index === 0);
   });
 
   return layout;
@@ -73,11 +88,20 @@ function buildLayout(nodes: ModuleBaseNode[]): LayoutState {
 function layoutIsland(
   nodes: ModuleBaseNode[],
   layout: LayoutState,
+  blockById: Map<string, ArrangeNodeBlock>,
   isFirstIsland: boolean,
 ) {
   const nodeById = new Map(nodes.map((node) => [node.id, node.data]));
-  const maxForwardOrder = getMaxForwardOrder(nodes);
+  const maxForwardOrder = getMaxColumnOrder(nodes, blockById);
+  const getNodeColumnWidth = (node: ModuleBaseNodeData) => (
+    blockById.get(node.id)?.columnWidth ?? 1
+  );
+  const getNodeHeightUnits = (node: ModuleBaseNodeData) => (
+    blockById.get(node.id)?.heightUnits ?? 2
+  );
   const { sourceDescendantsMap, sinkAncestorsMap } = buildArrangeReachabilityMaps(nodes);
+  const activeSourceIds = new Set(sourceDescendantsMap.keys());
+  const activeSinkIds = new Set(sinkAncestorsMap.keys());
   const mainIsland = findLargestSourceSinkIntersection(
     sourceDescendantsMap,
     sinkAncestorsMap,
@@ -98,22 +122,34 @@ function layoutIsland(
       mainIsland.nodeIds,
       initialHorizon,
       layout.ridgeHeights,
+      getDataTopologyOrder,
+      getNodeColumnWidth,
+      getNodeHeightUnits,
     ),
     getDataTopologyOrder,
   );
 
   while (visitedNodeIds.size < nodes.length) {
     const branch = findLargestRemainingBranch({
-      sourceIds: [...sourceDescendantsMap.keys()],
-      sinkIds: [...sinkAncestorsMap.keys()],
+      sourceIds: [...activeSourceIds],
+      sinkIds: [...activeSinkIds],
       nodeById,
       blockedNodeIds: visitedNodeIds,
+      assignedColumnOrders: layout.nodeColumnOrders,
+      maxForwardOrder,
+      blockById,
     });
 
     if (!branch) break;
 
+    removeRootsCoveredByBranch(branch, activeSourceIds, activeSinkIds);
+
     const beforeCount = visitedNodeIds.size;
-    const getColumnOrder = getBranchColumnOrder(branch.side, maxForwardOrder);
+    const getColumnOrder = getBranchColumnOrder(
+      branch.side,
+      maxForwardOrder,
+      blockById,
+    );
 
     addHeightResult(
       layout,
@@ -124,6 +160,7 @@ function layoutIsland(
         nodeById,
         layout.ridgeHeights,
         maxForwardOrder,
+        blockById,
       ),
       getColumnOrder,
     );
@@ -155,92 +192,61 @@ function collectBranchHeights(
   nodeById: Map<string, ModuleBaseNodeData>,
   ridgeHeights: number[],
   maxForwardOrder: number,
+  blockById: Map<string, ArrangeNodeBlock>,
 ) {
   const assignedNodes = [...assignedNodeIds].map((nodeId) => nodeById.get(nodeId)!);
-  const horizon = getBranchHorizon(branch, nodeById, ridgeHeights, maxForwardOrder);
-  const getColumnOrder = getBranchColumnOrder(branch.side, maxForwardOrder);
-
-  return branch.side === 'sink'
+  const getColumnOrder = getBranchColumnOrder(branch.side, maxForwardOrder, blockById);
+  const getNodeColumnWidth = (node: ModuleBaseNodeData) => (
+    blockById.get(node.id)?.columnWidth ?? 1
+  );
+  const getNodeHeightUnits = (node: ModuleBaseNodeData) => (
+    blockById.get(node.id)?.heightUnits ?? 2
+  );
+  const branchRidgeHeights: number[] = [];
+  const result = branch.side === 'sink'
     ? collectIslandForwardFromSource(
       assignedNodes,
       branch.nodeIds,
-      horizon,
-      ridgeHeights,
+      0,
+      branchRidgeHeights,
       getColumnOrder,
+      getNodeColumnWidth,
+      getNodeHeightUnits,
     )
     : collectIslandBackwardFromSink(
       assignedNodes,
       branch.nodeIds,
-      horizon,
-      ridgeHeights,
+      0,
+      branchRidgeHeights,
       getColumnOrder,
+      getNodeColumnWidth,
+      getNodeHeightUnits,
     );
+  const offset = getProfileOffset(ridgeHeights, result.valleyHeights);
+
+  result.nodeHeights.forEach((height, nodeId) => {
+    result.nodeHeights.set(nodeId, height + offset);
+  });
+  branchRidgeHeights.forEach((height, index) => {
+    ridgeHeights[index] = Math.max(ridgeHeights[index] ?? 0, height + offset);
+  });
+
+  return result;
 }
 
-function getBranchHorizon(
-  branch: CandidateBranch,
-  nodeById: Map<string, ModuleBaseNodeData>,
+function getProfileOffset(
   ridgeHeights: number[],
-  maxForwardOrder: number,
+  valleyHeights: number[],
 ) {
-  const branchNodes = [...branch.nodeIds].map((nodeId) => nodeById.get(nodeId)!);
+  let offset = 0;
 
-  if (branch.side === 'sink') {
-    const maxBackwardOrder = Math.max(...branchNodes.map(getDataBackwardTopologyOrder));
+  valleyHeights.forEach((valleyHeight, index) => {
+    if (!Number.isFinite(valleyHeight)) return;
 
-    return getMaxRidgeHeightInRange(
-      ridgeHeights,
-      maxForwardOrder - maxBackwardOrder,
-      maxForwardOrder,
-    );
-  }
-
-  const maxBranchForwardOrder = Math.max(...branchNodes.map(getDataTopologyOrder));
-
-  return getMaxRidgeHeightInRange(ridgeHeights, 0, maxBranchForwardOrder);
-}
-
-function findLargestRemainingBranch({
-  sourceIds,
-  sinkIds,
-  nodeById,
-  blockedNodeIds,
-}: {
-  sourceIds: string[];
-  sinkIds: string[];
-  nodeById: Map<string, ModuleBaseNodeData>;
-  blockedNodeIds: Set<string>;
-}): CandidateBranch | null {
-  let largestBranch: CandidateBranch | null = null;
-
-  const acceptBranch = (side: BranchSide, nodeIds: Set<string>) => {
-    if (nodeIds.size === 0) return;
-    if (!largestBranch || nodeIds.size > largestBranch.nodeIds.size) {
-      largestBranch = { side, nodeIds };
-    }
-  };
-
-  sourceIds.forEach((sourceId) => {
-    acceptBranch(
-      'source',
-      collectDescendantsWithoutPassingThroughBlocked(
-        nodeById.get(sourceId)!,
-        blockedNodeIds,
-      ),
-    );
+    offset = Math.max(offset, (ridgeHeights[index] ?? 0) - valleyHeight);
   });
 
-  sinkIds.forEach((sinkId) => {
-    acceptBranch(
-      'sink',
-      collectAncestorsWithoutPassingThroughBlocked(
-        nodeById.get(sinkId)!,
-        blockedNodeIds,
-      ),
-    );
-  });
-
-  return largestBranch;
+  return offset;
 }
 
 function findLargestSourceSinkIntersection(
@@ -275,7 +281,10 @@ function findLargestSourceSinkIntersection(
     : null;
 }
 
-function collectConnectedNodeIslands(nodes: ModuleBaseNode[]) {
+function collectConnectedNodeIslands(
+  nodes: ModuleBaseNode[],
+  blockById: Map<string, ArrangeNodeBlock>,
+) {
   const nodeById = new Map(nodes.map((node) => [node.id, node]));
   const visitedNodeIds = new Set<string>();
   const islands: ModuleBaseNode[][] = [];
@@ -305,7 +314,9 @@ function collectConnectedNodeIslands(nodes: ModuleBaseNode[]) {
     islands.push(island);
   });
 
-  return islands.sort((left, right) => right.length - left.length);
+  return islands.sort((left, right) => (
+    getIslandNodeCount(right, blockById) - getIslandNodeCount(left, blockById)
+  ));
 }
 
 function intersectNodeIds(left: Set<string>, right: Set<string>) {
@@ -342,14 +353,23 @@ function getMaxRidgeHeightInRange(ridgeHeights: number[], start: number, end: nu
   return horizon;
 }
 
-function getBranchColumnOrder(side: BranchSide, maxForwardOrder: number) {
-  return side === 'sink'
-    ? (node: ModuleBaseNodeData) => maxForwardOrder - getDataBackwardTopologyOrder(node)
-    : getDataTopologyOrder;
+function getMaxColumnOrder(
+  nodes: ModuleBaseNode[],
+  blockById: Map<string, ArrangeNodeBlock>,
+) {
+  return Math.max(0, ...nodes.map((node) => (
+    getTopologyOrder(node) + getBlockColumnWidth(node.id, blockById) - 1
+  )));
 }
 
-function getMaxForwardOrder(nodes: ModuleBaseNode[]) {
-  return Math.max(0, ...nodes.map((node) => getTopologyOrder(node)));
+function getIslandNodeCount(
+  nodes: ModuleBaseNode[],
+  blockById: Map<string, ArrangeNodeBlock>,
+) {
+  return nodes.reduce(
+    (count, node) => count + (blockById.get(node.id)?.members.length ?? 1),
+    0,
+  );
 }
 
 function getTopologyOrder(node: ModuleBaseNode) {

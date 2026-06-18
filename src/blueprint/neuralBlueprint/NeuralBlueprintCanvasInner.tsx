@@ -50,7 +50,10 @@ import {
 import { syncSelectedNode } from './utils/selection';
 
 const defaultEdgeOptions = {
-  // type: 'smoothstep',
+  type: 'smoothstep',
+  pathOptions: {
+    borderRadius: 24,
+  },
   markerEnd: {
     type: MarkerType.ArrowClosed,
     color: '#38bdf8',

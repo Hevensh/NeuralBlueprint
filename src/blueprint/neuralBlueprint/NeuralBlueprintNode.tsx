@@ -12,9 +12,14 @@ export function NeuralBlueprintNode({
   const saturation = formatFixed(data.stats?.saturation, 3);
   const mean = formatFixed(data.stats?.mean, 3);
   const standardDeviation = formatStandardDeviation(data.stats?.variance);
+  const className = [
+    'neural-blueprint-node',
+    data.kind,
+    data.inCycle ? 'in-cycle' : '',
+  ].filter(Boolean).join(' ');
 
   return (
-    <div className={`neural-blueprint-node ${data.kind}`}>
+    <div className={className}>
       <Handle
         className="module-base-node-handle input-handle"
         position={Position.Left}
