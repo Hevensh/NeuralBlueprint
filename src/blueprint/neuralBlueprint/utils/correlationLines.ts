@@ -1,5 +1,8 @@
 import type { Viewport } from '@xyflow/react';
-import type { ModuleBaseNode } from '../ModuleBaseNodeTypes';
+import type {
+  ModuleAnalysisDirection,
+  ModuleBaseNode,
+} from '../ModuleBaseNodeTypes';
 
 export interface CorrelationLine {
   id: string;
@@ -17,20 +20,29 @@ export interface CorrelationLine {
 }
 
 export function createCorrelationLines(
-  sumNode: ModuleBaseNode | null,
+  anchorNode: ModuleBaseNode | null,
   nodes: ModuleBaseNode[],
   viewport: Viewport,
   showVarianceAnalysis: boolean,
   showRankAnalysis: boolean,
+  analysisDirection: ModuleAnalysisDirection = 'forward',
 ): CorrelationLine[] {
-  if (!sumNode?.data.sumInputPairStats?.length || (!showVarianceAnalysis && !showRankAnalysis)) {
+  if (!anchorNode) {
     return [];
   }
 
+  const pairs = analysisDirection === 'backward'
+    ? anchorNode.data.backwardOutputPairStats
+    : anchorNode.data.sumInputPairStats;
+  if (!pairs?.length || (!showVarianceAnalysis && !showRankAnalysis)) {
+    return [];
+  }
+
+  const anchorNodeId = anchorNode.id;
   const nodeById = new Map(nodes.map((node) => [node.id, node]));
   const drawnPairKeys = new Set<string>();
 
-  return sumNode.data.sumInputPairStats
+  return pairs
     .map((pair) => {
       if (pair.leftNodeId === pair.rightNodeId) return null;
 
@@ -50,7 +62,7 @@ export function createCorrelationLines(
       ].filter((label): label is string => Boolean(label));
 
       return {
-        id: `sum-correlation-${sumNode.id}-${pair.leftNodeId}-${pair.rightNodeId}`,
+        id: `${analysisDirection}-correlation-${anchorNodeId}-${pair.leftNodeId}-${pair.rightNodeId}`,
         labels,
         fontSize: 12 * viewport.zoom,
         lineGap: 15 * viewport.zoom,

@@ -14,6 +14,25 @@
   margin-top: 16px;
 }
 
+.property-direction-tabs {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 16px;
+  padding: 3px;
+}
+
+.property-direction-tabs .top-bar-tab {
+  width: 100%;
+  height: 34px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+
 .property-toggle-group .toggle-button {
   margin: 0;
 }

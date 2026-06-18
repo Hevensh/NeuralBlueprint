@@ -1,17 +1,20 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import './NeuralBlueprintNode.css';
+import './NeuralBlueprintNodeBackward.css';
 import type { ModuleBaseNode } from './ModuleBaseNodeTypes';
 
 export function NeuralBlueprintNode({
   data,
 }: NodeProps<ModuleBaseNode>) {
-  const outputDim = data.kind === 'Sum' && data.stats?.dimLabel
+  const isBackward = data.analysisDirection === 'backward';
+  const stats = isBackward ? data.statsBackward : data.stats;
+  const outputDim = !isBackward && data.kind === 'Sum' && data.stats?.dimLabel
     ? data.stats.dimLabel
-    : formatInteger(data.stats?.rank);
-  const effectiveRank = formatFixed(data.stats?.effectiveRank, 2);
-  const saturation = formatFixed(data.stats?.saturation, 3);
-  const mean = formatFixed(data.stats?.mean, 3);
-  const standardDeviation = formatStandardDeviation(data.stats?.variance);
+    : formatInteger(stats?.rank);
+  const effectiveRank = formatFixed(stats?.effectiveRank, 2);
+  const saturation = formatFixed(stats?.saturation, 3);
+  const mean = formatFixed(stats?.mean, 3);
+  const standardDeviation = formatStandardDeviation(stats?.variance);
   const className = [
     'neural-blueprint-node',
     data.kind,

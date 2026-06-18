@@ -13,7 +13,6 @@ import {
   type Edge,
   type EdgeChange,
   type NodeChange,
-  type ReactFlowInstance,
 } from '@xyflow/react';
 import { type Dispatch, type DragEvent, type SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -27,6 +26,7 @@ import {
 } from './NeuralBlueprintLeftPanel';
 import { NeuralBlueprintNode } from './NeuralBlueprintNode';
 import type {
+  ModuleAnalysisDirection,
   ModuleBaseNode,
   ModuleBaseNodeData,
   ModuleBaseNodeKind,
@@ -35,6 +35,13 @@ import {
   getDefaultStats,
   isModuleBaseNodeKind,
 } from './ModuleBaseNodeTypes';
+import {
+  animateNodePositions,
+  easeArrangeAnimation,
+  getArrangeAnimationDuration,
+  getTargetNodeBounds,
+  type CancelNodePositionAnimation,
+} from './utils/animateNodePositions';
 import { arrangeModuleNodes } from './utils/arrangeNodes';
 import { createCorrelationLines } from './utils/correlationLines';
 import { CorrelationOverlay } from './utils/correlationOverlay';
@@ -49,18 +56,10 @@ import {
 } from './utils/nodeLinks';
 import { syncSelectedNode } from './utils/selection';
 
-const defaultEdgeOptions = {
+const baseEdgeOptions = {
   type: 'smoothstep',
   pathOptions: {
     borderRadius: 24,
-  },
-  markerEnd: {
-    type: MarkerType.ArrowClosed,
-    color: '#38bdf8',
-  },
-  style: {
-    stroke: '#2786af',
-    strokeWidth: 4,
   },
 };
 
@@ -70,6 +69,7 @@ const nodeTypes = {
 
 interface NeuralBlueprintCanvasInnerProp {
   arrangeRequest: number;
+  analysisDirection: ModuleAnalysisDirection;
   fileId: string;
   showRankAnalysis: boolean;
   showVarianceAnalysis: boolean;
@@ -78,15 +78,19 @@ interface NeuralBlueprintCanvasInnerProp {
 
 export function NeuralBlueprintCanvasInner({
   arrangeRequest,
+  analysisDirection,
   fileId,
   showRankAnalysis,
   showVarianceAnalysis,
   setSelectedNode,
 }: NeuralBlueprintCanvasInnerProp) {
-  const { screenToFlowPosition } = useReactFlow<ModuleBaseNode, Edge>();
+  const {
+    fitBounds,
+    getViewport,
+    screenToFlowPosition,
+    setViewport,
+  } = useReactFlow<ModuleBaseNode, Edge>();
   const viewport = useViewport();
-  const [, setReactFlowInstance] =
-    useState<ReactFlowInstance<ModuleBaseNode, Edge> | null>(null);
   const [initialGraph] = useState(() => {
     const graph = loadNeuralBlueprintGraph(fileId);
     return {
@@ -96,17 +100,51 @@ export function NeuralBlueprintCanvasInner({
   });
   const [nodes, setNodes, onNodesChange] = useNodesState<ModuleBaseNode>(initialGraph.nodes);
   const [edges, setEdges] = useEdgesState<Edge>(initialGraph.edges);
-  const [hoveredSumNodeId, setHoveredSumNodeId] = useState<string | null>(null);
+  const [hoveredCorrelationNodeKey, setHoveredCorrelationNodeKey] = useState<string | null>(null);
   const historyRef = useRef<NeuralBlueprintGraphSnapshot[]>([]);
   const hoverTimerRef = useRef<number | null>(null);
   const handledArrangeRequestRef = useRef(0);
+  const cancelNodeAnimationRef = useRef<CancelNodePositionAnimation>(() => undefined);
   const selectedNodeIdRef = useRef<string | null>(null);
-  const selectedSumNode = useMemo(() => (
-    nodes.find((node) => node.selected && node.data.kind === 'Sum') ?? null
-  ), [nodes]);
-  const visibleCorrelationNode = selectedSumNode
-    ?? nodes.find((node) => node.id === hoveredSumNodeId && node.data.kind === 'Sum')
+  const selectedCorrelationNode = useMemo(() => (
+    nodes.find((node) => (
+      node.selected && hasCorrelationPairs(node, analysisDirection)
+    )) ?? null
+  ), [analysisDirection, nodes]);
+  const visibleCorrelationNode = selectedCorrelationNode
+    ?? nodes.find((node) => (
+      getCorrelationNodeKey(node.id, analysisDirection)
+        === hoveredCorrelationNodeKey
+      && hasCorrelationPairs(node, analysisDirection)
+    ))
     ?? null;
+  const displayNodes = useMemo(() => (
+    nodes.map((node) => ({
+      ...node,
+      data: {
+        ...node.data,
+        analysisDirection,
+      },
+    }))
+  ), [analysisDirection, nodes]);
+  const edgeOptions = useMemo(() => {
+    const isBackward = analysisDirection === 'backward';
+    const color = isBackward ? '#c084fc' : '#38bdf8';
+    const marker = {
+      type: MarkerType.ArrowClosed,
+      color,
+    };
+
+    return {
+      ...baseEdgeOptions,
+      markerStart: isBackward ? marker : undefined,
+      markerEnd: isBackward ? undefined : marker,
+      style: {
+        stroke: isBackward ? '#9333ea' : '#2786af',
+        strokeWidth: 4,
+      },
+    };
+  }, [analysisDirection]);
   const correlationLines = useMemo(() => (
     createCorrelationLines(
       visibleCorrelationNode,
@@ -114,8 +152,16 @@ export function NeuralBlueprintCanvasInner({
       viewport,
       showVarianceAnalysis,
       showRankAnalysis,
+      analysisDirection,
     )
-  ), [nodes, showRankAnalysis, showVarianceAnalysis, viewport, visibleCorrelationNode]);
+  ), [
+    analysisDirection,
+    nodes,
+    showRankAnalysis,
+    showVarianceAnalysis,
+    viewport,
+    visibleCorrelationNode,
+  ]);
 
   const pushHistory = useCallback(() => {
     historyRef.current = [
@@ -125,14 +171,40 @@ export function NeuralBlueprintCanvasInner({
   }, [edges, nodes]);
 
   const arrangeNodes = useCallback(() => {
+    cancelNodeAnimationRef.current();
     pushHistory();
     const nextNodes = arrangeModuleNodes(updateState(nodes));
+    const duration = getArrangeAnimationDuration();
+    const cancelNodeAnimation = animateNodePositions(
+      nodes,
+      nextNodes,
+      setNodes,
+      duration,
+    );
 
-    setNodes(nextNodes);
+    void fitBounds(getTargetNodeBounds(nextNodes), {
+      duration,
+      ease: easeArrangeAnimation,
+      interpolate: 'linear',
+      padding: 0.12,
+    });
+    cancelNodeAnimationRef.current = () => {
+      cancelNodeAnimation();
+      void setViewport(getViewport());
+    };
     syncSelectedNode(nextNodes, selectedNodeIdRef, setSelectedNode);
-  }, [nodes, pushHistory, setNodes, setSelectedNode]);
+  }, [
+    fitBounds,
+    getViewport,
+    nodes,
+    pushHistory,
+    setNodes,
+    setSelectedNode,
+    setViewport,
+  ]);
 
   const undo = useCallback(() => {
+    cancelNodeAnimationRef.current();
     const previousGraph = historyRef.current.at(-1);
     if (!previousGraph) return;
 
@@ -266,41 +338,55 @@ export function NeuralBlueprintCanvasInner({
   }, [edges, nodes, pushHistory, setEdges, setNodes, setSelectedNode]);
 
   const startNodeDrag = useCallback((node: ModuleBaseNode) => {
+    cancelNodeAnimationRef.current();
     pushHistory();
     selectNode(node);
   }, [pushHistory, selectNode]);
 
   const startNodeHover = useCallback((node: ModuleBaseNode) => {
-    if (node.data.kind !== 'Sum' || node.data.sumInputPairStats?.length === 0) return;
+    if (!hasCorrelationPairs(node, analysisDirection)) return;
 
     if (hoverTimerRef.current !== null) {
       window.clearTimeout(hoverTimerRef.current);
     }
     hoverTimerRef.current = window.setTimeout(() => {
-      setHoveredSumNodeId(node.id);
+      setHoveredCorrelationNodeKey(
+        getCorrelationNodeKey(node.id, analysisDirection),
+      );
       hoverTimerRef.current = null;
     }, 1000);
-  }, []);
+  }, [analysisDirection]);
 
   const endNodeHover = useCallback((node: ModuleBaseNode) => {
     if (hoverTimerRef.current !== null) {
       window.clearTimeout(hoverTimerRef.current);
       hoverTimerRef.current = null;
     }
-    if (hoveredSumNodeId === node.id) {
-      setHoveredSumNodeId(null);
+    if (
+      hoveredCorrelationNodeKey
+        === getCorrelationNodeKey(node.id, analysisDirection)
+    ) {
+      setHoveredCorrelationNodeKey(null);
     }
-  }, [hoveredSumNodeId]);
+  }, [analysisDirection, hoveredCorrelationNodeKey]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
       saveNeuralBlueprintGraph(fileId, nodes, edges, {
+        analysisDirection,
         showRankAnalysis,
         showVarianceAnalysis,
       });
     }, 500);
     return () => window.clearTimeout(timer);
-  }, [edges, fileId, nodes, showRankAnalysis, showVarianceAnalysis]);
+  }, [
+    analysisDirection,
+    edges,
+    fileId,
+    nodes,
+    showRankAnalysis,
+    showVarianceAnalysis,
+  ]);
 
   useEffect(() => {
     if (
@@ -323,6 +409,10 @@ export function NeuralBlueprintCanvasInner({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [undo]);
+
+  useEffect(() => () => {
+    cancelNodeAnimationRef.current();
+  }, []);
 
   const handleDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -348,17 +438,21 @@ export function NeuralBlueprintCanvasInner({
     <div
       className="canvas-wrap"
       data-file-id={fileId}
+      data-analysis-direction={analysisDirection}
       data-rank-analysis={showRankAnalysis}
       data-variance-analysis={showVarianceAnalysis}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
       <ReactFlow<ModuleBaseNode>
-        nodes={nodes}
+        nodes={displayNodes}
         edges={edges}
         nodeTypes={nodeTypes}
-        defaultEdgeOptions={defaultEdgeOptions}
-        connectionLineStyle={{ stroke: '#38bdf8', strokeWidth: 2 }}
+        defaultEdgeOptions={edgeOptions}
+        connectionLineStyle={{
+          stroke: analysisDirection === 'backward' ? '#c084fc' : '#38bdf8',
+          strokeWidth: 2,
+        }}
         onNodesChange={handleNodesChange}
         onEdgesChange={handleEdgesChange}
         onConnect={connectNodes}
@@ -370,7 +464,6 @@ export function NeuralBlueprintCanvasInner({
           selectedNodeIdRef.current = null;
           setSelectedNode(null);
         }}
-        onInit={setReactFlowInstance}
         nodesDraggable
         nodesConnectable
         deleteKeyCode="Delete"
@@ -387,4 +480,20 @@ export function NeuralBlueprintCanvasInner({
       <CorrelationOverlay lines={correlationLines} />
     </div>
   );
+}
+
+function hasCorrelationPairs(
+  node: ModuleBaseNode,
+  analysisDirection: ModuleAnalysisDirection,
+) {
+  return analysisDirection === 'backward'
+    ? Boolean(node.data.backwardOutputPairStats?.length)
+    : node.data.kind === 'Sum' && Boolean(node.data.sumInputPairStats?.length);
+}
+
+function getCorrelationNodeKey(
+  nodeId: string,
+  analysisDirection: ModuleAnalysisDirection,
+) {
+  return `${analysisDirection}:${nodeId}`;
 }

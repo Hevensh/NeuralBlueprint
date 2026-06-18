@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { loadNeuralBlueprintUi } from '../../dataStorage/neuralBlueprintStorage';
-import type { ModuleBaseNodeData } from './ModuleBaseNodeTypes';
+import type {
+  ModuleAnalysisDirection,
+  ModuleBaseNodeData,
+} from './ModuleBaseNodeTypes';
 import { NeuralBlueprintCanvasInner } from './NeuralBlueprintCanvasInner';
 import { NeuralBlueprintLeftPanel } from './NeuralBlueprintLeftPanel';
 import { NeuralBlueprintRightPanel } from './NeuralBlueprintRightPanel';
@@ -14,6 +17,9 @@ export function NeuralBlueprintWorkspace({ fileId }: NeuralBlueprintWorkspacePro
   const [selectedNode, setSelectedNode] = useState<ModuleBaseNodeData | null>(null);
   const [showVarianceAnalysis, setShowVarianceAnalysis] = useState(initialUi.showVarianceAnalysis);
   const [showRankAnalysis, setShowRankAnalysis] = useState(initialUi.showRankAnalysis);
+  const [analysisDirection, setAnalysisDirection] = useState<ModuleAnalysisDirection>(
+    initialUi.analysisDirection,
+  );
   const [arrangeRequest, setArrangeRequest] = useState(0);
 
   return (
@@ -21,17 +27,20 @@ export function NeuralBlueprintWorkspace({ fileId }: NeuralBlueprintWorkspacePro
       <NeuralBlueprintLeftPanel onArrangeNodes={() => setArrangeRequest((request) => request + 1)} />
       <NeuralBlueprintCanvasInner
         arrangeRequest={arrangeRequest}
+        analysisDirection={analysisDirection}
         fileId={fileId}
         showRankAnalysis={showRankAnalysis}
         showVarianceAnalysis={showVarianceAnalysis}
         setSelectedNode={setSelectedNode}
       />
       <NeuralBlueprintRightPanel
+        analysisDirection={analysisDirection}
         selectedNode={selectedNode}
         showRankAnalysis={showRankAnalysis}
         showVarianceAnalysis={showVarianceAnalysis}
         setShowRankAnalysis={setShowRankAnalysis}
         setShowVarianceAnalysis={setShowVarianceAnalysis}
+        setAnalysisDirection={setAnalysisDirection}
         setSelectedNode={setSelectedNode}
       />
     </>

@@ -4,6 +4,7 @@ import type {
   BiasInitializationMode,
   InputNormalizationMode,
   LinearInitializationMode,
+  ModuleAnalysisDirection,
   ModuleBaseNode,
   ModuleBaseNodeData,
   ModuleBaseNodeKind,
@@ -36,6 +37,7 @@ interface StoredNeuralBlueprintGraph {
   nodes: StoredModuleBaseNode[];
   edges: StoredModuleEdge[];
   ui?: {
+    analysisDirection?: ModuleAnalysisDirection;
     showRankAnalysis: boolean;
     showVarianceAnalysis: boolean;
   };
@@ -73,6 +75,7 @@ export function loadNeuralBlueprintUi(fileId: string) {
     const raw = appStorage.getItem(getStorageKey(fileId));
     if (!raw) {
       return {
+        analysisDirection: 'forward' as const,
         showRankAnalysis: false,
         showVarianceAnalysis: false,
       };
@@ -80,11 +83,13 @@ export function loadNeuralBlueprintUi(fileId: string) {
 
     const parsed = JSON.parse(raw) as StoredNeuralBlueprintGraph;
     return {
+      analysisDirection: parsed.ui?.analysisDirection ?? 'forward',
       showRankAnalysis: parsed.ui?.showRankAnalysis ?? false,
       showVarianceAnalysis: parsed.ui?.showVarianceAnalysis ?? false,
     };
   } catch {
     return {
+      analysisDirection: 'forward' as const,
       showRankAnalysis: false,
       showVarianceAnalysis: false,
     };
@@ -96,6 +101,7 @@ export function saveNeuralBlueprintGraph(
   nodes: ModuleBaseNode[],
   edges: Edge[],
   ui: {
+    analysisDirection: ModuleAnalysisDirection;
     showRankAnalysis: boolean;
     showVarianceAnalysis: boolean;
   },

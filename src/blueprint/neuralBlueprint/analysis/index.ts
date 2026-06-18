@@ -12,6 +12,11 @@ export {
   getModuleOutputSize,
 } from './correlation';
 export { forwardModuleStats } from './forward/forwardModuleStats';
-export { runForwardStats, updateModuleStats } from './updateModuleStats';
+export { backwardModuleStats } from './backward/backwardModuleStats';
+export {
+  runBackwardStats,
+  runForwardStats,
+  updateModuleStats,
+} from './updateModuleStats';
 export { updateState } from './updateState';
 export { applyTopologyOrders } from './updateTopologyOrder';

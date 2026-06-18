@@ -9,24 +9,34 @@ import { forwardReLUStats } from './relu';
 import { forwardDropoutStats } from './dropout';
 import { forwardSumStats } from './sum';
 import { DEFAULT_INPUT_STATS } from './utils/constants';
+import { aggregateForwardStats } from '../aggregation/forward';
 
 export function forwardModuleStats(
   context: ModuleStatsForwardContext,
 ): ModuleStatsForwardResult {
+  const aggregation = aggregateForwardStats(context);
+  const aggregatedContext = {
+    ...context,
+    inputs: [aggregation.stats],
+  };
+
   switch (context.node.kind) {
     case 'Input':
       return forwardInputStats(context);
     case 'Linear':
-      return forwardLinearStats(context);
+      return forwardLinearStats(aggregatedContext);
     case 'ReLU':
-      return forwardReLUStats(context);
+      return forwardReLUStats(aggregatedContext);
     case 'Dropout':
-      return forwardDropoutStats(context);
+      return forwardDropoutStats(aggregatedContext);
     case 'Sum':
-      return forwardSumStats(context);
+      return {
+        ...forwardSumStats(aggregatedContext),
+        sumInputPairStats: aggregation.sumInputPairStats,
+      };
     default:
       return {
-        stats: stripDimLabel(context.inputs[0] ?? DEFAULT_INPUT_STATS),
+        stats: stripDimLabel(aggregation.stats ?? DEFAULT_INPUT_STATS),
       };
   }
 }

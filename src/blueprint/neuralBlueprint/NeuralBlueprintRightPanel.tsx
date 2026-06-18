@@ -3,25 +3,30 @@ import { type ChangeEvent, type Dispatch, type SetStateAction } from 'react';
 import { updateState } from './analysis';
 import { NeuralBlueprintModuleProperties } from './NeuralBlueprintModuleProperties';
 import type {
+  ModuleAnalysisDirection,
   ModuleBaseNode,
   ModuleBaseNodeData,
 } from './ModuleBaseNodeTypes';
 
 interface NeuralBlueprintRightPanelProp {
+  analysisDirection: ModuleAnalysisDirection;
   selectedNode: ModuleBaseNodeData | null;
   showRankAnalysis: boolean;
   showVarianceAnalysis: boolean;
   setShowRankAnalysis: Dispatch<SetStateAction<boolean>>;
   setShowVarianceAnalysis: Dispatch<SetStateAction<boolean>>;
+  setAnalysisDirection: Dispatch<SetStateAction<ModuleAnalysisDirection>>;
   setSelectedNode: Dispatch<SetStateAction<ModuleBaseNodeData | null>>;
 }
 
 export function NeuralBlueprintRightPanel({
+  analysisDirection,
   selectedNode,
   showRankAnalysis,
   showVarianceAnalysis,
   setShowRankAnalysis,
   setShowVarianceAnalysis,
+  setAnalysisDirection,
   setSelectedNode,
 }: NeuralBlueprintRightPanelProp) {
   const { getNodes, setNodes } = useReactFlow<ModuleBaseNode, Edge>();
@@ -65,10 +70,32 @@ export function NeuralBlueprintRightPanel({
       },
     });
   };
+  const selectedStats = analysisDirection === 'backward'
+    ? selectedNode?.statsBackward
+    : selectedNode?.stats;
 
   return (
-    <aside className="right-panel">
+    <aside
+      className="right-panel"
+      data-analysis-direction={analysisDirection}
+    >
       <div className="title">Properties</div>
+      <div className="top-bar-tabs property-direction-tabs">
+        <button
+          className={`top-bar-tab ${analysisDirection === 'forward' ? 'active' : ''}`}
+          onClick={() => setAnalysisDirection('forward')}
+          type="button"
+        >
+          Forward
+        </button>
+        <button
+          className={`top-bar-tab ${analysisDirection === 'backward' ? 'active' : ''}`}
+          onClick={() => setAnalysisDirection('backward')}
+          type="button"
+        >
+          Backward
+        </button>
+      </div>
       <div className="property-toggle-group">
         <button
           className={`toggle-button ${showVarianceAnalysis ? 'active' : ''}`}
@@ -110,34 +137,47 @@ export function NeuralBlueprintRightPanel({
             />
           </label>
 
-          {showRankAnalysis && selectedNode.kind !== 'Input' && (
+          {showRankAnalysis && (
+            analysisDirection === 'backward' || selectedNode.kind !== 'Input'
+          ) && (
             <label className="property-field">
               <span className="property-label">Effective Rank</span>
               <div className="property-value">
-                {formatDecimalPropertyNumber(selectedNode.stats?.effectiveRank, 3)}
+                {formatDecimalPropertyNumber(selectedStats?.effectiveRank, 3)}
               </div>
             </label>
           )}
 
           <NeuralBlueprintModuleProperties
             selectedNode={selectedNode}
-            showRankAnalysis={showRankAnalysis}
+            showRankAnalysis={
+              showRankAnalysis && analysisDirection === 'forward'
+            }
             updateSelectedNode={updateSelectedNode}
           />
 
           {showVarianceAnalysis && (
             <>
               <div className="property-field">
-                <span className="property-label">Output Mean</span>
+                <span className="property-label">
+                  {analysisDirection === 'forward' ? 'Output Mean' : 'Gradient Mean'}
+                </span>
                 <div className="property-value">
-                  {formatDecimalPropertyNumber(selectedNode.stats?.mean, 3)}
+                  {formatDecimalPropertyNumber(selectedStats?.mean, 3)}
                 </div>
               </div>
 
               <div className="property-field">
-                <span className="property-label">Output Standard Error</span>
+                <span className="property-label">
+                  {analysisDirection === 'forward'
+                    ? 'Output Standard Error'
+                    : 'Gradient Standard Error'}
+                </span>
                 <div className="property-value">
-                  {formatDecimalPropertyNumber(getOutputStandardError(selectedNode), 3)}
+                  {formatDecimalPropertyNumber(
+                    getStandardDeviation(selectedStats?.variance),
+                    3,
+                  )}
                 </div>
               </div>
             </>
@@ -162,8 +202,7 @@ function formatDecimalPropertyNumber(value: number | undefined, digits: number) 
   return typeof value === 'number' && !Number.isNaN(value) ? value.toFixed(digits) : '';
 }
 
-function getOutputStandardError(node: ModuleBaseNodeData) {
-  const variance = node.stats?.variance;
+function getStandardDeviation(variance: number | undefined) {
   return typeof variance === 'number' && !Number.isNaN(variance)
     ? Math.sqrt(Math.max(variance, 0))
     : undefined;

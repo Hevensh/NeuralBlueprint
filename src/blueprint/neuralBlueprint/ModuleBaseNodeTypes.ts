@@ -2,6 +2,7 @@ import type { Node } from '@xyflow/react';
 import type { NeuralBlueprintPageType } from '../PageTypes';
 
 export type ModuleBaseNodeKind = 'Input' | 'Linear' | 'ReLU' | 'Dropout' | 'Sum' | 'Output';
+export type ModuleAnalysisDirection = 'forward' | 'backward';
 export type InputNormalizationMode = '0-1' | 'standard';
 export type LinearInitializationMode = 'standard_normal' | 'xavier_normal';
 export type BiasInitializationMode = 'zeros' | 'standard_normal';
@@ -51,6 +52,14 @@ export interface SumInputPairStats {
   covariance: number;
 }
 
+export interface BackwardOutputPairStats {
+  leftNodeId: string;
+  rightNodeId: string;
+  covarianceCorrelation: number;
+  linearCorrelation: number;
+  covariance: number;
+}
+
 export interface ModuleStatsForwardContext {
   node: ModuleBaseNodeData;
   inputs: ModuleStats[];
@@ -69,6 +78,40 @@ export type ModuleStatsForwardFunction = (
   context: ModuleStatsForwardContext
 ) => ModuleStatsForwardResult;
 
+export interface ModuleStatsBackward {
+  /** Dimension of the gradient propagated toward the module input. */
+  rank: number;
+  /** Estimated effective rank carried by the gradient. */
+  effectiveRank: number;
+  /** effectiveRank / rank. This can exceed 1 after branch aggregation. */
+  saturation: number;
+  /** Rank trace used while propagating through dimension-changing modules. */
+  minRank?: number;
+  /** Mean of the gradient distribution. */
+  mean: number;
+  /** Variance of the gradient distribution. */
+  variance: number;
+  /** Probability mass exactly at zero. */
+  zeroRate: number;
+  /** Probability mass below zero. */
+  negativeRate?: number;
+}
+
+export interface ModuleStatsBackwardContext {
+  node: ModuleBaseNodeData;
+  gradient: ModuleStatsBackward;
+  outputNodes: ModuleBaseNodeData[];
+}
+
+export interface ModuleStatsBackwardResult {
+  stats: ModuleStatsBackward;
+  message?: string;
+}
+
+export type ModuleStatsBackwardFunction = (
+  context: ModuleStatsBackwardContext
+) => ModuleStatsBackwardResult;
+
 export interface ModuleBaseNodeData extends Record<string, unknown> {
   id: string;
   name: string;
@@ -77,6 +120,7 @@ export interface ModuleBaseNodeData extends Record<string, unknown> {
   predecessors: ModuleBaseNodeData[];
   successors: ModuleBaseNodeData[];
   forwardStats?: ModuleStatsForwardFunction;
+  backwardStats?: ModuleStatsBackwardFunction;
   backward?: ModuleBackwardFunction;
   forwardTopologyOrder?: number;
   backwardTopologyOrder?: number;
@@ -89,7 +133,10 @@ export interface ModuleBaseNodeData extends Record<string, unknown> {
   outFeatures?: number;
   useBias?: boolean;
   stats?: ModuleStats;
+  statsBackward?: ModuleStatsBackward;
+  analysisDirection?: ModuleAnalysisDirection;
   sumInputPairStats?: SumInputPairStats[];
+  backwardOutputPairStats?: BackwardOutputPairStats[];
   position: {
     x: number;
     y: number;
