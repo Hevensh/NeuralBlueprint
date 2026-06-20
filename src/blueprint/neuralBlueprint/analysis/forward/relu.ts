@@ -1,6 +1,7 @@
 import type {
   ModuleStatsForwardContext,
   ModuleStatsForwardResult,
+  ReLUNodeData,
 } from '../../ModuleBaseNodeTypes';
 import { EMPTY_STATS, EPS } from './utils/constants';
 import {
@@ -18,7 +19,7 @@ import {
 export function forwardReLUStats({
   inputs,
   inputNodes,
-}: ModuleStatsForwardContext): ModuleStatsForwardResult {
+}: ModuleStatsForwardContext<ReLUNodeData>): ModuleStatsForwardResult {
   const input = inputs[0] ?? EMPTY_STATS;
   const inputNode = inputNodes[0];
   const directCorr = getReluCorrByNegativeRate(input.negativeRate);
@@ -30,6 +31,7 @@ export function forwardReLUStats({
     return {
       stats: {
         ...input,
+        dimLabel: 'normal',
         negativeRate: 0,
         inputElementCorr: inputNode ? { [inputNode.id]: 1 } : undefined,
         inputLinearCorr: inputNode ? { [inputNode.id]: 1 } : undefined,
@@ -52,6 +54,7 @@ export function forwardReLUStats({
   return {
     stats: {
       rank: input.rank,
+      dimLabel: 'normal',
       effectiveRank,
       saturation,
       minRank: input.minRank,

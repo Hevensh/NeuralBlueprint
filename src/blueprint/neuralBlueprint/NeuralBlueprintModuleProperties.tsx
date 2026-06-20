@@ -1,17 +1,25 @@
-import { type ChangeEvent } from 'react';
+import { NumberField } from '../../NumberField';
 import { PropertyDropdown } from '../../PropertyDropdown';
 import type {
   BiasInitializationMode,
+  DropoutNodeData,
+  InputNodeData,
   InputNormalizationMode,
+  LinearNodeData,
   LinearInitializationMode,
-  ModuleBaseNodeData,
+  ModuleNodeData,
 } from './ModuleBaseNodeTypes';
 
 interface NeuralBlueprintModulePropertiesProps {
-  selectedNode: ModuleBaseNodeData;
+  selectedNode: ModuleNodeData;
   showRankAnalysis: boolean;
-  updateSelectedNode: (patch: Partial<ModuleBaseNodeData>) => void;
+  updateSelectedNode: UpdateSelectedNode;
 }
+
+type UpdateSelectedNode = <TNode extends ModuleNodeData>(
+  node: TNode,
+  patch: Partial<TNode>,
+) => void;
 
 export function NeuralBlueprintModuleProperties({
   selectedNode,
@@ -20,108 +28,116 @@ export function NeuralBlueprintModuleProperties({
 }: NeuralBlueprintModulePropertiesProps) {
   if (selectedNode.kind === 'Input') {
     return (
-      <>
-        {showRankAnalysis && (
-          <label className="property-field">
-            <span className="property-label">Effective Rank</span>
-            <input
-              className="property-input"
-              value={formatIntegerPropertyNumber(selectedNode.stats?.effectiveRank)}
-              onChange={(event) => updateSelectedNode({
-                stats: {
-                  ...selectedNode.stats,
-                  rank: selectedNode.stats?.rank ?? 64,
-                  effectiveRank: parseIntegerPropertyNumber(event.target.value),
-                  saturation: selectedNode.stats?.saturation ?? 0,
-                  mean: selectedNode.stats?.mean ?? Number.NaN,
-                  variance: selectedNode.stats?.variance ?? Number.NaN,
-                  zeroRate: selectedNode.stats?.zeroRate ?? Number.NaN,
-                  negativeRate: selectedNode.stats?.negativeRate,
-                },
-              })}
-            />
-          </label>
-        )}
-
-        <div className="property-field">
-          <span className="property-label">Normalization</span>
-          <PropertyDropdown<InputNormalizationMode>
-            options={[
-              { label: '0-1', value: '0-1' },
-              { label: 'Standard', value: 'standard' },
-            ]}
-            value={selectedNode.normalizationMode ?? '0-1'}
-            onChange={(normalizationMode) => updateSelectedNode({ normalizationMode })}
-          />
-        </div>
-      </>
+      <InputProperties
+        node={selectedNode}
+        showRankAnalysis={showRankAnalysis}
+        updateNode={updateSelectedNode}
+      />
     );
   }
 
   if (selectedNode.kind === 'Linear') {
-    return (
-      <>
-        <div className="property-field">
-          <span className="property-label">Weight Initialization</span>
-          <PropertyDropdown<LinearInitializationMode>
-            options={[
-              { label: 'Standard Normal', value: 'standard_normal' },
-              { label: 'Xavier Normal', value: 'xavier_normal' },
-            ]}
-            value={selectedNode.initializationMode ?? 'xavier_normal'}
-            onChange={(initializationMode) => updateSelectedNode({ initializationMode })}
-          />
-        </div>
-
-        <div className="property-field">
-          <span className="property-label">Bias Initialization</span>
-          <PropertyDropdown<BiasInitializationMode>
-            options={[
-              { label: 'Zeros', value: 'zeros' },
-              { label: 'Standard Normal', value: 'standard_normal' },
-            ]}
-            value={selectedNode.biasInitializationMode ?? 'zeros'}
-            onChange={(biasInitializationMode) => updateSelectedNode({ biasInitializationMode })}
-          />
-        </div>
-      </>
-    );
+    return <LinearProperties node={selectedNode} updateNode={updateSelectedNode} />;
   }
 
   if (selectedNode.kind === 'Dropout') {
-    return (
-      <label className="property-field">
-        <span className="property-label">Dropout Rate (%)</span>
-        <input
-          className="property-input"
-          value={formatPercentRate(selectedNode.dropoutRate)}
-          onChange={(event: ChangeEvent<HTMLInputElement>) => updateSelectedNode({
-            dropoutRate: parsePercentRate(event.target.value),
-          })}
-        />
-      </label>
-    );
+    return <DropoutProperties node={selectedNode} updateNode={updateSelectedNode} />;
   }
 
   return null;
 }
 
-function parseIntegerPropertyNumber(value: string) {
-  return value.trim() === '' ? Number.NaN : Math.round(Number(value));
+function InputProperties({
+  node,
+  showRankAnalysis,
+  updateNode,
+}: {
+  node: InputNodeData;
+  showRankAnalysis: boolean;
+  updateNode: UpdateSelectedNode;
+}) {
+  return (
+    <>
+      {showRankAnalysis && (
+        <NumberField
+          label="Effective Rank"
+          min={0}
+          value={node.inputEffectiveRank}
+          onChange={(inputEffectiveRank) => updateNode(node, {
+            inputEffectiveRank: Math.round(inputEffectiveRank),
+          })}
+        />
+      )}
+
+      <div className="property-field">
+        <span className="property-label">Normalization</span>
+        <PropertyDropdown<InputNormalizationMode>
+          options={[
+            { label: '0-1', value: '0-1' },
+            { label: 'Standard', value: 'standard' },
+          ]}
+          value={node.normalizationMode}
+          onChange={(normalizationMode) => updateNode(node, { normalizationMode })}
+        />
+      </div>
+    </>
+  );
 }
 
-function parsePercentRate(value: string) {
-  if (value.trim() === '') {
-    return 0;
-  }
+function LinearProperties({
+  node,
+  updateNode,
+}: {
+  node: LinearNodeData;
+  updateNode: UpdateSelectedNode;
+}) {
+  return (
+    <>
+      <div className="property-field">
+        <span className="property-label">Weight Initialization</span>
+        <PropertyDropdown<LinearInitializationMode>
+          options={[
+            { label: 'Standard Normal', value: 'standard_normal' },
+            { label: 'Xavier Normal', value: 'xavier_normal' },
+          ]}
+          value={node.initializationMode}
+          onChange={(initializationMode) => updateNode(node, { initializationMode })}
+        />
+      </div>
 
-  return Math.min(Math.max(Number(value), 0), 100) / 100;
+      <div className="property-field">
+        <span className="property-label">Bias Initialization</span>
+        <PropertyDropdown<BiasInitializationMode>
+          options={[
+            { label: 'Zeros', value: 'zeros' },
+            { label: 'Standard Normal', value: 'standard_normal' },
+          ]}
+          value={node.biasInitializationMode}
+          onChange={(biasInitializationMode) => updateNode(node, {
+            biasInitializationMode,
+          })}
+        />
+      </div>
+    </>
+  );
 }
 
-function formatIntegerPropertyNumber(value: number | undefined) {
-  return typeof value === 'number' && !Number.isNaN(value) ? String(Math.round(value)) : '';
-}
-
-function formatPercentRate(value: number | undefined) {
-  return typeof value === 'number' && !Number.isNaN(value) ? String(Math.round(value * 100)) : '';
+function DropoutProperties({
+  node,
+  updateNode,
+}: {
+  node: DropoutNodeData;
+  updateNode: UpdateSelectedNode;
+}) {
+  return (
+    <NumberField
+      label="Dropout Rate (%)"
+      max={100}
+      min={0}
+      value={node.dropoutRate * 100}
+      onChange={(dropoutRate) => updateNode(node, {
+        dropoutRate: dropoutRate / 100,
+      })}
+    />
+  );
 }

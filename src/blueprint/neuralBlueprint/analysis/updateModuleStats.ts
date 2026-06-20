@@ -1,6 +1,6 @@
 import type {
   ModuleBaseNode,
-  ModuleBaseNodeData,
+  ModuleNodeData,
   ModuleStats,
   ModuleStatsBackward,
 } from '../ModuleBaseNodeTypes';
@@ -13,6 +13,7 @@ import { forwardModuleStats } from './forward/forwardModuleStats';
 import {
   getDisconnectedStats,
   getEmptyStats,
+  getInvalidInferenceStats,
 } from './forward/utils/moduleStats';
 
 export function updateModuleStats(nodes: ModuleBaseNode[]): void {
@@ -22,7 +23,7 @@ export function updateModuleStats(nodes: ModuleBaseNode[]): void {
 }
 
 export function runForwardStats(
-  nodes: ModuleBaseNodeData[],
+  nodes: ModuleNodeData[],
 ): Map<string, ModuleStats> {
   const stats = new Map<string, ModuleStats>();
   const nodeMap = new Map(nodes.map((node) => [node.id, node]));
@@ -47,7 +48,7 @@ export function runForwardStats(
       return;
     }
 
-    const inputNodes: ModuleBaseNodeData[] = [];
+    const inputNodes: ModuleNodeData[] = [];
     const inputs = node.predecessors
       .map((predecessor) => {
         const inputNode = nodeMap.get(predecessor.id);
@@ -58,6 +59,15 @@ export function runForwardStats(
         return inputStats;
       })
       .filter((inputStats): inputStats is ModuleStats => Boolean(inputStats));
+
+    if (inputs.some((input) => input.dimLabel !== 'normal')) {
+      const invalidStats = getInvalidInferenceStats(node, '---');
+      node.sumInputPairStats = undefined;
+      node.stats = invalidStats;
+      stats.set(node.id, invalidStats);
+      return;
+    }
+
     const forward = node.forwardStats ?? forwardModuleStats;
     const result = forward({
       node,
@@ -77,7 +87,7 @@ export function runForwardStats(
 }
 
 export function runBackwardStats(
-  nodes: ModuleBaseNodeData[],
+  nodes: ModuleNodeData[],
 ): Map<string, ModuleStatsBackward> {
   const stats = new Map<string, ModuleStatsBackward>();
   const nodeMap = new Map(nodes.map((node) => [node.id, node]));
@@ -94,7 +104,7 @@ export function runBackwardStats(
       return;
     }
 
-    const outputNodes: ModuleBaseNodeData[] = [];
+    const outputNodes: ModuleNodeData[] = [];
     const outputGradients = node.successors
       .map((successor) => {
         const outputNode = nodeMap.get(successor.id);

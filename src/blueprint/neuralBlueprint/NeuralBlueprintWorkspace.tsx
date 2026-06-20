@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { loadNeuralBlueprintUi } from '../../dataStorage/neuralBlueprintStorage';
 import type {
   ModuleAnalysisDirection,
-  ModuleBaseNodeData,
+  ModuleNodeData,
 } from './ModuleBaseNodeTypes';
 import { NeuralBlueprintCanvasInner } from './NeuralBlueprintCanvasInner';
 import { NeuralBlueprintLeftPanel } from './NeuralBlueprintLeftPanel';
@@ -14,7 +14,7 @@ interface NeuralBlueprintWorkspaceProp {
 
 export function NeuralBlueprintWorkspace({ fileId }: NeuralBlueprintWorkspaceProp) {
   const [initialUi] = useState(() => loadNeuralBlueprintUi(fileId));
-  const [selectedNode, setSelectedNode] = useState<ModuleBaseNodeData | null>(null);
+  const [selectedNode, setSelectedNode] = useState<ModuleNodeData | null>(null);
   const [showVarianceAnalysis, setShowVarianceAnalysis] = useState(initialUi.showVarianceAnalysis);
   const [showRankAnalysis, setShowRankAnalysis] = useState(initialUi.showRankAnalysis);
   const [analysisDirection, setAnalysisDirection] = useState<ModuleAnalysisDirection>(

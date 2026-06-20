@@ -1,4 +1,4 @@
-import type { ModuleBaseNode, ModuleBaseNodeData } from '../ModuleBaseNodeTypes';
+import type { ModuleBaseNode, ModuleNodeData } from '../ModuleBaseNodeTypes';
 import {
   preprocessArrangeCycleBlocks,
   type ArrangeNodeBlock,
@@ -93,10 +93,10 @@ function layoutIsland(
 ) {
   const nodeById = new Map(nodes.map((node) => [node.id, node.data]));
   const maxForwardOrder = getMaxColumnOrder(nodes, blockById);
-  const getNodeColumnWidth = (node: ModuleBaseNodeData) => (
+  const getNodeColumnWidth = (node: ModuleNodeData) => (
     blockById.get(node.id)?.columnWidth ?? 1
   );
-  const getNodeHeightUnits = (node: ModuleBaseNodeData) => (
+  const getNodeHeightUnits = (node: ModuleNodeData) => (
     blockById.get(node.id)?.heightUnits ?? 2
   );
   const { sourceDescendantsMap, sinkAncestorsMap } = buildArrangeReachabilityMaps(nodes);
@@ -173,7 +173,7 @@ function addHeightResult(
   layout: LayoutState,
   componentVisitedNodeIds: Set<string>,
   result: HeightCollectionResult,
-  getColumnOrder: (node: ModuleBaseNodeData) => number,
+  getColumnOrder: (node: ModuleNodeData) => number,
 ) {
   result.nodeHeights.forEach((height, nodeId) => {
     layout.nodeHeights.set(nodeId, height);
@@ -189,17 +189,17 @@ function addHeightResult(
 function collectBranchHeights(
   branch: CandidateBranch,
   assignedNodeIds: Set<string>,
-  nodeById: Map<string, ModuleBaseNodeData>,
+  nodeById: Map<string, ModuleNodeData>,
   ridgeHeights: number[],
   maxForwardOrder: number,
   blockById: Map<string, ArrangeNodeBlock>,
 ) {
   const assignedNodes = [...assignedNodeIds].map((nodeId) => nodeById.get(nodeId)!);
   const getColumnOrder = getBranchColumnOrder(branch.side, maxForwardOrder, blockById);
-  const getNodeColumnWidth = (node: ModuleBaseNodeData) => (
+  const getNodeColumnWidth = (node: ModuleNodeData) => (
     blockById.get(node.id)?.columnWidth ?? 1
   );
-  const getNodeHeightUnits = (node: ModuleBaseNodeData) => (
+  const getNodeHeightUnits = (node: ModuleNodeData) => (
     blockById.get(node.id)?.heightUnits ?? 2
   );
   const branchRidgeHeights: number[] = [];

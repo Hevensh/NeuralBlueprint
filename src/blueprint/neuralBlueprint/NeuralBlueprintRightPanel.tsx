@@ -1,22 +1,30 @@
-import { useReactFlow, type Edge } from '@xyflow/react';
-import { type ChangeEvent, type Dispatch, type SetStateAction } from 'react';
-import { updateState } from './analysis';
+import { useNodes, useReactFlow, type Edge } from '@xyflow/react';
+import {
+  type ChangeEvent,
+  type Dispatch,
+  type SetStateAction,
+  useMemo,
+} from 'react';
+import { NumberField } from '../../NumberField';
+import { buildInferenceMemoryProfile } from './analysis/inferenceMemoryProfile';
+import { updateState } from './analysis/updateState';
+import { InferenceMemoryChart } from './InferenceMemoryChart';
 import { NeuralBlueprintModuleProperties } from './NeuralBlueprintModuleProperties';
 import type {
   ModuleAnalysisDirection,
   ModuleBaseNode,
-  ModuleBaseNodeData,
+  ModuleNodeData,
 } from './ModuleBaseNodeTypes';
 
 interface NeuralBlueprintRightPanelProp {
   analysisDirection: ModuleAnalysisDirection;
-  selectedNode: ModuleBaseNodeData | null;
+  selectedNode: ModuleNodeData | null;
   showRankAnalysis: boolean;
   showVarianceAnalysis: boolean;
   setShowRankAnalysis: Dispatch<SetStateAction<boolean>>;
   setShowVarianceAnalysis: Dispatch<SetStateAction<boolean>>;
   setAnalysisDirection: Dispatch<SetStateAction<ModuleAnalysisDirection>>;
-  setSelectedNode: Dispatch<SetStateAction<ModuleBaseNodeData | null>>;
+  setSelectedNode: Dispatch<SetStateAction<ModuleNodeData | null>>;
 }
 
 export function NeuralBlueprintRightPanel({
@@ -30,44 +38,47 @@ export function NeuralBlueprintRightPanel({
   setSelectedNode,
 }: NeuralBlueprintRightPanelProp) {
   const { getNodes, setNodes } = useReactFlow<ModuleBaseNode, Edge>();
+  const nodes = useNodes<ModuleBaseNode>();
+  const inferenceMemoryProfile = useMemo(
+    () => buildInferenceMemoryProfile(nodes),
+    [nodes],
+  );
 
-  const updateSelectedNode = (patch: Partial<ModuleBaseNodeData>) => {
-    if (!selectedNode) return;
-
+  const updateSelectedNode = <TNode extends ModuleNodeData>(
+    nodeData: TNode,
+    patch: Partial<TNode>,
+  ) => {
     const nextNodes = updateState(getNodes().map((node) => (
-      node.id === selectedNode.id
+      node.id === nodeData.id
         ? {
           ...node,
           data: {
             ...node.data,
             ...patch,
-          },
+          } as ModuleNodeData,
         }
         : node
     )));
-    const nextSelectedNode = nextNodes.find((node) => node.id === selectedNode.id)?.data ?? null;
+    const nextSelectedNode = nextNodes.find((node) => node.id === nodeData.id)?.data ?? null;
 
     setNodes(nextNodes);
     setSelectedNode(nextSelectedNode);
   };
 
   const handleNameChange = (event: ChangeEvent<HTMLInputElement>) => {
-    updateSelectedNode({ name: event.target.value });
+    if (!selectedNode) return;
+    updateSelectedNode(selectedNode, { name: event.target.value });
   };
 
-  const handleOutputDimChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const rank = parseIntegerPropertyNumber(event.target.value);
-    updateSelectedNode({
-      stats: {
-        ...selectedNode?.stats,
-        rank,
-        effectiveRank: selectedNode?.stats?.effectiveRank ?? rank,
-        saturation: selectedNode?.stats?.saturation ?? 0,
-        mean: selectedNode?.stats?.mean ?? Number.NaN,
-        variance: selectedNode?.stats?.variance ?? Number.NaN,
-        zeroRate: selectedNode?.stats?.zeroRate ?? Number.NaN,
-        negativeRate: selectedNode?.stats?.negativeRate,
-      },
+  const handleOutputDimChange = (value: number) => {
+    if (!selectedNode || (
+      selectedNode.kind !== 'Input'
+      && selectedNode.kind !== 'Linear'
+    )) return;
+
+    const rank = Math.round(value);
+    updateSelectedNode(selectedNode, {
+      outFeatures: rank,
     });
   };
   const selectedStats = analysisDirection === 'backward'
@@ -128,14 +139,21 @@ export function NeuralBlueprintRightPanel({
             <div className="property-value">{selectedNode.kind}</div>
           </div>
 
-          <label className="property-field">
-            <span className="property-label">Output Dim</span>
-            <input
-              className="property-input"
-              value={formatIntegerPropertyNumber(selectedNode.stats?.rank)}
+          {selectedNode.kind === 'Input' || selectedNode.kind === 'Linear' ? (
+            <NumberField
+              label="Output Dim"
+              min={1}
               onChange={handleOutputDimChange}
+              value={selectedNode.outFeatures}
             />
-          </label>
+          ) : (
+            <div className="property-field">
+              <span className="property-label">Output Dim</span>
+              <div className="property-value">
+                {formatDecimalPropertyNumber(selectedNode.stats?.rank, 0)}
+              </div>
+            </div>
+          )}
 
           {showRankAnalysis && (
             analysisDirection === 'backward' || selectedNode.kind !== 'Input'
@@ -186,16 +204,9 @@ export function NeuralBlueprintRightPanel({
       ) : (
         <div className="property-empty">No node selected</div>
       )}
+      <InferenceMemoryChart profile={inferenceMemoryProfile} />
     </aside>
   );
-}
-
-function parseIntegerPropertyNumber(value: string) {
-  return value.trim() === '' ? Number.NaN : Math.round(Number(value));
-}
-
-function formatIntegerPropertyNumber(value: number | undefined) {
-  return typeof value === 'number' && !Number.isNaN(value) ? String(Math.round(value)) : '';
 }
 
 function formatDecimalPropertyNumber(value: number | undefined, digits: number) {

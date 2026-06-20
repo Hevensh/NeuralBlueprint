@@ -94,7 +94,6 @@
 }
 
 .canvas-wrap[data-analysis-direction="backward"] .react-flow__edge-path {
-  stroke: #9333ea;
   filter: drop-shadow(0 0 8px rgba(192, 132, 252, 0.26));
 }
 

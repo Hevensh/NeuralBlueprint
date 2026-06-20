@@ -1,0 +1,100 @@
+import type { TrainingCurveSnapshot } from './trainingCurveStorage';
+
+export function TrainingCurveStoragePanel({
+  snapshots,
+  selectedSnapshotId,
+  onSave,
+  onSelect,
+  onDelete,
+  onClear,
+}: {
+  snapshots: TrainingCurveSnapshot[];
+  selectedSnapshotId: string | null;
+  onSave: () => void;
+  onSelect: (snapshotId: string | null) => void;
+  onDelete: (snapshotId: string) => void;
+  onClear: () => void;
+}) {
+  return (
+    <aside className="right-panel training-curve-storage">
+      <div className="training-curve-storage-header">
+        <strong>Saved Curves</strong>
+        <button
+          className="training-curve-clear"
+          disabled={snapshots.length === 0}
+          onClick={onClear}
+          type="button"
+        >
+          Clear
+        </button>
+      </div>
+
+      <div className="training-curve-storage-actions">
+        <button className="action-button" onClick={onSave} type="button">
+          Record Loss History
+        </button>
+        <button
+          className={`action-button ${
+            selectedSnapshotId === null ? 'primary' : ''
+          }`}
+          onClick={() => onSelect(null)}
+          type="button"
+        >
+          View Current Training
+        </button>
+      </div>
+
+      <div className="training-curve-list">
+        {snapshots.length === 0 && (
+          <p className="property-empty">No saved curves.</p>
+        )}
+        {snapshots.map((snapshot) => {
+          const bestVal = snapshot.history.reduce<
+            { epoch: number; valLoss: number } | null
+          >((best, point) => (
+            typeof point.valLoss === 'number'
+              && Number.isFinite(point.valLoss)
+              && (!best || point.valLoss < best.valLoss)
+              ? { epoch: point.epoch, valLoss: point.valLoss }
+              : best
+          ), null);
+          return (
+            <article
+              className={`training-curve-card ${
+                selectedSnapshotId === snapshot.id ? 'selected' : ''
+              }`}
+              key={snapshot.id}
+            >
+              <button
+                className="training-curve-card-main"
+                onClick={() => onSelect(snapshot.id)}
+                type="button"
+              >
+                <strong>
+                  {new Date(snapshot.createdAt).toLocaleString()}
+                </strong>
+                <span>Epoch {snapshot.epoch}</span>
+                <span>Best Epoch {bestVal?.epoch ?? 'N/A'}</span>
+                <span>Best Val Loss {formatLoss(bestVal?.valLoss)}</span>
+              </button>
+              <button
+                aria-label={`Delete curve at epoch ${snapshot.epoch}`}
+                className="training-curve-delete"
+                onClick={() => onDelete(snapshot.id)}
+                type="button"
+              >
+                Delete
+              </button>
+            </article>
+          );
+        })}
+      </div>
+    </aside>
+  );
+}
+
+function formatLoss(value: number | null | undefined) {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? value.toFixed(3)
+    : 'N/A';
+}

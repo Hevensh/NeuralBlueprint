@@ -1,16 +1,16 @@
 import type {
-  ModuleBaseNodeData,
+  ModuleNodeData,
   ModuleStatsBackward,
 } from '../../ModuleBaseNodeTypes';
 
 export function flattenSumOutputs(
   gradients: ModuleStatsBackward[],
-  outputNodes: ModuleBaseNodeData[],
+  outputNodes: ModuleNodeData[],
   statsByNodeId: Map<string, ModuleStatsBackward>,
   visiting = new Set<string>(),
 ) {
   const flattenedGradients: ModuleStatsBackward[] = [];
-  const flattenedOutputNodes: ModuleBaseNodeData[] = [];
+  const flattenedOutputNodes: ModuleNodeData[] = [];
 
   outputNodes.forEach((outputNode, index) => {
     const gradient = gradients[index];
@@ -28,7 +28,7 @@ export function flattenSumOutputs(
 
     const nextVisiting = new Set(visiting);
     nextVisiting.add(outputNode.id);
-    const nestedOutputNodes: ModuleBaseNodeData[] = [];
+    const nestedOutputNodes: ModuleNodeData[] = [];
     const nestedGradients = outputNode.successors
       .map((successor) => {
         const successorStats = statsByNodeId.get(successor.id);

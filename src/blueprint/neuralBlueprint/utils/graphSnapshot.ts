@@ -1,5 +1,6 @@
 import type { Edge } from '@xyflow/react';
-import type { ModuleBaseNode, ModuleBaseNodeData } from '../ModuleBaseNodeTypes';
+import type { ModuleBaseNode } from '../ModuleBaseNodeTypes';
+import { rebuildNodeLinks } from './nodeLinks';
 
 export interface NeuralBlueprintGraphSnapshot {
   nodes: ModuleBaseNode[];
@@ -10,33 +11,28 @@ export function createGraphSnapshot(
   nodes: ModuleBaseNode[],
   edges: Edge[],
 ): NeuralBlueprintGraphSnapshot {
-  const snapshotEdges = edges.map((edge) => ({ ...edge }));
-  const dataById = new Map<string, ModuleBaseNodeData>();
-
-  nodes.forEach((node) => {
-    dataById.set(node.id, {
+  const snapshotEdges = edges.map(cloneGraphEdge);
+  const snapshotNodes = nodes.map((node) => ({
+    ...node,
+    position: { ...node.position },
+    data: {
       ...node.data,
-      predecessors: [],
-      successors: [],
       position: { ...node.data.position },
-    });
-  });
-
-  snapshotEdges.forEach((edge) => {
-    const source = dataById.get(edge.source);
-    const target = dataById.get(edge.target);
-    if (!source || !target) return;
-
-    source.successors = [...source.successors, target];
-    target.predecessors = [...target.predecessors, source];
-  });
+    },
+  }));
 
   return {
-    nodes: nodes.map((node) => ({
-      ...node,
-      position: { ...node.position },
-      data: dataById.get(node.id) as ModuleBaseNodeData,
-    })),
+    nodes: rebuildNodeLinks(snapshotNodes, snapshotEdges),
     edges: snapshotEdges,
   };
+}
+
+function cloneGraphEdge(edge: Edge): Edge {
+  const snapshotEdge = { ...edge };
+
+  delete snapshotEdge.markerStart;
+  delete snapshotEdge.markerEnd;
+  delete snapshotEdge.style;
+
+  return snapshotEdge;
 }

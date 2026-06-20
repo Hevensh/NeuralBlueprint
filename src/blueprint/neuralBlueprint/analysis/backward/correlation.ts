@@ -1,6 +1,6 @@
 import type {
   BackwardOutputPairStats,
-  ModuleBaseNodeData,
+  ModuleNodeData,
   ModuleStatsBackward,
 } from '../../ModuleBaseNodeTypes';
 import {
@@ -11,9 +11,9 @@ import {
 import { clamp01 } from '../forward/utils/math';
 
 export function computeBackwardOutputPairStats(
-  outputNodes: ModuleBaseNodeData[],
+  outputNodes: ModuleNodeData[],
   gradients: ModuleStatsBackward[],
-  nodeMap: Map<string, ModuleBaseNodeData>,
+  nodeMap: Map<string, ModuleNodeData>,
 ): BackwardOutputPairStats[] {
   const pairs: BackwardOutputPairStats[] = [];
 
@@ -53,9 +53,9 @@ export function computeBackwardOutputPairStats(
 }
 
 function estimateBackwardCovarianceCorrelation(
-  leftNode: ModuleBaseNodeData,
-  rightNode: ModuleBaseNodeData,
-  nodeMap: Map<string, ModuleBaseNodeData>,
+  leftNode: ModuleNodeData,
+  rightNode: ModuleNodeData,
+  nodeMap: Map<string, ModuleNodeData>,
 ) {
   const leftPaths = collectSinkPaths(leftNode.id, nodeMap);
   const rightPaths = collectSinkPaths(rightNode.id, nodeMap);
@@ -75,9 +75,9 @@ function estimateBackwardCovarianceCorrelation(
 }
 
 function estimateBackwardLinearCorrelation(
-  leftNode: ModuleBaseNodeData,
-  rightNode: ModuleBaseNodeData,
-  nodeMap: Map<string, ModuleBaseNodeData>,
+  leftNode: ModuleNodeData,
+  rightNode: ModuleNodeData,
+  nodeMap: Map<string, ModuleNodeData>,
 ) {
   const leftPaths = collectSinkPaths(leftNode.id, nodeMap);
   const rightPaths = collectSinkPaths(rightNode.id, nodeMap);
@@ -104,7 +104,7 @@ function estimateBackwardLinearCorrelation(
 
 function computeBackwardPathCorrelation(
   pathNodeIds: string[],
-  nodeMap: Map<string, ModuleBaseNodeData>,
+  nodeMap: Map<string, ModuleNodeData>,
 ) {
   let correlation = 1;
 
@@ -123,7 +123,7 @@ function computeBackwardPathCorrelation(
       correlation *= Math.sqrt(clamp01(keepRate));
     }
     if (node.kind === 'Dropout') {
-      correlation *= Math.sqrt(1 - clamp01(node.dropoutRate ?? 0.5));
+      correlation *= Math.sqrt(1 - clamp01(node.dropoutRate));
     }
   }
 
@@ -132,7 +132,7 @@ function computeBackwardPathCorrelation(
 
 function collectSinkPaths(
   nodeId: string,
-  nodeMap: Map<string, ModuleBaseNodeData>,
+  nodeMap: Map<string, ModuleNodeData>,
   visiting = new Set<string>(),
 ): Map<string, string[]> {
   const node = nodeMap.get(nodeId);

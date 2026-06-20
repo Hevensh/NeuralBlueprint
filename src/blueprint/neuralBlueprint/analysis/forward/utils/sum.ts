@@ -1,5 +1,5 @@
 import type {
-  ModuleBaseNodeData,
+  ModuleNodeData,
   ModuleStats,
   SumInputPairStats,
 } from '../../../ModuleBaseNodeTypes';
@@ -10,12 +10,12 @@ import {
 
 export function flattenSumInputs(
   inputs: ModuleStats[],
-  inputNodes: ModuleBaseNodeData[],
+  inputNodes: ModuleNodeData[],
   statsByNodeId: Map<string, ModuleStats>,
   visiting = new Set<string>(),
 ) {
   const flattenedInputs: ModuleStats[] = [];
-  const flattenedInputNodes: ModuleBaseNodeData[] = [];
+  const flattenedInputNodes: ModuleNodeData[] = [];
 
   inputNodes.forEach((inputNode, index) => {
     const input = inputs[index];
@@ -33,7 +33,7 @@ export function flattenSumInputs(
 
     const nextVisiting = new Set(visiting);
     nextVisiting.add(inputNode.id);
-    const nestedInputNodes: ModuleBaseNodeData[] = [];
+    const nestedInputNodes: ModuleNodeData[] = [];
     const nestedInputs = inputNode.predecessors
       .map((predecessor) => {
         const predecessorStats = statsByNodeId.get(predecessor.id);
@@ -62,8 +62,8 @@ export function flattenSumInputs(
 
 export function computeSumCovariance(
   inputs: ModuleStats[],
-  inputNodes: ModuleBaseNodeData[],
-  nodeMap: Map<string, ModuleBaseNodeData>,
+  inputNodes: ModuleNodeData[],
+  nodeMap: Map<string, ModuleNodeData>,
   statsByNodeId: Map<string, ModuleStats>,
 ) {
   if (inputNodes.length < 2) {
@@ -117,14 +117,14 @@ export function computeSumCovariance(
 }
 
 export function computeInputPairCorrelation(
-  inputNodes: ModuleBaseNodeData[],
-  nodeMap: Map<string, ModuleBaseNodeData>,
+  inputNodes: ModuleNodeData[],
+  nodeMap: Map<string, ModuleNodeData>,
   statsByNodeId: Map<string, ModuleStats>,
   getCorrelation: (
     nodeAId: string,
     nodeBId: string,
     statsByNodeId: Map<string, ModuleStats>,
-    nodeMap: Map<string, ModuleBaseNodeData>,
+    nodeMap: Map<string, ModuleNodeData>,
   ) => number,
 ) {
   const pairCorrelation = new Map<string, number>();
@@ -148,7 +148,7 @@ export function computeInputPairCorrelation(
 
 export function computeSumInputCorr(
   inputs: ModuleStats[],
-  inputNodes: ModuleBaseNodeData[],
+  inputNodes: ModuleNodeData[],
   sumVariance: number,
   inputPairCorrelation: Map<string, number>,
 ) {

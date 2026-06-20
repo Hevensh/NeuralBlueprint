@@ -87,6 +87,65 @@
   appearance: none;
 }
 
+.number-field-input {
+  position: relative;
+  display: block;
+}
+
+.number-field-input .property-input {
+  padding-right: 28px;
+}
+
+.number-field-arrows {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  bottom: 1px;
+  display: grid;
+  width: 22px;
+  overflow: hidden;
+  border-left: 1px solid rgba(34, 211, 238, 0.18);
+  border-radius: 0 7px 7px 0;
+}
+
+.number-field-arrows button {
+  position: relative;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: rgba(8, 47, 73, 0.34);
+  cursor: pointer;
+}
+
+.number-field-arrows button + button {
+  border-top: 1px solid rgba(34, 211, 238, 0.14);
+}
+
+.number-field-arrows button::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border-right: 4px solid transparent;
+  border-bottom: 5px solid #67e8f9;
+  border-left: 4px solid transparent;
+  transform: translate(-50%, -50%);
+}
+
+.number-field-arrows button:last-child::after {
+  border-top: 5px solid #67e8f9;
+  border-bottom: 0;
+}
+
+.number-field-arrows button:hover:not(:disabled) {
+  background: rgba(14, 116, 144, 0.54);
+}
+
+.number-field-arrows button:disabled {
+  cursor: default;
+  opacity: 0.32;
+}
+
 .property-value {
   display: flex;
   align-items: center;

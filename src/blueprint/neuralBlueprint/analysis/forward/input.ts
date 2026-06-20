@@ -1,16 +1,15 @@
 import type {
+  InputNodeData,
   ModuleStatsForwardContext,
   ModuleStatsForwardResult,
 } from '../../ModuleBaseNodeTypes';
-import { DEFAULT_INPUT_EFFECTIVE_RANK, EPS } from './utils/constants';
-import { getOutputRank } from './utils/moduleStats';
+import { EPS } from './utils/constants';
 
 export function forwardInputStats({
   node,
-}: ModuleStatsForwardContext): ModuleStatsForwardResult {
-  const rank = getOutputRank(node);
-  const effectiveRank = node.stats?.effectiveRank
-    ?? DEFAULT_INPUT_EFFECTIVE_RANK;
+}: ModuleStatsForwardContext<InputNodeData>): ModuleStatsForwardResult {
+  const rank = node.outFeatures;
+  const effectiveRank = node.inputEffectiveRank;
   const inputDistribution = node.normalizationMode === 'standard'
     ? {
       mean: 0,
@@ -28,6 +27,7 @@ export function forwardInputStats({
   return {
     stats: {
       rank,
+      dimLabel: 'normal',
       effectiveRank,
       saturation: effectiveRank / Math.max(rank, EPS),
       ...inputDistribution,

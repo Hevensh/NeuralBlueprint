@@ -1,4 +1,5 @@
 import type {
+  ModuleNodeData,
   ModuleStatsBackwardContext,
   ModuleStatsBackwardResult,
 } from '../../ModuleBaseNodeTypes';
@@ -12,12 +13,22 @@ export function backwardModuleStats(
 ): ModuleStatsBackwardResult {
   switch (context.node.kind) {
     case 'Linear':
-      return backwardLinearStats(context);
+      return backwardLinearStats(withNode(context, context.node));
     case 'ReLU':
-      return backwardReLUStats(context);
+      return backwardReLUStats(withNode(context, context.node));
     case 'Dropout':
-      return backwardDropoutStats(context);
+      return backwardDropoutStats(withNode(context, context.node));
     default:
       return backwardIdentityStats(context);
   }
+}
+
+function withNode<TNode extends ModuleNodeData>(
+  context: ModuleStatsBackwardContext,
+  node: TNode,
+): ModuleStatsBackwardContext<TNode> {
+  return {
+    ...context,
+    node,
+  };
 }

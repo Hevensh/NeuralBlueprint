@@ -1,7 +1,7 @@
 import type { Dispatch, SetStateAction } from 'react';
 import type { ModuleBaseNode } from '../ModuleBaseNodeTypes';
 
-export const ARRANGE_ANIMATION_DURATION = 420;
+const ARRANGE_ANIMATION_DURATION = 420;
 
 export type CancelNodePositionAnimation = () => void;
 

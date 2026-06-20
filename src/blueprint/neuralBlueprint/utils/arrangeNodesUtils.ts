@@ -1,16 +1,16 @@
-import type { ModuleBaseNode, ModuleBaseNodeData } from '../ModuleBaseNodeTypes';
+import type { ModuleBaseNode, ModuleNodeData } from '../ModuleBaseNodeTypes';
 
 export interface HeightCollectionResult {
   nodeHeights: Map<string, number>;
-  visitedNodes: ModuleBaseNodeData[];
+  visitedNodes: ModuleNodeData[];
   valleyHeights: number[];
 }
 
-export function getDataTopologyOrder(node: ModuleBaseNodeData) {
+export function getDataTopologyOrder(node: ModuleNodeData) {
   return node.forwardTopologyOrder ?? 0;
 }
 
-export function getDataBackwardTopologyOrder(node: ModuleBaseNodeData) {
+export function getDataBackwardTopologyOrder(node: ModuleNodeData) {
   return node.backwardTopologyOrder ?? 0;
 }
 
@@ -48,7 +48,7 @@ export function buildArrangeReachabilityMaps(nodes: ModuleBaseNode[]): {
 }
 
 export function collectDescendantsWithoutPassingThroughBlocked(
-  source: ModuleBaseNodeData,
+  source: ModuleNodeData,
   blockedNodeIds: Set<string>,
 ): Set<string> {
   return collectReachableNodeIds(
@@ -60,7 +60,7 @@ export function collectDescendantsWithoutPassingThroughBlocked(
 }
 
 export function collectAncestorsWithoutPassingThroughBlocked(
-  sink: ModuleBaseNodeData,
+  sink: ModuleNodeData,
   blockedNodeIds: Set<string>,
 ): Set<string> {
   return collectReachableNodeIds(
@@ -72,13 +72,13 @@ export function collectAncestorsWithoutPassingThroughBlocked(
 }
 
 export function collectIslandBackwardFromSink(
-  sinks: ModuleBaseNodeData | ModuleBaseNodeData[],
+  sinks: ModuleNodeData | ModuleNodeData[],
   candidateNodes: Set<string>,
   horizon: number,
   ridgeHeights: number[],
   getTopologyOrder = getDataTopologyOrder,
-  getNodeColumnWidth: (node: ModuleBaseNodeData) => number = () => 1,
-  getNodeHeightUnits: (node: ModuleBaseNodeData) => number = () => 2,
+  getNodeColumnWidth: (node: ModuleNodeData) => number = () => 1,
+  getNodeHeightUnits: (node: ModuleNodeData) => number = () => 2,
 ): HeightCollectionResult {
   return collectIslandHeights({
     anchors: sinks,
@@ -89,6 +89,13 @@ export function collectIslandBackwardFromSink(
     getNodeColumnWidth,
     getNodeHeightUnits,
     getLinkedNodes: (node) => node.predecessors,
+    compareLinkedNodes: (left, right) => {
+      const topologyDifference = getTopologyOrder(left) - getTopologyOrder(right);
+      if (topologyDifference !== 0) return topologyDifference;
+
+      return countCandidateSuccessors(left, candidateNodes)
+        - countCandidateSuccessors(right, candidateNodes);
+    },
     writeSegment: ({
       nodeHeights,
       writeRidge,
@@ -137,13 +144,13 @@ export function collectIslandBackwardFromSink(
 }
 
 export function collectIslandForwardFromSource(
-  sources: ModuleBaseNodeData | ModuleBaseNodeData[],
+  sources: ModuleNodeData | ModuleNodeData[],
   candidateNodes: Set<string>,
   horizon: number,
   ridgeHeights: number[],
   getTopologyOrder = getDataTopologyOrder,
-  getNodeColumnWidth: (node: ModuleBaseNodeData) => number = () => 1,
-  getNodeHeightUnits: (node: ModuleBaseNodeData) => number = () => 2,
+  getNodeColumnWidth: (node: ModuleNodeData) => number = () => 1,
+  getNodeHeightUnits: (node: ModuleNodeData) => number = () => 2,
 ): HeightCollectionResult {
   return collectIslandHeights({
     anchors: sources,
@@ -202,8 +209,8 @@ export function collectIslandForwardFromSource(
 }
 
 function collectReachableNodeIds(
-  root: ModuleBaseNodeData,
-  getLinkedNodes: (node: ModuleBaseNodeData) => ModuleBaseNodeData[],
+  root: ModuleNodeData,
+  getLinkedNodes: (node: ModuleNodeData) => ModuleNodeData[],
   cache?: Map<string, Set<string>>,
   blockedNodeIds = new Set<string>(),
 ): Set<string> {
@@ -214,7 +221,7 @@ function collectReachableNodeIds(
   const result = new Set<string>();
   const visitingNodeIds = new Set<string>();
 
-  function visit(node: ModuleBaseNodeData, isRoot = false) {
+  function visit(node: ModuleNodeData, isRoot = false) {
     if (visitingNodeIds.has(node.id)) return;
     if (!isRoot && blockedNodeIds.has(node.id)) return;
 
@@ -239,20 +246,24 @@ function collectReachableNodeIds(
 }
 
 interface IslandHeightOptions {
-  anchors: ModuleBaseNodeData | ModuleBaseNodeData[];
+  anchors: ModuleNodeData | ModuleNodeData[];
   candidateNodes: Set<string>;
   horizon: number;
   ridgeHeights: number[];
-  getTopologyOrder: (node: ModuleBaseNodeData) => number;
-  getNodeColumnWidth: (node: ModuleBaseNodeData) => number;
-  getNodeHeightUnits: (node: ModuleBaseNodeData) => number;
-  getLinkedNodes: (node: ModuleBaseNodeData) => ModuleBaseNodeData[];
+  getTopologyOrder: (node: ModuleNodeData) => number;
+  getNodeColumnWidth: (node: ModuleNodeData) => number;
+  getNodeHeightUnits: (node: ModuleNodeData) => number;
+  getLinkedNodes: (node: ModuleNodeData) => ModuleNodeData[];
+  compareLinkedNodes?: (
+    left: ModuleNodeData,
+    right: ModuleNodeData,
+  ) => number;
   writeSegment: (context: {
     nodeHeights: Map<string, number>;
     writeRidge: (index: number, value: number) => void;
     writeValley: (index: number, value: number) => void;
-    currentNode: ModuleBaseNodeData;
-    linkedNode: ModuleBaseNodeData;
+    currentNode: ModuleNodeData;
+    linkedNode: ModuleNodeData;
     placedNodeIds: Set<string>;
   }) => void;
 }
@@ -266,10 +277,11 @@ function collectIslandHeights({
   getNodeColumnWidth,
   getNodeHeightUnits,
   getLinkedNodes,
+  compareLinkedNodes,
   writeSegment,
 }: IslandHeightOptions): HeightCollectionResult {
   const nodeHeights = new Map<string, number>();
-  const visitedNodes: ModuleBaseNodeData[] = [];
+  const visitedNodes: ModuleNodeData[] = [];
   const valleyHeights: number[] = [];
   const expanded = new Set<string>();
   const anchorList = Array.isArray(anchors) ? anchors : [anchors];
@@ -287,7 +299,7 @@ function collectIslandHeights({
     valleyHeights[index] = Math.min(valleyHeights[index] ?? Number.POSITIVE_INFINITY, value);
   }
 
-  function visit(node: ModuleBaseNodeData) {
+  function visit(node: ModuleNodeData) {
     if (expanded.has(node.id)) return;
 
     expanded.add(node.id);
@@ -297,7 +309,9 @@ function collectIslandHeights({
     }
 
     [...getLinkedNodes(node)]
-      .sort((left, right) => getTopologyOrder(left) - getTopologyOrder(right))
+      .sort(compareLinkedNodes ?? (
+        (left, right) => getTopologyOrder(left) - getTopologyOrder(right)
+      ))
       .forEach((linkedNode) => {
         if (!candidateNodes.has(linkedNode.id)) return;
         if (nodeHeights.has(linkedNode.id)) return;
@@ -342,6 +356,16 @@ function collectIslandHeights({
     visitedNodes,
     valleyHeights,
   };
+}
+
+function countCandidateSuccessors(
+  node: ModuleNodeData,
+  candidateNodes: Set<string>,
+) {
+  return node.successors.reduce(
+    (count, successor) => count + Number(candidateNodes.has(successor.id)),
+    0,
+  );
 }
 
 function writeNodeRidge(

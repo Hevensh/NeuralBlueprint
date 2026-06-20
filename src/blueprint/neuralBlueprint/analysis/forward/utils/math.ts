@@ -100,7 +100,9 @@ export function negativeRateFromNormal(mean: number, variance: number) {
   return normalCdf(-mean / Math.sqrt(Math.max(variance, 0) + EPS));
 }
 
-export function isNonNegative(stats: ModuleStats) {
+export function isNonNegative(
+  stats: Pick<ModuleStats, 'negativeRate'>,
+) {
   return (stats.negativeRate ?? 0) <= 0;
 }
 

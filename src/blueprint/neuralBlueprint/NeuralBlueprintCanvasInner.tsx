@@ -20,7 +20,7 @@ import {
   saveNeuralBlueprintGraph,
 } from '../../dataStorage/neuralBlueprintStorage';
 import { PageType } from '../PageTypes';
-import { updateState } from './analysis';
+import { updateState } from './analysis/updateState';
 import {
   MODULE_BASE_NODE_DRAG_TYPE,
 } from './NeuralBlueprintLeftPanel';
@@ -28,13 +28,13 @@ import { NeuralBlueprintNode } from './NeuralBlueprintNode';
 import type {
   ModuleAnalysisDirection,
   ModuleBaseNode,
-  ModuleBaseNodeData,
   ModuleBaseNodeKind,
+  ModuleNodeData,
 } from './ModuleBaseNodeTypes';
 import {
-  getDefaultStats,
+  createModuleNodeData,
   isModuleBaseNodeKind,
-} from './ModuleBaseNodeTypes';
+} from './moduleNodeFactory';
 import {
   animateNodePositions,
   easeArrangeAnimation,
@@ -50,10 +50,13 @@ import {
   type NeuralBlueprintGraphSnapshot,
 } from './utils/graphSnapshot';
 import {
-  addEdgeLink,
-  removeEdgeLinks,
-  removeNodeLinks,
+  rebuildNodeLinks,
 } from './utils/nodeLinks';
+import {
+  createNodeClipboard,
+  pasteNodeClipboard,
+  type NeuralBlueprintClipboard,
+} from './utils/nodeClipboard';
 import { syncSelectedNode } from './utils/selection';
 
 const baseEdgeOptions = {
@@ -73,7 +76,7 @@ interface NeuralBlueprintCanvasInnerProp {
   fileId: string;
   showRankAnalysis: boolean;
   showVarianceAnalysis: boolean;
-  setSelectedNode: Dispatch<SetStateAction<ModuleBaseNodeData | null>>;
+  setSelectedNode: Dispatch<SetStateAction<ModuleNodeData | null>>;
 }
 
 export function NeuralBlueprintCanvasInner({
@@ -105,6 +108,8 @@ export function NeuralBlueprintCanvasInner({
   const hoverTimerRef = useRef<number | null>(null);
   const handledArrangeRequestRef = useRef(0);
   const cancelNodeAnimationRef = useRef<CancelNodePositionAnimation>(() => undefined);
+  const clipboardRef = useRef<NeuralBlueprintClipboard | null>(null);
+  const pasteIndexRef = useRef(0);
   const selectedNodeIdRef = useRef<string | null>(null);
   const selectedCorrelationNode = useMemo(() => (
     nodes.find((node) => (
@@ -173,7 +178,7 @@ export function NeuralBlueprintCanvasInner({
   const arrangeNodes = useCallback(() => {
     cancelNodeAnimationRef.current();
     pushHistory();
-    const nextNodes = arrangeModuleNodes(updateState(nodes));
+    const nextNodes = arrangeModuleNodes(nodes);
     const duration = getArrangeAnimationDuration();
     const cancelNodeAnimation = animateNodePositions(
       nodes,
@@ -209,31 +214,64 @@ export function NeuralBlueprintCanvasInner({
     if (!previousGraph) return;
 
     historyRef.current = historyRef.current.slice(0, -1);
-    setNodes(previousGraph.nodes);
+    const previousNodes = updateState(previousGraph.nodes);
+    const selectedNode = previousNodes.find((node) => node.selected);
+
+    selectedNodeIdRef.current = selectedNode?.id ?? null;
+    setNodes(previousNodes);
     setEdges(previousGraph.edges);
-    setSelectedNode(previousGraph.nodes.find((node) => node.selected)?.data ?? null);
+    setSelectedNode(selectedNode?.data ?? null);
   }, [setEdges, setNodes, setSelectedNode]);
+
+  const copySelectedNodes = useCallback(() => {
+    const clipboard = createNodeClipboard(nodes, edges);
+    if (!clipboard) return;
+
+    clipboardRef.current = clipboard;
+    pasteIndexRef.current = 0;
+  }, [edges, nodes]);
+
+  const pasteCopiedNodes = useCallback(() => {
+    const clipboard = clipboardRef.current;
+    if (!clipboard) return;
+
+    pushHistory();
+    pasteIndexRef.current += 1;
+    const pasted = pasteNodeClipboard(
+      clipboard,
+      nodes,
+      edges,
+      pasteIndexRef.current,
+    );
+    const nextNodes = updateState(rebuildNodeLinks(
+      pasted.nodes,
+      pasted.edges,
+    ));
+    const selectedNodeId = pasted.pastedNodeIds[0] ?? null;
+    const selectedNode = nextNodes.find((node) => node.id === selectedNodeId);
+
+    selectedNodeIdRef.current = selectedNodeId;
+    setEdges(pasted.edges);
+    setNodes(nextNodes);
+    setSelectedNode(selectedNode?.data ?? null);
+  }, [
+    edges,
+    nodes,
+    pushHistory,
+    setEdges,
+    setNodes,
+    setSelectedNode,
+  ]);
 
   const createModuleBaseNode = useCallback((kind: ModuleBaseNodeKind, position: { x: number; y: number }) => {
     pushHistory();
     const id = `${kind}_${Date.now()}`;
-    const data: ModuleBaseNodeData = {
+    const data = createModuleNodeData(kind, {
       id,
       name: kind,
       type: PageType.NeuralBlueprint,
-      kind,
-      predecessors: [],
-      successors: [],
-      forwardTopologyOrder: 0,
-      backwardTopologyOrder: 0,
-      inCycle: false,
-      normalizationMode: kind === 'Input' ? '0-1' : undefined,
-      initializationMode: kind === 'Linear' ? 'xavier_normal' : undefined,
-      biasInitializationMode: kind === 'Linear' ? 'zeros' : undefined,
-      dropoutRate: kind === 'Dropout' ? 0.5 : undefined,
-      stats: getDefaultStats(kind),
       position,
-    };
+    });
     const node: ModuleBaseNode = {
       id,
       type: PageType.NeuralBlueprint,
@@ -280,9 +318,9 @@ export function NeuralBlueprintCanvasInner({
     const nextEdges = edges.filter((edge) => (
       !removedNodeIdSet.has(edge.source) && !removedNodeIdSet.has(edge.target)
     ));
-    const nextNodes = updateState(removeNodeLinks(
+    const nextNodes = updateState(rebuildNodeLinks(
       applyNodeChanges(changes, nodes),
-      removedNodeIdSet,
+      nextEdges,
     ));
 
     setEdges(nextEdges);
@@ -294,17 +332,16 @@ export function NeuralBlueprintCanvasInner({
     const removedEdgeIds = changes
       .filter((change) => change.type === 'remove')
       .map((change) => change.id);
-    const removedEdges = edges.filter((edge) => removedEdgeIds.includes(edge.id));
 
-    if (removedEdges.length > 0) {
+    if (removedEdgeIds.length > 0) {
       pushHistory();
     }
 
     const nextEdges = applyEdgeChanges(changes, edges);
     setEdges(nextEdges);
 
-    if (removedEdges.length > 0) {
-      const nextNodes = updateState(removeEdgeLinks(nodes, removedEdges));
+    if (removedEdgeIds.length > 0) {
+      const nextNodes = updateState(rebuildNodeLinks(nodes, nextEdges));
       setNodes(nextNodes);
       syncSelectedNode(nextNodes, selectedNodeIdRef, setSelectedNode);
     }
@@ -327,10 +364,13 @@ export function NeuralBlueprintCanvasInner({
 
     pushHistory();
     const nextEdges = addEdge({
-      ...connection,
       id: `${connection.source}-${connection.target}`,
+      source: connection.source,
+      target: connection.target,
+      sourceHandle: connection.sourceHandle,
+      targetHandle: connection.targetHandle,
     }, edges);
-    const nextNodes = updateState(addEdgeLink(nodes, sourceNode.data, targetNode.data));
+    const nextNodes = updateState(rebuildNodeLinks(nodes, nextEdges));
 
     setEdges(nextEdges);
     setNodes(nextNodes);
@@ -400,7 +440,16 @@ export function NeuralBlueprintCanvasInner({
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.ctrlKey && event.key.toLowerCase() === 'z') {
+      if (!(event.ctrlKey || event.metaKey) || isEditableTarget(event.target)) return;
+
+      const key = event.key.toLowerCase();
+      if (key === 'c') {
+        event.preventDefault();
+        copySelectedNodes();
+      } else if (key === 'v') {
+        event.preventDefault();
+        pasteCopiedNodes();
+      } else if (key === 'z') {
         event.preventDefault();
         undo();
       }
@@ -408,7 +457,7 @@ export function NeuralBlueprintCanvasInner({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo]);
+  }, [copySelectedNodes, pasteCopiedNodes, undo]);
 
   useEffect(() => () => {
     cancelNodeAnimationRef.current();
@@ -496,4 +545,13 @@ function getCorrelationNodeKey(
   analysisDirection: ModuleAnalysisDirection,
 ) {
   return `${analysisDirection}:${nodeId}`;
+}
+
+function isEditableTarget(target: EventTarget | null) {
+  return target instanceof HTMLElement && (
+    target.isContentEditable
+    || target.tagName === 'INPUT'
+    || target.tagName === 'TEXTAREA'
+    || target.tagName === 'SELECT'
+  );
 }

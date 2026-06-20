@@ -1,0 +1,375 @@
+.training-process-canvas {
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(20, 184, 166, 0.16), transparent 48%),
+    linear-gradient(145deg, #020617, #0f172a 58%, #111827);
+}
+
+.training-loss-chart {
+  position: relative;
+  width: min(920px, 100%);
+  box-sizing: border-box;
+  padding: 18px 20px;
+  border: 1px solid rgba(45, 212, 191, 0.34);
+  border-radius: 10px;
+  background: rgba(2, 6, 23, 0.78);
+  box-shadow:
+    0 18px 42px rgba(0, 0, 0, 0.3),
+    inset 0 0 24px rgba(45, 212, 191, 0.04);
+  color: #cbd5e1;
+}
+
+.training-loss-chart-header,
+.training-loss-chart-legend {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.training-loss-chart-header strong {
+  color: #e2e8f0;
+  font-size: 14px;
+}
+
+.training-loss-chart-header span,
+.training-loss-chart-legend span {
+  color: #94a3b8;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.training-loss-chart svg {
+  display: block;
+  width: 100%;
+  height: min(430px, calc(100vh - 250px));
+  min-height: 280px;
+  margin-top: 8px;
+  overflow: visible;
+}
+
+.training-chart-tick line {
+  stroke: rgba(148, 163, 184, 0.18);
+  stroke-width: 1;
+}
+
+.training-chart-tick text {
+  fill: #94a3b8;
+  font-size: 12px;
+  text-anchor: middle;
+}
+
+.training-chart-tick .training-chart-y-label,
+.training-chart-best text {
+  text-anchor: end;
+}
+
+.training-chart-line {
+  fill: none;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.training-chart-line.train {
+  stroke: #22d3ee;
+}
+
+.training-chart-line.validation {
+  stroke: #fb7185;
+  stroke-dasharray: 6 5;
+}
+
+.training-chart-best line {
+  stroke: #f59e0b;
+  stroke-width: 1.2;
+  stroke-dasharray: 4 4;
+}
+
+.training-chart-best text {
+  fill: #fbbf24;
+  font-size: 11px;
+}
+
+.training-chart-best .training-chart-best-epoch {
+  text-anchor: middle;
+}
+
+.training-chart-hit {
+  fill: transparent;
+  stroke: transparent;
+  pointer-events: all;
+}
+
+.training-chart-hover line {
+  stroke: rgba(103, 232, 249, 0.34);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+
+.training-chart-hover circle {
+  fill: #22d3ee;
+  stroke: #ecfeff;
+  stroke-width: 1.5;
+}
+
+.training-chart-hover.validation circle {
+  fill: #fb7185;
+}
+
+.training-chart-val-marker {
+  fill: #fb7185;
+  stroke: #ffe4e6;
+  stroke-width: 1;
+}
+
+.training-chart-tooltip {
+  position: absolute;
+  z-index: 3;
+  display: grid;
+  gap: 2px;
+  min-width: 88px;
+  padding: 6px 8px;
+  border: 1px solid rgba(103, 232, 249, 0.32);
+  border-radius: 6px;
+  background: rgba(2, 6, 23, 0.94);
+  color: #f8fafc;
+  font-size: 11px;
+  line-height: 1.3;
+  pointer-events: none;
+  transform: translate(12px, -100%);
+}
+
+.training-chart-tooltip strong {
+  color: #67e8f9;
+  text-transform: uppercase;
+}
+
+.training-chart-tooltip span {
+  color: #cbd5e1;
+}
+
+.training-loss-chart-legend {
+  justify-content: flex-end;
+}
+
+.training-loss-chart-legend span::before {
+  display: inline-block;
+  width: 20px;
+  margin-right: 6px;
+  border-top: 2px solid #22d3ee;
+  content: "";
+  vertical-align: middle;
+}
+
+.training-loss-chart-legend .validation::before {
+  border-color: #fb7185;
+  border-top-style: dashed;
+}
+
+.training-curve-storage {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+}
+
+.training-curve-storage-header {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.training-curve-storage-header strong {
+  color: #67e8f9;
+  font-size: 15px;
+  letter-spacing: 0.04em;
+}
+
+.training-curve-clear,
+.training-curve-delete {
+  border: 1px solid rgba(248, 113, 113, 0.38);
+  border-radius: 6px;
+  background: rgba(127, 29, 29, 0.22);
+  color: #fca5a5;
+  cursor: pointer;
+}
+
+.training-curve-clear {
+  min-height: 28px;
+  padding: 0 10px;
+}
+
+.training-curve-clear:disabled {
+  cursor: default;
+  opacity: 0.38;
+}
+
+.training-curve-storage-actions {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 8px;
+}
+
+.training-curve-list {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 10px;
+}
+
+.training-curve-list .property-empty {
+  margin-top: 0;
+}
+
+.training-curve-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(45, 212, 191, 0.24);
+  border-radius: 8px;
+  background: rgba(2, 6, 23, 0.54);
+  transition:
+    border-color 0.16s ease,
+    background 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.training-curve-card:hover {
+  border-color: rgba(94, 234, 212, 0.52);
+  background: rgba(15, 118, 110, 0.16);
+}
+
+.training-curve-card.selected {
+  border-color: rgba(94, 234, 212, 0.76);
+  background: rgba(15, 118, 110, 0.24);
+  box-shadow: 0 0 16px rgba(45, 212, 191, 0.16);
+}
+
+.training-curve-card-main {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 10px 68px 10px 10px;
+  border: 0;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.training-curve-card-main strong {
+  overflow: hidden;
+  color: #e2e8f0;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.training-curve-delete {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  padding: 3px 7px;
+  font-size: 10px;
+}
+
+.training-curve-clear:hover:not(:disabled),
+.training-curve-delete:hover {
+  border-color: rgba(248, 113, 113, 0.72);
+  background: rgba(185, 28, 28, 0.36);
+  color: #fee2e2;
+}
+
+.training-loss-history {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 8;
+  width: 224px;
+  box-sizing: border-box;
+  padding: 9px 10px 7px;
+  border: 1px solid rgba(34, 211, 238, 0.3);
+  border-radius: 8px;
+  background: rgba(2, 6, 23, 0.72);
+  box-shadow:
+    0 10px 24px rgba(0, 0, 0, 0.28),
+    inset 0 0 18px rgba(34, 211, 238, 0.04);
+  color: #cbd5e1;
+  pointer-events: none;
+}
+
+.training-loss-history-header,
+.training-loss-history-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.training-loss-history-header strong {
+  color: #e2e8f0;
+  font-size: 11px;
+}
+
+.training-loss-history-header span,
+.training-loss-history-footer span {
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+
+.training-loss-history svg {
+  display: block;
+  width: 100%;
+  height: 92px;
+  margin: 3px 0 1px;
+  overflow: visible;
+}
+
+.training-loss-grid {
+  stroke: rgba(148, 163, 184, 0.14);
+  stroke-width: 1;
+}
+
+.training-loss-line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.training-loss-line.train {
+  stroke: #22d3ee;
+}
+
+.training-loss-point.train {
+  stroke: #22d3ee;
+  fill: #22d3ee;
+}
+
+.training-loss-line.validation {
+  stroke: #fb7185;
+  stroke-dasharray: 5 4;
+}
+
+.training-loss-point.validation {
+  stroke: #fb7185;
+  fill: #fb7185;
+}
+
+.training-loss-history-footer .train {
+  color: #67e8f9;
+}
+
+.training-loss-history-footer .validation {
+  color: #fda4af;
+}

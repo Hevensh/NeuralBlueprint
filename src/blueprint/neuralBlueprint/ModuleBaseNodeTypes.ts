@@ -3,16 +3,16 @@ import type { NeuralBlueprintPageType } from '../PageTypes';
 
 export type ModuleBaseNodeKind = 'Input' | 'Linear' | 'ReLU' | 'Dropout' | 'Sum' | 'Output';
 export type ModuleAnalysisDirection = 'forward' | 'backward';
+export type ModuleDimLabel = 'normal' | 'not the same' | '---';
 export type InputNormalizationMode = '0-1' | 'standard';
 export type LinearInitializationMode = 'standard_normal' | 'xavier_normal';
 export type BiasInitializationMode = 'zeros' | 'standard_normal';
-export type ModuleBackwardFunction = (gradient: unknown) => unknown;
 
 export interface ModuleStats {
   /** Output dimension / potential rank of the module output. */
   rank: number;
-  /** Optional display override for invalid or non-numeric output dimension. */
-  dimLabel?: string;
+  /** Forward inference state for this module output. */
+  dimLabel: ModuleDimLabel;
   /** Estimated effective rank carried by the module output. */
   effectiveRank: number;
   /** effectiveRank / rank. This can exceed 1 after Sum composition. */
@@ -60,18 +60,19 @@ export interface BackwardOutputPairStats {
   covariance: number;
 }
 
-export interface ModuleStatsForwardContext {
-  node: ModuleBaseNodeData;
+export interface ModuleStatsForwardContext<
+  TNode extends ModuleNodeData = ModuleNodeData,
+> {
+  node: TNode;
   inputs: ModuleStats[];
-  inputNodes: ModuleBaseNodeData[];
-  nodeMap: Map<string, ModuleBaseNodeData>;
+  inputNodes: ModuleNodeData[];
+  nodeMap: Map<string, ModuleNodeData>;
   statsByNodeId: Map<string, ModuleStats>;
 }
 
 export interface ModuleStatsForwardResult {
   stats: ModuleStats;
   sumInputPairStats?: SumInputPairStats[];
-  message?: string;
 }
 
 export type ModuleStatsForwardFunction = (
@@ -97,44 +98,42 @@ export interface ModuleStatsBackward {
   negativeRate?: number;
 }
 
-export interface ModuleStatsBackwardContext {
-  node: ModuleBaseNodeData;
+export interface ModuleStatsBackwardContext<
+  TNode extends ModuleNodeData = ModuleNodeData,
+> {
+  node: TNode;
   gradient: ModuleStatsBackward;
-  outputNodes: ModuleBaseNodeData[];
+  outputNodes: ModuleNodeData[];
 }
 
 export interface ModuleStatsBackwardResult {
   stats: ModuleStatsBackward;
-  message?: string;
 }
 
 export type ModuleStatsBackwardFunction = (
   context: ModuleStatsBackwardContext
 ) => ModuleStatsBackwardResult;
 
-export interface ModuleBaseNodeData extends Record<string, unknown> {
+export interface ModuleBaseNodeData<
+  TKind extends ModuleBaseNodeKind = ModuleBaseNodeKind,
+> extends Record<string, unknown> {
   id: string;
   name: string;
   type: NeuralBlueprintPageType;
-  kind: ModuleBaseNodeKind;
-  predecessors: ModuleBaseNodeData[];
-  successors: ModuleBaseNodeData[];
+  kind: TKind;
+  predecessors: ModuleNodeData[];
+  successors: ModuleNodeData[];
   forwardStats?: ModuleStatsForwardFunction;
   backwardStats?: ModuleStatsBackwardFunction;
-  backward?: ModuleBackwardFunction;
   forwardTopologyOrder?: number;
+  inferenceTopologyOrder?: Set<number>;
   backwardTopologyOrder?: number;
   inCycle?: boolean;
-  normalizationMode?: InputNormalizationMode;
-  initializationMode?: LinearInitializationMode;
-  biasInitializationMode?: BiasInitializationMode;
-  dropoutRate?: number;
-  inFeatures?: number;
-  outFeatures?: number;
-  useBias?: boolean;
   stats?: ModuleStats;
   statsBackward?: ModuleStatsBackward;
   analysisDirection?: ModuleAnalysisDirection;
+  memoryPoint?: number;
+  inferencePoint?: number;
   sumInputPairStats?: SumInputPairStats[];
   backwardOutputPairStats?: BackwardOutputPairStats[];
   position: {
@@ -143,59 +142,42 @@ export interface ModuleBaseNodeData extends Record<string, unknown> {
   };
 }
 
-export type ModuleBaseNode = Node<ModuleBaseNodeData>;
-
-export const DEFAULT_OUTPUT_DIM = 64;
-export const DEFAULT_INPUT_EFFECTIVE_RANK = 32;
-
-const moduleBaseNodeKinds: ModuleBaseNodeKind[] = [
-  'Input',
-  'Linear',
-  'ReLU',
-  'Dropout',
-  'Sum',
-  'Output',
-];
-
-export function isModuleBaseNodeKind(kind: string): kind is ModuleBaseNodeKind {
-  return moduleBaseNodeKinds.includes(kind as ModuleBaseNodeKind);
+export interface InputNodeData extends ModuleBaseNodeData<'Input'> {
+  normalizationMode: InputNormalizationMode;
+  outFeatures: number;
+  inputEffectiveRank: number;
 }
 
-export function getDefaultStats(kind: ModuleBaseNodeKind): ModuleStats {
-  if (kind === 'Input') {
-    return {
-      rank: DEFAULT_OUTPUT_DIM,
-      effectiveRank: DEFAULT_INPUT_EFFECTIVE_RANK,
-      saturation: DEFAULT_INPUT_EFFECTIVE_RANK / DEFAULT_OUTPUT_DIM,
-      minRank: DEFAULT_OUTPUT_DIM,
-      mean: 0.5,
-      variance: 1 / 12,
-      zeroRate: 0,
-      negativeRate: 0,
-    };
-  }
-
-  if (kind === 'Linear') {
-    return {
-      rank: DEFAULT_OUTPUT_DIM,
-      effectiveRank: Number.NaN,
-      saturation: Number.NaN,
-      minRank: Number.NaN,
-      mean: Number.NaN,
-      variance: Number.NaN,
-      zeroRate: Number.NaN,
-      negativeRate: Number.NaN,
-    };
-  }
-
-  return {
-    rank: Number.NaN,
-    effectiveRank: Number.NaN,
-    saturation: Number.NaN,
-    minRank: Number.NaN,
-    mean: Number.NaN,
-    variance: Number.NaN,
-    zeroRate: Number.NaN,
-    negativeRate: Number.NaN,
-  };
+export interface LinearNodeData extends ModuleBaseNodeData<'Linear'> {
+  initializationMode: LinearInitializationMode;
+  biasInitializationMode: BiasInitializationMode;
+  inFeatures?: number;
+  outFeatures: number;
+  useBias: boolean;
 }
+
+export interface ReLUNodeData extends ModuleBaseNodeData<'ReLU'> {
+  readonly kind: 'ReLU';
+}
+
+export interface DropoutNodeData extends ModuleBaseNodeData<'Dropout'> {
+  dropoutRate: number;
+}
+
+export interface SumNodeData extends ModuleBaseNodeData<'Sum'> {
+  readonly kind: 'Sum';
+}
+
+export interface OutputNodeData extends ModuleBaseNodeData<'Output'> {
+  readonly kind: 'Output';
+}
+
+export type ModuleNodeData =
+  | InputNodeData
+  | LinearNodeData
+  | ReLUNodeData
+  | DropoutNodeData
+  | SumNodeData
+  | OutputNodeData;
+
+export type ModuleBaseNode = Node<ModuleNodeData>;

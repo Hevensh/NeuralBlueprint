@@ -1,4 +1,5 @@
 import type {
+  DropoutNodeData,
   ModuleStatsBackwardContext,
   ModuleStatsBackwardResult,
 } from '../../ModuleBaseNodeTypes';
@@ -8,11 +9,11 @@ import { applyBackwardGate } from './utils';
 export function backwardDropoutStats({
   node,
   gradient,
-}: ModuleStatsBackwardContext): ModuleStatsBackwardResult {
+}: ModuleStatsBackwardContext<DropoutNodeData>): ModuleStatsBackwardResult {
   return {
     stats: applyBackwardGate(
       gradient,
-      1 - clamp01(node.dropoutRate ?? 0.5),
+      1 - clamp01(node.dropoutRate),
     ),
   };
 }

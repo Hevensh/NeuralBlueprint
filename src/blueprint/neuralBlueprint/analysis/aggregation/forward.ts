@@ -1,5 +1,5 @@
 import type {
-  ModuleBaseNodeData,
+  ModuleNodeData,
   ModuleStats,
   ModuleStatsForwardContext,
   ModuleStatsForwardResult,
@@ -7,7 +7,10 @@ import type {
 import { getLinearCorrBetweenNodes } from '../correlation';
 import { DEFAULT_INPUT_STATS, EPS } from '../forward/utils/constants';
 import { estimateSumNegativeRate, isNonNegative } from '../forward/utils/math';
-import { getEmptyStats } from '../forward/utils/moduleStats';
+import {
+  getEmptyStats,
+  getInvalidInferenceStats,
+} from '../forward/utils/moduleStats';
 import {
   computeInputPairCorrelation,
   computeSumCovariance,
@@ -43,7 +46,7 @@ function aggregateForwardSumStats({
 
   if (!hasSameInputRank(validInputs)) {
     return {
-      stats: getInvalidSumStats(),
+      stats: getInvalidInferenceStats(node, 'not the same'),
     };
   }
 
@@ -71,6 +74,7 @@ function aggregateForwardSumStats({
   return {
     stats: {
       ...sumRankState,
+      dimLabel: 'normal',
       mean,
       variance,
       zeroRate: allNonNegative
@@ -103,25 +107,11 @@ function hasSameInputRank(inputs: ModuleStats[]) {
   return inputs.every((input) => input.rank === inputs[0].rank);
 }
 
-function getInvalidSumStats(): ModuleStats {
-  return {
-    rank: Number.NaN,
-    dimLabel: 'not the same',
-    effectiveRank: Number.NaN,
-    saturation: Number.NaN,
-    minRank: Number.NaN,
-    mean: Number.NaN,
-    variance: Number.NaN,
-    zeroRate: Number.NaN,
-    negativeRate: Number.NaN,
-  };
-}
-
 function computeSumRankStats(
-  node: ModuleBaseNodeData,
+  node: ModuleNodeData,
   inputs: ModuleStats[],
-  inputNodes: ModuleBaseNodeData[],
-  nodeMap: Map<string, ModuleBaseNodeData>,
+  inputNodes: ModuleNodeData[],
+  nodeMap: Map<string, ModuleNodeData>,
   statsByNodeId: Map<string, ModuleStats>,
 ) {
   if (inputs.length < 2) {
@@ -216,7 +206,7 @@ function computeSumMinRank(
 
 function computeSumInputLinearCorr(
   inputs: ModuleStats[],
-  inputNodes: ModuleBaseNodeData[],
+  inputNodes: ModuleNodeData[],
   sumMinRank: number,
 ) {
   const inputLinearCorr: Record<string, number> = {};

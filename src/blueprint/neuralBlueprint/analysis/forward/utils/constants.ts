@@ -9,6 +9,7 @@ export const RELU_CORR_GAMMA = Math.log(RELU_STANDARD_NORMAL_CORR) / Math.log(0.
 
 export const DEFAULT_INPUT_STATS: ModuleStats = {
   rank: DEFAULT_RANK,
+  dimLabel: 'normal',
   effectiveRank: DEFAULT_INPUT_EFFECTIVE_RANK,
   saturation: DEFAULT_INPUT_EFFECTIVE_RANK / DEFAULT_RANK,
   minRank: DEFAULT_RANK,
@@ -20,6 +21,7 @@ export const DEFAULT_INPUT_STATS: ModuleStats = {
 
 export const EMPTY_STATS: ModuleStats = {
   rank: Number.NaN,
+  dimLabel: '---',
   effectiveRank: Number.NaN,
   saturation: Number.NaN,
   minRank: Number.NaN,

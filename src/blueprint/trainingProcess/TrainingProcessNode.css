@@ -7,4 +7,7 @@
   color: #ccfbf1;
   font-size: 13px;
   font-weight: 750;
+  line-height: 1.45;
+  text-align: center;
+  white-space: pre-line;
 }

@@ -8,8 +8,8 @@ export function NeuralBlueprintNode({
 }: NodeProps<ModuleBaseNode>) {
   const isBackward = data.analysisDirection === 'backward';
   const stats = isBackward ? data.statsBackward : data.stats;
-  const outputDim = !isBackward && data.kind === 'Sum' && data.stats?.dimLabel
-    ? data.stats.dimLabel
+  const outputDim = !isBackward && data.stats?.dimLabel !== 'normal'
+    ? data.stats?.dimLabel ?? '---'
     : formatInteger(stats?.rank);
   const effectiveRank = formatFixed(stats?.effectiveRank, 2);
   const saturation = formatFixed(stats?.saturation, 3);

@@ -1,8 +1,16 @@
-import type { ModuleBaseNodeData, ModuleStats } from '../../../ModuleBaseNodeTypes';
-import { DEFAULT_RANK, EMPTY_STATS, EPS } from './constants';
+import type {
+  LinearNodeData,
+  ModuleDimLabel,
+  ModuleNodeData,
+  ModuleStats,
+} from '../../../ModuleBaseNodeTypes';
+import { DEFAULT_RANK, EMPTY_STATS } from './constants';
 
-export function getEmptyStats(node: ModuleBaseNodeData): ModuleStats {
-  const rank = getOutputRank(node);
+export function getEmptyStats(node: ModuleNodeData): ModuleStats {
+  const retainedRank = getRetainedRank(node);
+  const rank = Number.isFinite(retainedRank)
+    ? retainedRank
+    : DEFAULT_RANK;
 
   return {
     ...EMPTY_STATS,
@@ -17,7 +25,7 @@ export function getEmptyStats(node: ModuleBaseNodeData): ModuleStats {
   };
 }
 
-export function getDisconnectedStats(node: ModuleBaseNodeData): ModuleStats {
+export function getDisconnectedStats(node: ModuleNodeData): ModuleStats {
   if (
     node.kind === 'Sum'
     || node.kind === 'ReLU'
@@ -29,25 +37,52 @@ export function getDisconnectedStats(node: ModuleBaseNodeData): ModuleStats {
 
   return {
     ...EMPTY_STATS,
-    rank: getOutputRank(node),
-    minRank: getOutputRank(node),
+    rank: node.outFeatures,
+    minRank: node.outFeatures,
   };
 }
 
-export function getOutputRank(node: ModuleBaseNodeData) {
-  return Math.max(node.outFeatures ?? node.stats?.rank ?? DEFAULT_RANK, EPS);
+export function getInvalidInferenceStats(
+  node: ModuleNodeData,
+  dimLabel: Exclude<ModuleDimLabel, 'normal'>,
+): ModuleStats {
+  const retainedRank = getRetainedRank(node);
+
+  return {
+    ...EMPTY_STATS,
+    rank: retainedRank,
+    minRank: retainedRank,
+    dimLabel,
+  };
 }
 
-export function getFanIn(node: ModuleBaseNodeData) {
-  const predecessorDim = node.predecessors.reduce((sum, predecessor) => (
-    sum + (predecessor.stats?.rank ?? DEFAULT_RANK)
-  ), 0);
+export function getFanIn(
+  node: LinearNodeData,
+  inputs?: Pick<ModuleStats, 'rank'>[],
+) {
+  const inferredRank = inputs?.[0]?.rank ?? node.predecessors.reduce(
+    (sum, predecessor) => sum + (predecessor.stats?.rank ?? DEFAULT_RANK),
+    0,
+  );
 
-  return Math.max(node.inFeatures ?? (predecessorDim || DEFAULT_RANK), 1);
+  return Math.max(
+    node.inFeatures
+      ?? (Number.isFinite(inferredRank) ? inferredRank as number : DEFAULT_RANK),
+    1,
+  );
+}
+
+function getRetainedRank(node: ModuleNodeData) {
+  const rank = (
+    node.kind === 'Input' || node.kind === 'Linear'
+  )
+    ? node.outFeatures
+    : node.stats?.rank;
+  return Number.isFinite(rank) ? rank as number : Number.NaN;
 }
 
 export function getWeightVariance(
-  mode: ModuleBaseNodeData['initializationMode'],
+  mode: LinearNodeData['initializationMode'],
   fanIn: number,
   fanOut: number,
 ) {
@@ -60,8 +95,8 @@ export function getWeightVariance(
   return 1 / fanIn;
 }
 
-export function getBiasVariance(node: ModuleBaseNodeData) {
-  if (node.useBias === false) {
+export function getBiasVariance(node: LinearNodeData) {
+  if (!node.useBias) {
     return 0;
   }
 

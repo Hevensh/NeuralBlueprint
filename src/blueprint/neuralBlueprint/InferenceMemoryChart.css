@@ -1,0 +1,192 @@
+.inference-memory-section {
+  position: relative;
+  z-index: 1;
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(34, 211, 238, 0.2);
+}
+
+.inference-memory-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #cbd5e1;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.inference-memory-header strong {
+  color: #67e8f9;
+  font-size: 12px;
+}
+
+.inference-memory-chart {
+  display: grid;
+  grid-auto-columns: minmax(42px, 1fr);
+  grid-auto-flow: column;
+  align-items: end;
+  gap: 8px;
+  min-height: 190px;
+  margin-top: 16px;
+  padding: 0 4px;
+  overflow-x: auto;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.inference-memory-stage {
+  display: grid;
+  grid-template-rows: 20px 142px 26px;
+  align-items: end;
+  min-width: 42px;
+}
+
+.inference-memory-stage-value {
+  overflow: hidden;
+  color: #94a3b8;
+  font-size: 10px;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inference-memory-bar-track {
+  position: relative;
+  height: 136px;
+  border-radius: 4px 4px 0 0;
+  background:
+    repeating-linear-gradient(
+      to top,
+      rgba(148, 163, 184, 0.08) 0,
+      rgba(148, 163, 184, 0.08) 1px,
+      transparent 1px,
+      transparent 34px
+    );
+}
+
+.inference-memory-bar {
+  position: absolute;
+  right: 7px;
+  bottom: 0;
+  left: 7px;
+  display: flex;
+  min-height: 0;
+  overflow: visible;
+  flex-direction: column-reverse;
+  border-radius: 4px 4px 0 0;
+  filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.12));
+}
+
+.inference-memory-segment {
+  position: relative;
+  min-height: 1px;
+  box-sizing: border-box;
+  border: 1px solid color-mix(
+    in srgb,
+    var(--inference-memory-color) 82%,
+    transparent
+  );
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--inference-memory-color) 25%, transparent),
+      color-mix(in srgb, var(--inference-memory-color) 10%, transparent)
+    );
+  box-shadow:
+    inset 0 0 8px color-mix(
+      in srgb,
+      var(--inference-memory-color) 18%,
+      transparent
+    ),
+    0 0 7px color-mix(
+      in srgb,
+      var(--inference-memory-color) 42%,
+      transparent
+    );
+  transition:
+    filter 0.14s ease,
+    box-shadow 0.14s ease;
+}
+
+.inference-memory-segment:hover {
+  filter: brightness(1.22);
+  box-shadow:
+    inset 0 0 10px color-mix(
+      in srgb,
+      var(--inference-memory-color) 28%,
+      transparent
+    ),
+    0 0 11px color-mix(
+      in srgb,
+      var(--inference-memory-color) 62%,
+      transparent
+    );
+}
+
+.inference-memory-stage-label {
+  align-self: center;
+  color: #cbd5e1;
+  font-size: 11px;
+  text-align: center;
+}
+
+.inference-memory-axis-label {
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 10px;
+  text-align: center;
+}
+
+.inference-memory-legend {
+  display: grid;
+  gap: 7px;
+  margin-top: 14px;
+}
+
+.inference-memory-legend-item {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.inference-memory-legend-item strong {
+  color: #cbd5e1;
+  font-size: 11px;
+}
+
+.inference-memory-swatch {
+  width: 9px;
+  height: 9px;
+  box-sizing: border-box;
+  border: 1px solid color-mix(
+    in srgb,
+    var(--inference-memory-color) 88%,
+    transparent
+  );
+  border-radius: 2px;
+  background: color-mix(
+    in srgb,
+    var(--inference-memory-color) 18%,
+    transparent
+  );
+  box-shadow:
+    inset 0 0 5px color-mix(
+      in srgb,
+      var(--inference-memory-color) 18%,
+      transparent
+    ),
+    0 0 8px color-mix(
+      in srgb,
+      var(--inference-memory-color) 48%,
+      transparent
+    );
+}
+
+.inference-memory-empty {
+  margin-top: 16px;
+  color: #64748b;
+  font-size: 12px;
+}

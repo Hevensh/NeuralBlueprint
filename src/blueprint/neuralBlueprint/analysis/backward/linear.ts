@@ -1,4 +1,5 @@
 import type {
+  LinearNodeData,
   ModuleStatsBackwardContext,
   ModuleStatsBackwardResult,
 } from '../../ModuleBaseNodeTypes';
@@ -6,16 +7,15 @@ import { EPS, LINEAR_SATURATION_GAIN } from '../forward/utils/constants';
 import { negativeRateFromNormal } from '../forward/utils/math';
 import {
   getFanIn,
-  getOutputRank,
   getWeightVariance,
 } from '../forward/utils/moduleStats';
 
 export function backwardLinearStats({
   node,
   gradient,
-}: ModuleStatsBackwardContext): ModuleStatsBackwardResult {
+}: ModuleStatsBackwardContext<LinearNodeData>): ModuleStatsBackwardResult {
   const fanIn = getFanIn(node);
-  const fanOut = getOutputRank(node);
+  const fanOut = node.outFeatures;
   const effectiveRank = fanIn * (
     1 - Math.exp(
       (-LINEAR_SATURATION_GAIN * gradient.effectiveRank)

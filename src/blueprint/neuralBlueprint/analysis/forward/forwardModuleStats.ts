@@ -1,5 +1,5 @@
 import type {
-  ModuleStats,
+  ModuleNodeData,
   ModuleStatsForwardContext,
   ModuleStatsForwardResult,
 } from '../../ModuleBaseNodeTypes';
@@ -22,27 +22,31 @@ export function forwardModuleStats(
 
   switch (context.node.kind) {
     case 'Input':
-      return forwardInputStats(context);
+      return forwardInputStats(withNode(context, context.node));
     case 'Linear':
-      return forwardLinearStats(aggregatedContext);
+      return forwardLinearStats(withNode(aggregatedContext, context.node));
     case 'ReLU':
-      return forwardReLUStats(aggregatedContext);
+      return forwardReLUStats(withNode(aggregatedContext, context.node));
     case 'Dropout':
-      return forwardDropoutStats(aggregatedContext);
+      return forwardDropoutStats(withNode(aggregatedContext, context.node));
     case 'Sum':
       return {
-        ...forwardSumStats(aggregatedContext),
+        ...forwardSumStats(withNode(aggregatedContext, context.node)),
         sumInputPairStats: aggregation.sumInputPairStats,
       };
     default:
       return {
-        stats: stripDimLabel(aggregation.stats ?? DEFAULT_INPUT_STATS),
+        stats: aggregation.stats ?? DEFAULT_INPUT_STATS,
       };
   }
 }
 
-function stripDimLabel(stats: ModuleStats): ModuleStats {
-  const nextStats = { ...stats };
-  delete nextStats.dimLabel;
-  return nextStats;
+function withNode<TNode extends ModuleNodeData>(
+  context: ModuleStatsForwardContext,
+  node: TNode,
+): ModuleStatsForwardContext<TNode> {
+  return {
+    ...context,
+    node,
+  };
 }

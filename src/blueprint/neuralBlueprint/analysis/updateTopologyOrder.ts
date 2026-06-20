@@ -1,4 +1,8 @@
-import type { ModuleBaseNode, ModuleBaseNodeData } from '../ModuleBaseNodeTypes';
+import {
+  type ModuleBaseNode,
+  type ModuleNodeData,
+} from '../ModuleBaseNodeTypes';
+import { DEFAULT_OUTPUT_DIM } from '../moduleNodeFactory';
 
 export function applyTopologyOrders(nodes: ModuleBaseNode[]): ModuleBaseNode[] {
   const nodeMap = new Map(nodes.map((node) => [node.data.id, node]));
@@ -29,11 +33,12 @@ export function applyTopologyOrders(nodes: ModuleBaseNode[]): ModuleBaseNode[] {
     getBackwardTopologyOrder(node.data.id);
   });
 
-  const dataById = new Map<string, ModuleBaseNodeData>();
+  const dataById = new Map<string, ModuleNodeData>();
   nodes.forEach((node) => {
     const id = node.data.id;
+    const normalizedData = normalizeFixedOutputRank(node.data);
     dataById.set(id, {
-      ...node.data,
+      ...normalizedData,
       forwardTopologyOrder: cycleNodeIds.has(id) ? 0 : forwardOrderMap.get(id) ?? 0,
       backwardTopologyOrder: cycleNodeIds.has(id) ? 0 : backwardOrderMap.get(id) ?? 0,
       inCycle: cycleNodeIds.has(id),
@@ -46,10 +51,10 @@ export function applyTopologyOrders(nodes: ModuleBaseNode[]): ModuleBaseNode[] {
 
     data.predecessors = node.data.predecessors
       .map((predecessor) => dataById.get(predecessor.id))
-      .filter((predecessor): predecessor is ModuleBaseNodeData => Boolean(predecessor));
+      .filter((predecessor): predecessor is ModuleNodeData => Boolean(predecessor));
     data.successors = node.data.successors
       .map((successor) => dataById.get(successor.id))
-      .filter((successor): successor is ModuleBaseNodeData => Boolean(successor));
+      .filter((successor): successor is ModuleNodeData => Boolean(successor));
   });
 
   return nodes.map((node) => ({
@@ -58,12 +63,27 @@ export function applyTopologyOrders(nodes: ModuleBaseNode[]): ModuleBaseNode[] {
   }));
 }
 
+function normalizeFixedOutputRank(node: ModuleNodeData): ModuleNodeData {
+  if (node.kind !== 'Input' && node.kind !== 'Linear') return node;
+
+  const outFeatures = Number.isFinite(node.outFeatures)
+    ? node.outFeatures
+    : Number.isFinite(node.stats?.rank)
+      ? node.stats?.rank as number
+      : DEFAULT_OUTPUT_DIM;
+
+  return {
+    ...node,
+    outFeatures,
+  };
+}
+
 interface TopologyOrderResolverOptions {
   nodeMap: Map<string, ModuleBaseNode>;
   orderMap: Map<string, number>;
   cycleNodeIds: Set<string>;
   warnedMissingLinks: Set<string>;
-  getLinkedData: (node: ModuleBaseNodeData) => ModuleBaseNodeData[];
+  getLinkedData: (node: ModuleNodeData) => ModuleNodeData[];
 }
 
 function createTopologyOrderResolver({

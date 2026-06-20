@@ -1,4 +1,4 @@
-import type { ModuleBaseNodeData } from '../ModuleBaseNodeTypes';
+import type { ModuleNodeData } from '../ModuleBaseNodeTypes';
 import type { ArrangeNodeBlock } from './arrangeCycleBlocks';
 import {
   collectAncestorsWithoutPassingThroughBlocked,
@@ -22,7 +22,7 @@ interface ScoredCandidateBranch extends CandidateBranch {
 interface FindBranchOptions {
   sourceIds: string[];
   sinkIds: string[];
-  nodeById: Map<string, ModuleBaseNodeData>;
+  nodeById: Map<string, ModuleNodeData>;
   blockedNodeIds: Set<string>;
   assignedColumnOrders: Map<string, number>;
   maxForwardOrder: number;
@@ -101,7 +101,7 @@ export function findLargestRemainingBranch({
 
 function collectNodesConnectedToM(
   assignedNodeIds: Set<string>,
-  nodeById: Map<string, ModuleBaseNodeData>,
+  nodeById: Map<string, ModuleNodeData>,
   side: BranchSide,
 ) {
   const connectedNodeIds = new Set<string>();
@@ -142,7 +142,7 @@ export function getBranchColumnOrder(
   blockById: Map<string, ArrangeNodeBlock>,
 ) {
   return side === 'sink'
-    ? (node: ModuleBaseNodeData) => (
+    ? (node: ModuleNodeData) => (
       maxForwardOrder
       - getDataBackwardTopologyOrder(node)
       - getBlockColumnWidth(node.id, blockById)
@@ -201,7 +201,7 @@ function getBranchConnectionMetrics({
   nodeIds: Set<string>;
   assignedNodeIds: Set<string>;
   assignedColumnOrders: Map<string, number>;
-  nodeById: Map<string, ModuleBaseNodeData>;
+  nodeById: Map<string, ModuleNodeData>;
   maxForwardOrder: number;
   blockById: Map<string, ArrangeNodeBlock>;
 }) {

@@ -1,4 +1,9 @@
-import type { ModuleBaseNodeData, ModuleStats } from '../ModuleBaseNodeTypes';
+import type {
+  LinearNodeData,
+  ModuleNodeData,
+  ModuleStats,
+  ReLUNodeData,
+} from '../ModuleBaseNodeTypes';
 
 export const CORRELATION_DECAY = 0.35;
 export const LINEAR_TRANSFORM_DECORRELATION = 0.24;
@@ -16,9 +21,9 @@ interface ModuleTransformStep {
 }
 
 export function estimateNodeLinearCorrelationByCommonSources(
-  nodeA: ModuleBaseNodeData,
-  nodeB: ModuleBaseNodeData,
-  nodeMap: Map<string, ModuleBaseNodeData>,
+  nodeA: ModuleNodeData,
+  nodeB: ModuleNodeData,
+  nodeMap: Map<string, ModuleNodeData>,
 ) {
   const sourcePathsToA = collectSourcePaths(nodeA.id, nodeMap);
   const sourcePathsToB = collectSourcePaths(nodeB.id, nodeMap);
@@ -46,9 +51,9 @@ export function estimateNodeLinearCorrelationByCommonSources(
 }
 
 export function estimateNodeCovarianceCorrelationByCommonSources(
-  nodeA: ModuleBaseNodeData,
-  nodeB: ModuleBaseNodeData,
-  nodeMap: Map<string, ModuleBaseNodeData>,
+  nodeA: ModuleNodeData,
+  nodeB: ModuleNodeData,
+  nodeMap: Map<string, ModuleNodeData>,
 ) {
   const sourcePathsToA = collectSourcePaths(nodeA.id, nodeMap);
   const sourcePathsToB = collectSourcePaths(nodeB.id, nodeMap);
@@ -74,9 +79,9 @@ export function estimateNodeCovarianceCorrelationByCommonSources(
 }
 
 export function estimateNodeCorrelationByCommonSources(
-  nodeA: ModuleBaseNodeData,
-  nodeB: ModuleBaseNodeData,
-  nodeMap: Map<string, ModuleBaseNodeData>,
+  nodeA: ModuleNodeData,
+  nodeB: ModuleNodeData,
+  nodeMap: Map<string, ModuleNodeData>,
 ) {
   return estimateNodeLinearCorrelationByCommonSources(nodeA, nodeB, nodeMap);
 }
@@ -85,7 +90,7 @@ export function getElementCorrBetweenNodes(
   nodeAId: string,
   nodeBId: string,
   statsByNodeId: ReadonlyMap<string, ModuleStats>,
-  nodeMap: Map<string, ModuleBaseNodeData>,
+  nodeMap: Map<string, ModuleNodeData>,
 ): number {
   return getVarianceCorrBetweenNodes(
     nodeAId,
@@ -99,7 +104,7 @@ export function getLinearCorrBetweenNodes(
   nodeAId: string,
   nodeBId: string,
   statsByNodeId: ReadonlyMap<string, ModuleStats>,
-  nodeMap: Map<string, ModuleBaseNodeData>,
+  nodeMap: Map<string, ModuleNodeData>,
 ): number {
   return getRankCorrBetweenNodes(
     nodeAId,
@@ -113,7 +118,7 @@ function getVarianceCorrBetweenNodes(
   nodeAId: string,
   nodeBId: string,
   statsByNodeId: ReadonlyMap<string, ModuleStats>,
-  nodeMap: Map<string, ModuleBaseNodeData>,
+  nodeMap: Map<string, ModuleNodeData>,
   visiting = new Set<string>(),
 ): number {
   if (nodeAId === nodeBId) {
@@ -190,7 +195,7 @@ function getRankCorrBetweenNodes(
   nodeAId: string,
   nodeBId: string,
   statsByNodeId: ReadonlyMap<string, ModuleStats>,
-  nodeMap: Map<string, ModuleBaseNodeData>,
+  nodeMap: Map<string, ModuleNodeData>,
   visiting = new Set<string>(),
 ): number {
   if (nodeAId === nodeBId) {
@@ -294,7 +299,7 @@ export function transformPathDistance(
 
 export function computePathLengthByModules(
   pathNodeIds: string[],
-  nodeMap: Map<string, ModuleBaseNodeData>,
+  nodeMap: Map<string, ModuleNodeData>,
 ): number {
   let length = 0;
 
@@ -315,7 +320,7 @@ export function computePathLengthByModules(
 type PathStepDirection = 'forward' | 'backward';
 
 export function computeModulePathCost(
-  node: ModuleBaseNodeData,
+  node: ModuleNodeData,
   direction: PathStepDirection = 'forward',
 ) {
   switch (node.kind) {
@@ -324,16 +329,16 @@ export function computeModulePathCost(
     case 'Linear':
       return computeLinearPathCost(node, direction);
     case 'ReLU':
-      return computeReluPathCost(node);
+      return computeReluPathCost();
     case 'Sum':
-      return computeSumPathCost(node);
+      return computeSumPathCost();
     default:
       return BASE_PATH_LENGTH;
   }
 }
 
 export function computeLinearPathCost(
-  node: ModuleBaseNodeData,
+  node: LinearNodeData,
   direction: PathStepDirection = 'forward',
 ) {
   const inputSize = Math.max(getModuleInputSize(node), 1);
@@ -344,37 +349,28 @@ export function computeLinearPathCost(
     : BASE_PATH_LENGTH * (outputSize / inputSize);
 }
 
-export function computeReluPathCost(node: ModuleBaseNodeData) {
-  return node.kind === 'Input' ? 0 : BASE_PATH_LENGTH;
+export function computeReluPathCost() {
+  return BASE_PATH_LENGTH;
 }
 
-export function computeSumPathCost(node: ModuleBaseNodeData) {
-  return node.kind === 'Input' ? 0 : BASE_PATH_LENGTH;
+export function computeSumPathCost() {
+  return BASE_PATH_LENGTH;
 }
 
-export function getModuleInputSize(node: ModuleBaseNodeData): number {
-  return Number(
-    node.inputSize
-      ?? node.inFeatures
-      ?? node.inputDim
-      ?? node.stats?.rank
-      ?? 1,
-  );
+export function getModuleInputSize(node: LinearNodeData): number {
+  return node.inFeatures
+    ?? node.predecessors[0]?.stats?.rank
+    ?? node.stats?.rank
+    ?? 1;
 }
 
-export function getModuleOutputSize(node: ModuleBaseNodeData): number {
-  return Number(
-    node.outputSize
-      ?? node.outFeatures
-      ?? node.outputDim
-      ?? node.stats?.rank
-      ?? getModuleInputSize(node),
-  );
+export function getModuleOutputSize(node: LinearNodeData): number {
+  return node.outFeatures;
 }
 
 function computeSourceTransformPath(
   pathNodeIds: string[],
-  nodeMap: Map<string, ModuleBaseNodeData>,
+  nodeMap: Map<string, ModuleNodeData>,
 ) {
   let committedPath: ModuleTransformStep[] = [];
   let pendingPath: ModuleTransformStep[] = [];
@@ -401,7 +397,7 @@ function computeSourceTransformPath(
 
 function computeCovariancePathCorrelation(
   pathNodeIds: string[],
-  nodeMap: Map<string, ModuleBaseNodeData>,
+  nodeMap: Map<string, ModuleNodeData>,
 ) {
   let correlation = 1;
 
@@ -420,7 +416,7 @@ function computeCovariancePathCorrelation(
   return clamp01(correlation);
 }
 
-function getLinearTransformStep(node: ModuleBaseNodeData): ModuleTransformStep {
+function getLinearTransformStep(node: LinearNodeData): ModuleTransformStep {
   const inputSize = Math.max(getModuleInputSize(node), DISTANCE_EPSILON);
   const outputSize = Math.max(getModuleOutputSize(node), DISTANCE_EPSILON);
   const expansion = Math.max(0, Math.log(outputSize / inputSize));
@@ -434,7 +430,7 @@ function getLinearTransformStep(node: ModuleBaseNodeData): ModuleTransformStep {
 }
 
 function getReluTransformStep(
-  node: ModuleBaseNodeData,
+  node: ReLUNodeData,
   inputStats?: ModuleStats,
 ): ModuleTransformStep {
   const lostRatio = getReluLostRatio(inputStats);
@@ -467,7 +463,7 @@ function getTransformStepBackwardCost(step: ModuleTransformStep) {
 
 function collectSourcePaths(
   nodeId: string,
-  nodeMap: Map<string, ModuleBaseNodeData>,
+  nodeMap: Map<string, ModuleNodeData>,
   visiting = new Set<string>(),
 ): Map<string, string[]> {
   const node = nodeMap.get(nodeId);
@@ -497,8 +493,8 @@ function collectSourcePaths(
 }
 
 function hasSameReluInput(
-  nodeA: ModuleBaseNodeData,
-  nodeB: ModuleBaseNodeData,
+  nodeA: ModuleNodeData,
+  nodeB: ModuleNodeData,
 ) {
   return nodeA.kind === 'ReLU'
     && nodeB.kind === 'ReLU'
@@ -508,8 +504,8 @@ function hasSameReluInput(
 }
 
 function getPathStepDirection(
-  previousNode: ModuleBaseNodeData | undefined,
-  node: ModuleBaseNodeData,
+  previousNode: ModuleNodeData | undefined,
+  node: ModuleNodeData,
 ): PathStepDirection {
   if (!previousNode) {
     return 'forward';

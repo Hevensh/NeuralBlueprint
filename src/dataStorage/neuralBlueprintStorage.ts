@@ -2,30 +2,54 @@ import type { Edge } from '@xyflow/react';
 import { PageType } from '../blueprint/PageTypes';
 import type {
   BiasInitializationMode,
+  DropoutNodeData,
+  InputNodeData,
   InputNormalizationMode,
+  LinearNodeData,
   LinearInitializationMode,
   ModuleAnalysisDirection,
   ModuleBaseNode,
-  ModuleBaseNodeData,
   ModuleBaseNodeKind,
+  ModuleNodeData,
 } from '../blueprint/neuralBlueprint/ModuleBaseNodeTypes';
+import { createModuleNodeData } from '../blueprint/neuralBlueprint/moduleNodeFactory';
 import { appStorage } from './storageAdapter';
 
-interface StoredModuleBaseNode {
+interface StoredModuleBaseNode<TKind extends ModuleBaseNodeKind> {
   id: string;
   name: string;
-  kind: ModuleBaseNodeKind;
+  kind: TKind;
   position: {
     x: number;
     y: number;
   };
-  outputDim?: number;
-  effectiveRank?: number;
+}
+
+interface StoredInputNode extends StoredModuleBaseNode<'Input'> {
+  outputDim: number;
+  effectiveRank: number;
   normalizationMode?: InputNormalizationMode;
+}
+
+interface StoredLinearNode extends StoredModuleBaseNode<'Linear'> {
+  outputDim: number;
+  inFeatures?: number;
+  useBias?: boolean;
   initializationMode?: LinearInitializationMode;
   biasInitializationMode?: BiasInitializationMode;
+}
+
+interface StoredDropoutNode extends StoredModuleBaseNode<'Dropout'> {
   dropoutRate?: number;
 }
+
+type StoredModuleNode =
+  | StoredInputNode
+  | StoredLinearNode
+  | StoredDropoutNode
+  | StoredModuleBaseNode<'ReLU'>
+  | StoredModuleBaseNode<'Sum'>
+  | StoredModuleBaseNode<'Output'>;
 
 interface StoredModuleEdge {
   id: string;
@@ -34,7 +58,7 @@ interface StoredModuleEdge {
 }
 
 interface StoredNeuralBlueprintGraph {
-  nodes: StoredModuleBaseNode[];
+  nodes: StoredModuleNode[];
   edges: StoredModuleEdge[];
   ui?: {
     analysisDirection?: ModuleAnalysisDirection;
@@ -122,37 +146,50 @@ export function saveNeuralBlueprintGraph(
 }
 
 function buildNodes(
-  storedNodes: StoredModuleBaseNode[],
+  storedNodes: StoredModuleNode[],
   storedEdges: StoredModuleEdge[],
 ): ModuleBaseNode[] {
-  const dataById = new Map<string, ModuleBaseNodeData>();
+  const dataById = new Map<string, ModuleNodeData>();
 
   storedNodes.forEach((node) => {
-    dataById.set(node.id, {
+    const common = {
       id: node.id,
       name: node.name,
       type: PageType.NeuralBlueprint,
-      kind: node.kind,
-      predecessors: [],
-      successors: [],
-      forwardTopologyOrder: 0,
-      backwardTopologyOrder: 0,
-      inCycle: false,
-      normalizationMode: node.kind === 'Input' ? node.normalizationMode ?? '0-1' : undefined,
-      initializationMode: node.kind === 'Linear' ? node.initializationMode ?? 'xavier_normal' : undefined,
-      biasInitializationMode: node.kind === 'Linear' ? node.biasInitializationMode ?? 'zeros' : undefined,
-      dropoutRate: node.kind === 'Dropout' ? node.dropoutRate ?? 0.5 : undefined,
-      stats: {
-        rank: node.outputDim ?? 64,
-        effectiveRank: node.kind === 'Input' ? node.effectiveRank ?? 32 : Number.NaN,
-        saturation: node.kind === 'Input' ? (node.effectiveRank ?? 32) / (node.outputDim ?? 64) : Number.NaN,
-        mean: Number.NaN,
-        variance: Number.NaN,
-        zeroRate: Number.NaN,
-        negativeRate: Number.NaN,
-      },
       position: node.position,
-    });
+    };
+
+    switch (node.kind) {
+      case 'Input':
+        dataById.set(node.id, {
+          ...createModuleNodeData('Input', common),
+          normalizationMode: node.normalizationMode ?? '0-1',
+          outFeatures: node.outputDim ?? 64,
+          inputEffectiveRank: node.effectiveRank ?? 32,
+        });
+        break;
+      case 'Linear':
+        dataById.set(node.id, {
+          ...createModuleNodeData('Linear', common),
+          initializationMode: node.initializationMode ?? 'xavier_normal',
+          biasInitializationMode: node.biasInitializationMode ?? 'zeros',
+          inFeatures: node.inFeatures,
+          outFeatures: node.outputDim ?? 64,
+          useBias: node.useBias ?? true,
+        });
+        break;
+      case 'Dropout':
+        dataById.set(node.id, {
+          ...createModuleNodeData('Dropout', common),
+          dropoutRate: node.dropoutRate ?? 0.5,
+        });
+        break;
+      case 'ReLU':
+      case 'Sum':
+      case 'Output':
+        dataById.set(node.id, createModuleNodeData(node.kind, common));
+        break;
+    }
   });
 
   storedEdges.forEach((edge) => {
@@ -168,23 +205,71 @@ function buildNodes(
     id: node.id,
     type: PageType.NeuralBlueprint,
     position: node.position,
-    data: dataById.get(node.id) as ModuleBaseNodeData,
+    data: dataById.get(node.id) as ModuleNodeData,
     draggable: true,
     selectable: true,
   }));
 }
 
-function toStoredNode(node: ModuleBaseNode): StoredModuleBaseNode {
-  return {
+function toStoredNode(node: ModuleBaseNode): StoredModuleNode {
+  const base = {
     id: node.id,
     name: node.data.name,
-    kind: node.data.kind,
     position: node.position,
-    outputDim: node.data.stats?.rank ?? 64,
-    effectiveRank: node.data.kind === 'Input' ? node.data.stats?.effectiveRank ?? 32 : undefined,
-    normalizationMode: node.data.kind === 'Input' ? node.data.normalizationMode ?? '0-1' : undefined,
-    initializationMode: node.data.kind === 'Linear' ? node.data.initializationMode ?? 'xavier_normal' : undefined,
-    biasInitializationMode: node.data.kind === 'Linear' ? node.data.biasInitializationMode ?? 'zeros' : undefined,
-    dropoutRate: node.data.kind === 'Dropout' ? node.data.dropoutRate ?? 0.5 : undefined,
+  };
+
+  switch (node.data.kind) {
+    case 'Input':
+      return toStoredInputNode(base, node.data);
+    case 'Linear':
+      return toStoredLinearNode(base, node.data);
+    case 'Dropout':
+      return toStoredDropoutNode(base, node.data);
+    case 'ReLU':
+    case 'Sum':
+    case 'Output':
+      return {
+        ...base,
+        kind: node.data.kind,
+      };
+  }
+}
+
+function toStoredInputNode(
+  base: Omit<StoredModuleBaseNode<'Input'>, 'kind'>,
+  data: InputNodeData,
+): StoredInputNode {
+  return {
+    ...base,
+    kind: 'Input',
+    outputDim: data.outFeatures,
+    effectiveRank: data.inputEffectiveRank,
+    normalizationMode: data.normalizationMode,
+  };
+}
+
+function toStoredLinearNode(
+  base: Omit<StoredModuleBaseNode<'Linear'>, 'kind'>,
+  data: LinearNodeData,
+): StoredLinearNode {
+  return {
+    ...base,
+    kind: 'Linear',
+    outputDim: data.outFeatures,
+    inFeatures: data.inFeatures,
+    useBias: data.useBias,
+    initializationMode: data.initializationMode,
+    biasInitializationMode: data.biasInitializationMode,
+  };
+}
+
+function toStoredDropoutNode(
+  base: Omit<StoredModuleBaseNode<'Dropout'>, 'kind'>,
+  data: DropoutNodeData,
+): StoredDropoutNode {
+  return {
+    ...base,
+    kind: 'Dropout',
+    dropoutRate: data.dropoutRate,
   };
 }

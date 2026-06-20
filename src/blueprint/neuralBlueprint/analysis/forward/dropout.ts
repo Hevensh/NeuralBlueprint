@@ -1,4 +1,5 @@
 import type {
+  DropoutNodeData,
   ModuleStatsForwardContext,
   ModuleStatsForwardResult,
 } from '../../ModuleBaseNodeTypes';
@@ -14,16 +15,17 @@ export function forwardDropoutStats({
   node,
   inputs,
   inputNodes,
-}: ModuleStatsForwardContext): ModuleStatsForwardResult {
+}: ModuleStatsForwardContext<DropoutNodeData>): ModuleStatsForwardResult {
   const input = inputs[0] ?? EMPTY_STATS;
   const inputNode = inputNodes[0];
-  const dropoutRate = clamp01(node.dropoutRate ?? 0.5);
+  const dropoutRate = clamp01(node.dropoutRate);
   const keepRate = 1 - dropoutRate;
 
   if (keepRate <= EPS) {
     return {
       stats: {
         rank: input.rank,
+        dimLabel: 'normal',
         effectiveRank: input.rank,
         saturation: 1,
         minRank: input.minRank,
@@ -48,6 +50,7 @@ export function forwardDropoutStats({
   return {
     stats: {
       rank: input.rank,
+      dimLabel: 'normal',
       effectiveRank,
       saturation,
       minRank: input.minRank,

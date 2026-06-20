@@ -1,4 +1,5 @@
 import type {
+  LinearNodeData,
   ModuleStatsForwardContext,
   ModuleStatsForwardResult,
 } from '../../ModuleBaseNodeTypes';
@@ -8,7 +9,6 @@ import {
   getBiasVariance,
   getFanIn,
   getLinearElementCorr,
-  getOutputRank,
   getWeightVariance,
 } from './utils/moduleStats';
 
@@ -16,11 +16,11 @@ export function forwardLinearStats({
   node,
   inputs,
   inputNodes,
-}: ModuleStatsForwardContext): ModuleStatsForwardResult {
+}: ModuleStatsForwardContext<LinearNodeData>): ModuleStatsForwardResult {
   const input = inputs[0] ?? EMPTY_STATS;
   const inputNode = inputNodes[0];
-  const fanIn = getFanIn(node);
-  const fanOut = getOutputRank(node);
+  const fanIn = getFanIn(node, inputs);
+  const fanOut = node.outFeatures;
   const inputEffectiveRank = input.effectiveRank || fanOut;
   const saturation = 1 - Math.exp((-LINEAR_SATURATION_GAIN * inputEffectiveRank) / Math.max(fanOut, EPS));
   const effectiveRank = fanOut * saturation;
@@ -37,6 +37,7 @@ export function forwardLinearStats({
   return {
     stats: {
       rank: fanOut,
+      dimLabel: 'normal',
       effectiveRank,
       saturation,
       minRank,
