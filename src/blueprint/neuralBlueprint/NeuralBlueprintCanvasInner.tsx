@@ -66,6 +66,12 @@ const baseEdgeOptions = {
   },
 };
 
+const INITIAL_VIEWPORT = {
+  x: 280,
+  y: 0,
+  zoom: 1,
+};
+
 const nodeTypes = {
   [PageType.NeuralBlueprint]: NeuralBlueprintNode,
 };
@@ -497,6 +503,7 @@ export function NeuralBlueprintCanvasInner({
         nodes={displayNodes}
         edges={edges}
         nodeTypes={nodeTypes}
+        defaultViewport={INITIAL_VIEWPORT}
         defaultEdgeOptions={edgeOptions}
         connectionLineStyle={{
           stroke: analysisDirection === 'backward' ? '#c084fc' : '#38bdf8',

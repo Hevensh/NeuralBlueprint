@@ -44,7 +44,7 @@ export function BlueprintCanvas({ fileId, closeFile }: BlueprintCanvasProp) {
   }[activeWorkspace];
 
   return (
-    <div className="workspace">
+    <div className="workspace blueprint-workspace">
       <header className="top-bar">
         <button className="close-button" onClick={closeFile} />
         <BlueprintTopBarTabs

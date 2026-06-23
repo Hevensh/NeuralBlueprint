@@ -19,6 +19,13 @@
   overflow: hidden;
 }
 
+.blueprint-workspace > .canvas-wrap {
+  grid-column: 1 / 4;
+  grid-row: 2;
+  min-width: 0;
+  z-index: 0;
+}
+
 /* panels  */
 .left-panel,
 .right-panel {
@@ -32,6 +39,46 @@
   color: #e2e8f0;
   position: relative;
 }
+
+.blueprint-workspace > .left-panel,
+.blueprint-workspace > .right-panel {
+  grid-row: 2;
+  z-index: 2;
+  background:
+    radial-gradient(
+      circle at top,
+      rgba(34, 211, 238, 0.1),
+      transparent 68%
+    ),
+    rgba(2, 6, 23, 0.7);
+  backdrop-filter: blur(2px);
+  transition:
+    background 0.16s ease,
+    backdrop-filter 0.16s ease;
+}
+
+.blueprint-workspace > .left-panel {
+  grid-column: 1;
+}
+
+.blueprint-workspace > .right-panel {
+  grid-column: 3;
+}
+
+.blueprint-workspace > .left-panel:hover,
+.blueprint-workspace > .left-panel:focus-within,
+.blueprint-workspace > .right-panel:hover,
+.blueprint-workspace > .right-panel:focus-within {
+  background:
+    radial-gradient(
+      circle at top,
+      rgba(34, 211, 238, 0.11),
+      transparent 68%
+    ),
+    rgba(2, 6, 23, 0.82);
+  backdrop-filter: blur(4px);
+}
+
 .left-panel {
   border-right: 1px solid rgba(34, 211, 238, 0.6);
   box-shadow: 8px 0 24px rgba(0, 0, 0, 0.22);

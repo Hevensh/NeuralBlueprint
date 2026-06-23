@@ -18,7 +18,7 @@ const PADDING_Y = 8;
 export function LossHistoryMiniChart({
   history,
 }: LossHistoryMiniChartProps) {
-  const points = history.slice(-60);
+  const points = history.slice(-41);
   const train = points.filter((point) => Number.isFinite(point.trainLoss));
   const validation = points.filter(
     (point): point is LossHistoryPoint & { valLoss: number } => (
@@ -100,14 +100,13 @@ export function LossHistoryMiniChart({
             r="2.5"
           />
         )}
-        {validation.length === 1 && (
-          <circle
-            className="training-loss-point validation"
-            cx={x(validation[0].epoch)}
-            cy={y(validation[0].valLoss)}
-            r="2.5"
+        {validation.map((point) => (
+          <path
+            className="training-chart-val-marker"
+            d={trianglePath(x(point.epoch), y(point.valLoss), 2.5)}
+            key={`marker-${point.epoch}`}
           />
-        )}
+        ))}
       </svg>
       <div className="training-loss-history-footer">
         <span className="train">
@@ -131,6 +130,15 @@ function pathFor<T extends { epoch: number }>(
       y(point).toFixed(2)
     }`
   )).join(' ');
+}
+
+function trianglePath(x: number, y: number, radius: number) {
+  return [
+    `M ${x} ${y - radius}`,
+    `L ${x + radius} ${y + radius}`,
+    `L ${x - radius} ${y + radius}`,
+    'Z',
+  ].join(' ');
 }
 
 function formatLoss(value: number | null | undefined) {
