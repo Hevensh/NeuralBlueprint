@@ -7,6 +7,8 @@ interface NumberFieldProps {
   max?: number;
   step?: number;
   className?: string;
+  disabled?: boolean;
+  onClear?: () => void;
   onChange: (value: number) => void;
 }
 
@@ -17,6 +19,8 @@ export function NumberField({
   max,
   step = 1,
   className,
+  disabled,
+  onClear,
   onChange,
 }: NumberFieldProps) {
   const [draft, setDraft] = useState<string | null>(null);
@@ -39,13 +43,15 @@ export function NumberField({
       <span className="number-field-input">
         <input
           className="property-input"
+          disabled={disabled}
           max={max}
           min={min}
           onChange={(event) => {
             const input = event.target.value;
             setDraft(input);
             if (input.trim() === '') {
-              onChange(0);
+              if (onClear) onClear();
+              else onChange(0);
               return;
             }
             apply(Number(input));
@@ -60,14 +66,18 @@ export function NumberField({
         <span className="number-field-arrows">
           <button
             aria-label={`Increase ${label}`}
-            disabled={max !== undefined && (finiteValue ?? min ?? 0) >= max}
+            disabled={disabled || (
+              max !== undefined && (finiteValue ?? min ?? 0) >= max
+            )}
             onClick={() => changeBy(1)}
             onMouseDown={(event) => event.preventDefault()}
             type="button"
           />
           <button
             aria-label={`Decrease ${label}`}
-            disabled={min !== undefined && (finiteValue ?? min ?? 0) <= min}
+            disabled={disabled || (
+              min !== undefined && (finiteValue ?? min ?? 0) <= min
+            )}
             onClick={() => changeBy(-1)}
             onMouseDown={(event) => event.preventDefault()}
             type="button"

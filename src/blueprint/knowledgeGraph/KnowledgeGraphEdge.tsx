@@ -1,4 +1,4 @@
-import {
+﻿import {
   BaseEdge,
   EdgeLabelRenderer,
   getBezierPath,
@@ -7,6 +7,7 @@ import {
 import { useState } from 'react';
 import { knowledgePreviewColor } from './knowledgePreviewColor';
 import type { KnowledgeGraphEdgeType } from './KnowledgeGraphNodeTypes';
+import { TrainingSignalPreview } from './TrainingSignalPreview';
 
 export function KnowledgeGraphEdge({
   id,
@@ -61,23 +62,27 @@ export function KnowledgeGraphEdge({
             onMouseLeave={() => setPreviewHovered(false)}
             style={{
               color: knowledgePreviewColor(
-                data.stats.mastery,
-                data.stats.overfitPercent,
+                data.metrics.mastery,
+                data.metrics.overfitPercent,
               ),
               transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
             }}
           >
             {data.showMemoryPreview && (
               <span>
-                {format(data.stats.allocatedMemory)}
+                {format(data.metrics.allocatedMemory)}
                 {' / '}
-                {format(data.stats.requiredMemory)}
+                {format(data.properties.requiredMemory)}
               </span>
             )}
             {data.showMetricPreview && (
               <>
-                <span>M {(data.stats.mastery * 100).toFixed(2)}%</span>
-                <span>O {data.stats.overfitPercent.toFixed(2)}%</span>
+                <span>M {(data.metrics.mastery * 100).toFixed(2)}%</span>
+                <span>O {data.metrics.overfitPercent.toFixed(2)}%</span>
+                <TrainingSignalPreview
+                  className="knowledge-training-line"
+                  stages={data.metrics.stagePreviews}
+                />
               </>
             )}
           </div>

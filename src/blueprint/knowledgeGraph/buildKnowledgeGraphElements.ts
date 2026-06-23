@@ -2,22 +2,31 @@ import { MarkerType, Position } from '@xyflow/react';
 import { PageType } from '../PageTypes';
 import type {
   KnowledgeGraphEdges,
-  KnowledgeGraphEdgeStats,
+  KnowledgeGraphEdgeMetrics,
   KnowledgeGraphEdgeType,
   KnowledgeGraphNodeData,
   KnowledgeGraphNodeType,
 } from './KnowledgeGraphNodeTypes';
 import type { DatasetSplitResult } from './model/datasetSplit';
-import type {
-  EntityOverfitMetrics,
-  KnowledgeLossReport,
+import type { KnowledgeLossReport } from './model/lossMetrics';
+import {
+  computeOverfitFactor,
+  computeOverfitPercent,
 } from './model/lossMetrics';
-import type { ReasoningMasteryEstimate } from './model/reasoning';
+import {
+  readEntityMemory,
+  readEntityStageMemory,
+} from './model/memoryOperations';
+import type {
+  ReasoningMasteryEstimate,
+  ReasoningStageEstimate,
+} from './model/reasoning';
+import { computeTrainingSignal } from './model/trainingSignal';
+import type { UtilityReport } from './model/utilityEstimate';
 import type {
   AnyKnowledgeEdge,
-  KnowledgeGraph,
-  KnowledgeMaster,
-  MasterGraph,
+  KnowledgeGraphDefinition,
+  KnowledgeGraphMemory,
 } from './model/types';
 
 export interface KnowledgeGraphElements {
@@ -26,13 +35,18 @@ export interface KnowledgeGraphElements {
 }
 
 export function buildKnowledgeGraphElements(
-  graph: KnowledgeGraph,
-  master: MasterGraph,
+  graph: KnowledgeGraphDefinition,
+  memory: KnowledgeGraphMemory,
   reasoning: ReasoningMasteryEstimate,
+  validationReasoning: ReasoningMasteryEstimate,
   loss: KnowledgeLossReport,
   dataset: DatasetSplitResult,
+  utilities: UtilityReport,
 ): KnowledgeGraphElements {
   const neighborIds = new Map<string, Set<string>>();
+  const memorySelectionLabel = `[${memory.selectedInferenceStage}]`;
+  const visibleStage = memory.selectedInferenceStage;
+  const visibleReasoning = reasoning.stages[visibleStage] ?? reasoning;
   const allEdges = [
     ...graph.depEdges,
     ...graph.subEdges,
@@ -46,28 +60,43 @@ export function buildKnowledgeGraphElements(
   const nodeData = new Map(
     Object.values(graph.nodes).map((node) => {
       const split = dataset.nodes[node.id];
-      const nodeMaster = master.nodes[node.id];
       const data: KnowledgeGraphNodeData = {
         id: node.id,
         name: node.label,
         color: node.color,
         type: PageType.KnowledgeGraph,
         neighborCount: neighborIds.get(node.id)?.size ?? 0,
+        memorySelectionLabel,
         showMemoryPreview: true,
         showMetricPreview: true,
-        stats: {
+        properties: {
           dataAmount: node.dataAmount,
+          requiredMemory: node.requiredMemory,
+        },
+        metrics: {
           trainDataAmount: split?.train ?? node.dataAmount,
           valDataAmount: split?.val ?? 0,
           testDataAmount: split?.test ?? 0,
-          requiredMemory: node.requiredMemory,
           effectiveRequiredMemory:
-            reasoning.effectiveCost[node.id] ?? node.requiredMemory,
-          allocatedMemory: nodeMaster?.memory ?? 0,
-          mastery: reasoning.mastery[node.id] ?? nodeMaster?.mastery ?? 0,
-          overfitPercent: loss.nodes[node.id]?.overfitPercent ?? 0,
+            visibleReasoning.effectiveCost[node.id] ?? node.requiredMemory,
+          allocatedMemory: readEntityMemory(memory, node),
+          mastery: visibleReasoning.mastery[node.id] ?? 0,
+          overfitPercent:
+            (visibleReasoning.overfitRate[node.id] ?? 0) * 100,
           trainLoss: loss.nodes[node.id]?.trainLoss ?? 0,
           valLoss: loss.nodes[node.id]?.valLoss ?? 0,
+          training: computeTrainingSignal(
+            node,
+            utilities,
+            memory.selectedInferenceStage,
+          ),
+          stagePreviews: utilities.stages.map((utilityStage, stage) => ({
+            utility: utilityStage.nodes[node.id]?.total ?? 0,
+            allocated: readEntityStageMemory(memory, node, stage),
+            required:
+              reasoning.stages[stage]?.effectiveCost[node.id]
+              ?? node.requiredMemory,
+          })),
         },
         position: node.position,
       };
@@ -124,15 +153,23 @@ export function buildKnowledgeGraphElements(
         ? { markerEnd: { type: MarkerType.ArrowClosed } }
         : {}),
       data: {
+        id: edge.id,
         kind: edge.kind,
+        memorySelectionLabel,
         source,
         target,
         showMemoryPreview: true,
         showMetricPreview: true,
-        stats: edgeStats(
+        properties: {
+          requiredMemory: edge.properties.requiredMemory,
+          lambda: edge.properties.lambda,
+        },
+        metrics: edgeMetrics(
           edge,
-          master.edges[edge.id],
-          loss.edges[edge.id],
+          memory,
+          visibleReasoning,
+          validationReasoning.stages[visibleStage] ?? validationReasoning,
+          utilities,
         ),
       },
     };
@@ -167,16 +204,38 @@ function edgeHandles(
       };
 }
 
-function edgeStats(
+function edgeMetrics(
   edge: AnyKnowledgeEdge,
-  master: KnowledgeMaster | undefined,
-  loss: EntityOverfitMetrics | undefined,
-): KnowledgeGraphEdgeStats {
+  memory: KnowledgeGraphMemory,
+  stage: ReasoningStageEstimate,
+  validationStage: ReasoningStageEstimate,
+  utilities: UtilityReport,
+): KnowledgeGraphEdgeMetrics {
+  const cumulativeMemory = stage.edges[edge.id]?.allocatedMemory ?? 0;
+  const visibleMemory = readEntityStageMemory(
+    memory,
+    edge,
+    memory.selectedInferenceStage,
+  );
+  const mastery = stage.edges[edge.id]?.mastery ?? 0;
   return {
-    requiredMemory: edge.stats.requiredMemory,
-    allocatedMemory: master?.memory ?? 0,
-    mastery: master?.mastery ?? 0,
-    effectiveMastery: loss?.effectiveMastery ?? master?.mastery ?? 0,
-    overfitPercent: loss?.overfitPercent ?? 0,
+    allocatedMemory: visibleMemory,
+    mastery,
+    effectiveMastery: validationStage.edges[edge.id]?.mastery ?? mastery,
+    overfitPercent: computeOverfitPercent(computeOverfitFactor(
+      cumulativeMemory,
+      edge.properties.requiredMemory,
+      edge.properties.overfitCoefficient,
+    )),
+    training: computeTrainingSignal(
+      edge,
+      utilities,
+      memory.selectedInferenceStage,
+    ),
+    stagePreviews: utilities.stages.map((utilityStage, stage) => ({
+      utility: utilityStage.edges[edge.id]?.total ?? 0,
+      allocated: readEntityStageMemory(memory, edge, stage),
+      required: edge.properties.requiredMemory,
+    })),
   };
 }

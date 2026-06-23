@@ -1,14 +1,18 @@
 import {
-  computeEdgeEffectiveMastery,
-  computeEdgeMastery,
-  computeOverfitFactor,
+  computeOverfitRate,
 } from './lossMetrics';
+import {
+  readEntityMemoryThroughStage,
+  readEntityStageMemory,
+} from './memoryOperations';
 import type {
   DependencyEdge,
+  EdgeId,
   InterferenceEdge,
-  KnowledgeGraph,
+  AnyKnowledgeEdge,
+  KnowledgeGraphDefinition,
   KnowledgeNode,
-  MasterGraph,
+  KnowledgeGraphMemory,
   NodeId,
   SubstituteEdge,
 } from './types';
@@ -16,53 +20,229 @@ import type {
 const GENERATED_NODE_COST_MIN = 24;
 const GENERATED_NODE_COST_MAX = 36;
 
+export type ReasoningStageEstimate = {
+  stage: number;
+  mastery: Record<NodeId, number>;
+  effectiveCost: Record<NodeId, number>;
+  adjustedMemory: Record<NodeId, number>;
+  overfitRate: Record<NodeId, number>;
+  edges: Record<EdgeId, ReasoningEdgeEstimate>;
+};
+
+export type ReasoningEdgeEstimate = {
+  allocatedMemory: number;
+  equivalentMemory: number;
+  mastery: number;
+  overfitRate: number;
+};
+
 export type ReasoningMasteryEstimate = {
   mastery: Record<NodeId, number>;
   effectiveCost: Record<NodeId, number>;
+  stages: ReasoningStageEstimate[];
 };
 
 export type ReasoningMode = 'train' | 'val';
 
-export function estimateMasteryWithReasoningBudget(
-  graph: KnowledgeGraph,
-  master: MasterGraph,
-  maxReasoningPoints: number,
+export function estimateStagedMastery(
+  graph: KnowledgeGraphDefinition,
+  memory: KnowledgeGraphMemory,
   mode: ReasoningMode = 'val',
 ): ReasoningMasteryEstimate {
   const nodes = Object.values(graph.nodes);
+  const edges = [
+    ...graph.depEdges,
+    ...graph.subEdges,
+    ...graph.interEdges,
+  ];
   const incoming = dependencyEdgesByTarget(graph.depEdges);
+  const lastStage = memory.availableReasoningPoints;
   let effectiveCost = zeroActivationCosts(nodes, incoming);
-  let mastery = relationPass(
-    graph,
-    master,
-    baseMastery(nodes, master, effectiveCost, mode),
+  let adjustedMemory = nextNodeMemory(
+    nodes,
+    memory,
+    0,
     effectiveCost,
+  );
+  let overfitRate = nodeOverfitRates(
+    nodes,
+    adjustedMemory,
+    effectiveCost,
+  );
+  let edgeEstimates = nextEdgeEstimates(edges, memory, 0, mode);
+  let preRelationMastery = baseMastery(
+    nodes,
+    adjustedMemory,
+    effectiveCost,
+    overfitRate,
     mode,
   );
+  let mastery = relationPass(
+    graph,
+    preRelationMastery,
+    effectiveCost,
+    edgeEstimates,
+  );
+  const stages: ReasoningStageEstimate[] = [
+    stageEstimate(
+      0,
+      mastery,
+      effectiveCost,
+      adjustedMemory,
+      overfitRate,
+      edgeEstimates,
+    ),
+  ];
 
-  for (
-    let budget = 0;
-    budget < Math.max(0, Math.floor(maxReasoningPoints));
-    budget += 1
-  ) {
+  for (let stage = 1; stage <= lastStage; stage += 1) {
     effectiveCost = nextDependencyCosts(
       nodes,
       incoming,
-      master,
       effectiveCost,
       mastery,
+      edgeEstimates,
+    );
+    adjustedMemory = nextNodeMemory(
+      nodes,
+      memory,
+      stage,
+      effectiveCost,
+      mastery,
+    );
+    overfitRate = nodeOverfitRates(
+      nodes,
+      adjustedMemory,
+      effectiveCost,
+    );
+    edgeEstimates = nextEdgeEstimates(
+      edges,
+      memory,
+      stage,
+      mode,
+      edgeEstimates,
+    );
+    preRelationMastery = baseMastery(
+      nodes,
+      adjustedMemory,
+      effectiveCost,
+      overfitRate,
       mode,
     );
     mastery = relationPass(
       graph,
-      master,
-      baseMastery(nodes, master, effectiveCost, mode),
+      preRelationMastery,
       effectiveCost,
-      mode,
+      edgeEstimates,
     );
+    stages.push(stageEstimate(
+      stage,
+      mastery,
+      effectiveCost,
+      adjustedMemory,
+      overfitRate,
+      edgeEstimates,
+    ));
   }
 
-  return { mastery, effectiveCost };
+  const final = stages.at(-1) ?? {
+    stage: 0,
+    mastery: {},
+    effectiveCost: {},
+    adjustedMemory: {},
+    overfitRate: {},
+    edges: {},
+  };
+  return {
+    mastery: final.mastery,
+    effectiveCost: final.effectiveCost,
+    stages,
+  };
+}
+
+function stageEstimate(
+  stage: number,
+  mastery: Record<NodeId, number>,
+  effectiveCost: Record<NodeId, number>,
+  adjustedMemory: Record<NodeId, number>,
+  overfitRate: Record<NodeId, number>,
+  edges: Record<EdgeId, ReasoningEdgeEstimate>,
+): ReasoningStageEstimate {
+  return {
+    stage,
+    mastery,
+    effectiveCost,
+    adjustedMemory,
+    overfitRate,
+    edges,
+  };
+}
+
+function nextEdgeEstimates(
+  edges: AnyKnowledgeEdge[],
+  memory: KnowledgeGraphMemory,
+  stage: number,
+  mode: ReasoningMode,
+  previous: Record<EdgeId, ReasoningEdgeEstimate> = {},
+) {
+  return Object.fromEntries(edges.map((edge) => {
+    const required = Math.max(0.001, edge.properties.requiredMemory);
+    const equivalentMemory = (
+      (previous[edge.id]?.mastery ?? 0) * required
+      + readEntityStageMemory(memory, edge, stage)
+    );
+    const allocatedMemory = readEntityMemoryThroughStage(memory, edge, stage);
+    const overfitRate = computeOverfitRate(
+      allocatedMemory,
+      edge.properties.requiredMemory,
+      edge.properties.overfitCoefficient,
+    );
+    return [
+      edge.id,
+      {
+        allocatedMemory,
+        equivalentMemory,
+        overfitRate,
+        mastery: effectiveMastery(
+          equivalentMemory,
+          required,
+          overfitRate,
+          mode,
+        ),
+      },
+    ];
+  })) as Record<EdgeId, ReasoningEdgeEstimate>;
+}
+
+function nextNodeMemory(
+  nodes: KnowledgeNode[],
+  memory: KnowledgeGraphMemory,
+  stage: number,
+  costs: Record<NodeId, number>,
+  previousMastery: Record<NodeId, number> = {},
+) {
+  return Object.fromEntries(
+    nodes.map((node) => [
+      node.id,
+      (previousMastery[node.id] ?? 0)
+        * Math.max(0.001, costs[node.id] ?? node.requiredMemory)
+        + readEntityStageMemory(memory, node, stage),
+    ]),
+  );
+}
+
+function nodeOverfitRates(
+  nodes: KnowledgeNode[],
+  adjustedMemory: Record<NodeId, number>,
+  costs: Record<NodeId, number>,
+) {
+  return Object.fromEntries(nodes.map((node) => [
+    node.id,
+    computeOverfitRate(
+      adjustedMemory[node.id] ?? 0,
+      costs[node.id] ?? node.requiredMemory,
+      node.overfitCoefficient,
+    ),
+  ]));
 }
 
 function dependencyEdgesByTarget(edges: DependencyEdge[]) {
@@ -96,7 +276,7 @@ function zeroActivationCosts(
     const value = Math.log(Math.max(0.001, node.requiredMemory))
       + (incoming.get(node.id) ?? []).reduce(
         (sum, edge) => sum
-          + Math.max(0, edge.stats.lambda)
+          + Math.max(0, edge.properties.lambda)
             * logCost(edge.source, nextVisiting),
         0,
       );
@@ -112,10 +292,9 @@ function zeroActivationCosts(
 function nextDependencyCosts(
   nodes: KnowledgeNode[],
   incoming: Map<NodeId, DependencyEdge[]>,
-  master: MasterGraph,
   currentCosts: Record<NodeId, number>,
   currentMastery: Record<NodeId, number>,
-  mode: ReasoningMode,
+  edgeEstimates: Record<EdgeId, ReasoningEdgeEstimate>,
 ) {
   return Object.fromEntries(
     nodes.map((node) => {
@@ -128,11 +307,11 @@ function nextDependencyCosts(
                 ?? edge.source.requiredMemory,
             );
             const activation = clamp01(
-              masteryOf(edge, master, mode)
+              (edgeEstimates[edge.id]?.mastery ?? 0)
                 * (currentMastery[edge.source.id] ?? 0),
             );
             return sum
-              + Math.max(0, edge.stats.lambda)
+              + Math.max(0, edge.properties.lambda)
                 * (1 - activation)
                 * Math.log(sourceCost);
           }, 0);
@@ -143,36 +322,29 @@ function nextDependencyCosts(
 
 function baseMastery(
   nodes: KnowledgeNode[],
-  master: MasterGraph,
+  adjustedMemory: Record<NodeId, number>,
   costs: Record<NodeId, number>,
+  overfitRates: Record<NodeId, number>,
   mode: ReasoningMode,
 ) {
   return Object.fromEntries(
     nodes.map((node) => {
-      const memory = Math.max(0, master.nodes[node.id]?.memory ?? 0);
-      const mastery = clamp01(memory / Math.max(0.001, costs[node.id] ?? 1));
-      return [
-        node.id,
-        mode === 'train'
-          ? mastery
-          : clamp01(
-            mastery * computeOverfitFactor(
-              memory,
-              node.requiredMemory,
-              node.overfitCoefficient,
-            ),
-          ),
-      ];
+      const mastery = clamp01(
+        (adjustedMemory[node.id] ?? 0)
+        / Math.max(0.001, costs[node.id] ?? node.requiredMemory),
+      );
+      return [node.id, mode === 'train'
+        ? mastery
+        : mastery * (1 - (overfitRates[node.id] ?? 0))];
     }),
   );
 }
 
 function relationPass(
-  graph: KnowledgeGraph,
-  master: MasterGraph,
+  graph: KnowledgeGraphDefinition,
   input: Record<NodeId, number>,
   costs: Record<NodeId, number>,
-  mode: ReasoningMode,
+  edges: Record<EdgeId, ReasoningEdgeEstimate>,
 ) {
   const nodes = Object.values(graph.nodes);
   const substituteProducts = emptyProducts(nodes);
@@ -191,7 +363,10 @@ function relationPass(
 
   const interferenceProducts = emptyProducts(nodes);
   graph.interEdges.forEach((edge) => {
-    const damage = interferenceDamage(edge, master, mode);
+    const damage = interferenceDamage(
+      edge,
+      edges[edge.id]?.mastery ?? 0,
+    );
     addDamage(edge.source.id, edge.target.id, damage);
     addDamage(edge.target.id, edge.source.id, damage);
   });
@@ -211,11 +386,11 @@ function relationPass(
     edge: SubstituteEdge,
   ) {
     const quality = clamp01(
-      Math.log1p(costs[source.id] ?? 1)
-      / Math.log1p(costs[target.id] ?? 1)
-      * edgeInfluence(
-        masteryOf(edge, master, mode),
-        edge.stats.lambda,
+      (costs[source.id] ?? 1)
+      / Math.max(0.001, costs[target.id] ?? 1)
+      * computeEdgeInfluence(
+        edges[edge.id]?.mastery ?? 0,
+        edge.properties.lambda,
       ),
     );
     substituteProducts[target.id] *= 1
@@ -228,25 +403,41 @@ function relationPass(
   }
 }
 
-function masteryOf(
-  edge: DependencyEdge | SubstituteEdge | InterferenceEdge,
-  master: MasterGraph,
-  mode: ReasoningMode,
-) {
-  return masteryFromMemory(
-    master.edges[edge.id]?.memory ?? 0,
-    edge.stats.requiredMemory,
-    edge.stats.overfitCoefficient,
-    mode,
-  );
-}
-
 function interferenceDamage(
   edge: InterferenceEdge,
-  master: MasterGraph,
+  edgeMastery: number,
+) {
+  const gamma = computeInterferenceGamma(edge);
+  const edgeProtection = Math.pow(
+    edgeMastery,
+    Math.max(0, edge.properties.lambda),
+  );
+  return clamp01(gamma * (1 - edgeProtection));
+}
+
+function effectiveMastery(
+  equivalentMemory: number,
+  effectiveRequiredMemory: number,
+  overfitRate: number,
   mode: ReasoningMode,
 ) {
-  const gamma = clamp01(
+  const mastery = clamp01(
+    equivalentMemory / Math.max(0.001, effectiveRequiredMemory),
+  );
+  return mode === 'train'
+    ? mastery
+    : clamp01(mastery * (1 - overfitRate));
+}
+
+export function computeEdgeInfluence(
+  edgeMasteryValue: number,
+  lambda: number,
+) {
+  return 1 - Math.pow(1 - clamp01(edgeMasteryValue), Math.max(0, lambda));
+}
+
+export function computeInterferenceGamma(edge: InterferenceEdge) {
+  return clamp01(
     1 - Math.exp(
       -Math.max(
         0,
@@ -256,30 +447,6 @@ function interferenceDamage(
       ) / GENERATED_NODE_COST_MAX,
     ),
   );
-  const edgeProtection = Math.pow(
-    masteryOf(edge, master, mode),
-    Math.max(0, edge.stats.lambda),
-  );
-  return clamp01(gamma * (1 - edgeProtection));
-}
-
-function masteryFromMemory(
-  memory: number,
-  requiredMemory: number,
-  overfitCoefficient: number,
-  mode: ReasoningMode,
-) {
-  return mode === 'train'
-    ? computeEdgeMastery(memory, requiredMemory)
-    : computeEdgeEffectiveMastery(
-      memory,
-      requiredMemory,
-      overfitCoefficient,
-    );
-}
-
-function edgeInfluence(edgeMasteryValue: number, lambda: number) {
-  return 1 - Math.pow(1 - clamp01(edgeMasteryValue), Math.max(0, lambda));
 }
 
 function emptyProducts(nodes: KnowledgeNode[]): Record<NodeId, number> {

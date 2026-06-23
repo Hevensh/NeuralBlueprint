@@ -1,9 +1,9 @@
 import type {
   LinearNodeData,
-  ModuleStatsForwardContext,
-  ModuleStatsForwardResult,
+  ModuleNodeData,
+  ModuleStats,
 } from '../../ModuleBaseNodeTypes';
-import { EMPTY_STATS, EPS, LINEAR_SATURATION_GAIN } from './utils/constants';
+import { EPS, LINEAR_SATURATION_GAIN } from './utils/constants';
 import { negativeRateFromNormal } from './utils/math';
 import {
   getBiasVariance,
@@ -12,14 +12,12 @@ import {
   getWeightVariance,
 } from './utils/moduleStats';
 
-export function forwardLinearStats({
-  node,
-  inputs,
-  inputNodes,
-}: ModuleStatsForwardContext<LinearNodeData>): ModuleStatsForwardResult {
-  const input = inputs[0] ?? EMPTY_STATS;
-  const inputNode = inputNodes[0];
-  const fanIn = getFanIn(node, inputs);
+export function forwardLinearStats(
+  node: LinearNodeData,
+  input: ModuleStats,
+  inputNode?: ModuleNodeData,
+): ModuleStats {
+  const fanIn = getFanIn(node, input);
   const fanOut = node.outFeatures;
   const inputEffectiveRank = input.effectiveRank || fanOut;
   const saturation = 1 - Math.exp((-LINEAR_SATURATION_GAIN * inputEffectiveRank) / Math.max(fanOut, EPS));
@@ -35,22 +33,20 @@ export function forwardLinearStats({
   const outputVariance = fanIn * weightVariance * (input.variance + input.mean ** 2) + biasVariance;
 
   return {
-    stats: {
-      rank: fanOut,
-      dimLabel: 'normal',
-      effectiveRank,
-      saturation,
-      minRank,
-      mean: outputMean,
-      variance: outputVariance,
-      zeroRate: 0,
-      negativeRate: negativeRateFromNormal(outputMean, outputVariance),
-      inputElementCorr: inputNode
-        ? { [inputNode.id]: getLinearElementCorr(fanIn) }
-        : undefined,
-      inputLinearCorr: inputNode
-        ? { [inputNode.id]: linearCorr }
-        : undefined,
-    },
+    rank: fanOut,
+    dimLabel: 'normal',
+    effectiveRank,
+    saturation,
+    minRank,
+    mean: outputMean,
+    variance: outputVariance,
+    zeroRate: 0,
+    negativeRate: negativeRateFromNormal(outputMean, outputVariance),
+    inputElementCorr: inputNode
+      ? { [inputNode.id]: getLinearElementCorr(fanIn) }
+      : undefined,
+    inputLinearCorr: inputNode
+      ? { [inputNode.id]: linearCorr }
+      : undefined,
   };
 }

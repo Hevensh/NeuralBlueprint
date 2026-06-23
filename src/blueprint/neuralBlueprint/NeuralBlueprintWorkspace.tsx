@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { loadNeuralBlueprintUi } from '../../dataStorage/neuralBlueprintStorage';
+import type { InferenceMemoryProfile } from '../InferenceMemoryProfileTypes';
 import type {
   ModuleAnalysisDirection,
   ModuleNodeData,
@@ -10,9 +11,13 @@ import { NeuralBlueprintRightPanel } from './NeuralBlueprintRightPanel';
 
 interface NeuralBlueprintWorkspaceProp {
   fileId: string;
+  onInferenceMemoryProfileChange: (profile: InferenceMemoryProfile) => void;
 }
 
-export function NeuralBlueprintWorkspace({ fileId }: NeuralBlueprintWorkspaceProp) {
+export function NeuralBlueprintWorkspace({
+  fileId,
+  onInferenceMemoryProfileChange,
+}: NeuralBlueprintWorkspaceProp) {
   const [initialUi] = useState(() => loadNeuralBlueprintUi(fileId));
   const [selectedNode, setSelectedNode] = useState<ModuleNodeData | null>(null);
   const [showVarianceAnalysis, setShowVarianceAnalysis] = useState(initialUi.showVarianceAnalysis);
@@ -42,6 +47,7 @@ export function NeuralBlueprintWorkspace({ fileId }: NeuralBlueprintWorkspacePro
         setShowVarianceAnalysis={setShowVarianceAnalysis}
         setAnalysisDirection={setAnalysisDirection}
         setSelectedNode={setSelectedNode}
+        onInferenceMemoryProfileChange={onInferenceMemoryProfileChange}
       />
     </>
   );

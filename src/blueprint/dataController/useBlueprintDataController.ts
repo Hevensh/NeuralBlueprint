@@ -1,67 +1,63 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
+import type { InferenceMemoryProfile } from '../InferenceMemoryProfileTypes';
 import {
   generateKnowledgeDatasets,
   splitEnabledKnowledgeDatasets,
-  type DatasetSplitRatio,
-} from './model/datasetSplit';
-import { generateRandomKnowledgeGraph } from './model/graphGenerator';
+} from '../knowledgeGraph/model/datasetSplit';
+import { generateRandomKnowledgeGraph } from '../knowledgeGraph/model/graphGenerator';
 import {
-  loadKnowledgeNetworkState,
-  saveKnowledgeNetworkState,
-  type KnowledgeNetworkState,
-} from './model/knowledgeStorage';
-import { computeKnowledgeLossReport } from './model/lossMetrics';
+  loadKnowledgeGraphSession,
+  saveKnowledgeGraphSession,
+  type KnowledgeGraphSessionState,
+} from '../knowledgeGraph/model/knowledgeStorage';
+import { computeKnowledgeLossReport } from '../knowledgeGraph/model/lossMetrics';
 import {
   calculateKnowledgeStats,
-  createEmptyMasterGraph,
-} from './model/masterGraph';
+  createKnowledgeGraphMemory,
+  syncBlueprintMemoryProfile,
+} from '../knowledgeGraph/model/memoryState';
 import {
-  KnowledgeGraphControllerState,
-  KnowledgeGraphControlsState,
-  NetworkCapabilityState,
-  TrainingConfigurationState,
-} from './model/controlState';
-import { estimateMasteryWithReasoningBudget } from './model/reasoning';
-import { createTrainingRandomState } from './model/trainingSimulation';
-import { buildKnowledgeGraphElements } from './buildKnowledgeGraphElements';
-import type { KnowledgeGraphNodeData } from './KnowledgeGraphNodeTypes';
-import { createKnowledgeGraphActions } from './knowledgeGraphActions';
+  DEFAULT_GRAPH_CONTROLS,
+  DEFAULT_DATASET_SPLIT_RATIO,
+  DEFAULT_NETWORK_CAPABILITY,
+  DEFAULT_TRAINING_CONTROLS,
+  getControllerControls,
+} from './controlState';
+import { estimateStagedMastery } from '../knowledgeGraph/model/reasoning';
+import { createTrainingRandomState } from '../knowledgeGraph/model/trainingSimulation';
+import { buildKnowledgeGraphElements } from '../knowledgeGraph/buildKnowledgeGraphElements';
+import type { KnowledgeGraphNodeData } from '../knowledgeGraph/KnowledgeGraphNodeTypes';
+import { createBlueprintDataActions } from './blueprintDataActions';
+import { estimateUtilityReport } from '../knowledgeGraph/model/utilityEstimate';
 
-const DEFAULT_DATASET_SPLIT_RATIO: DatasetSplitRatio = {
-  train: 4,
-  val: 1,
-  test: 0,
-};
-
-function createInitialState(fileId: string): KnowledgeNetworkState {
-  const saved = loadKnowledgeNetworkState(fileId);
+function createInitialState(fileId: string): KnowledgeGraphSessionState {
+  const saved = loadKnowledgeGraphSession(fileId);
   if (saved) return saved;
 
-  const graphControls = KnowledgeGraphControlsState.defaults;
-  const networkControls = NetworkCapabilityState.defaults;
-  const trainingControls = TrainingConfigurationState.defaults;
-  const graph = generateRandomKnowledgeGraph({
+  const graphControls = DEFAULT_GRAPH_CONTROLS;
+  const networkControls = DEFAULT_NETWORK_CAPABILITY;
+  const trainingControls = DEFAULT_TRAINING_CONTROLS;
+  const graphDefinition = generateRandomKnowledgeGraph({
     seed: graphControls.generationSeed,
   });
-  const master = createEmptyMasterGraph(
-    graph,
+  const memory = createKnowledgeGraphMemory(
+    graphDefinition,
     networkControls.memory,
     networkControls.reasoning,
   );
 
   return {
-    graph,
-    master,
+    graphDefinition,
+    memory,
     epoch: 0,
     lossHistory: [],
     datasetCollection: generateKnowledgeDatasets(
-      graph,
+      graphDefinition,
       graphControls.datasetCount,
       graphControls.generationSeed,
       DEFAULT_DATASET_SPLIT_RATIO,
     ),
-    generationSeed: graphControls.generationSeed,
-    graphControls: graphControls.toStorage(),
+    graphControls,
     trainingControls: {
       learningRate: trainingControls.learningRate,
       regularizationRate: trainingControls.regularizationRate,
@@ -74,86 +70,133 @@ function createInitialState(fileId: string): KnowledgeNetworkState {
   };
 }
 
-export function useKnowledgeGraphController({ fileId }: { fileId: string }) {
+export function useBlueprintDataController({
+  fileId,
+  inferenceMemoryProfile,
+}: {
+  fileId: string;
+  inferenceMemoryProfile: InferenceMemoryProfile;
+}) {
   const [state, setState] = useState(() => createInitialState(fileId));
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const controls = KnowledgeGraphControllerState.fromNetworkState(state);
+  const controls = getControllerControls(state);
   const stats = useMemo(
-    () => calculateKnowledgeStats(state.graph, state.master),
-    [state.graph, state.master],
+    () => calculateKnowledgeStats(state.graphDefinition, state.memory),
+    [state.graphDefinition, state.memory],
   );
   const datasetSplit = useMemo(
     () => splitEnabledKnowledgeDatasets(
-      state.graph,
+      state.graphDefinition,
       state.datasetCollection,
     ),
-    [state.datasetCollection, state.graph],
+    [state.datasetCollection, state.graphDefinition],
   );
   const trainReasoning = useMemo(
-    () => estimateMasteryWithReasoningBudget(
-      state.graph,
-      state.master,
-      state.master.availableReasoningPoints,
+    () => estimateStagedMastery(
+      state.graphDefinition,
+      state.memory,
       'train',
     ),
-    [state.graph, state.master],
+    [state.graphDefinition, state.memory],
   );
   const validationReasoning = useMemo(
-    () => estimateMasteryWithReasoningBudget(
-      state.graph,
-      state.master,
-      state.master.availableReasoningPoints,
+    () => estimateStagedMastery(
+      state.graphDefinition,
+      state.memory,
       'val',
     ),
-    [state.graph, state.master],
+    [state.graphDefinition, state.memory],
+  );
+  const utilities = useMemo(
+    () => estimateUtilityReport(
+      state.graphDefinition,
+      trainReasoning,
+      datasetSplit,
+    ),
+    [
+      datasetSplit,
+      state.graphDefinition,
+      trainReasoning,
+    ],
   );
   const loss = useMemo(
     () => computeKnowledgeLossReport(
-      state.graph,
-      state.master,
+      state.graphDefinition,
+      state.memory,
       trainReasoning,
       validationReasoning,
       datasetSplit,
     ),
     [
       datasetSplit,
-      state.graph,
-      state.master,
+      state.graphDefinition,
+      state.memory,
       trainReasoning,
       validationReasoning,
     ],
   );
   const elements = useMemo(
     () => buildKnowledgeGraphElements(
-      state.graph,
-      state.master,
+      state.graphDefinition,
+      state.memory,
       trainReasoning,
+      validationReasoning,
       loss,
       datasetSplit,
+      utilities,
     ),
-    [datasetSplit, loss, state.graph, state.master, trainReasoning],
+    [
+      datasetSplit,
+      loss,
+      utilities,
+      state.graphDefinition,
+      state.memory,
+      trainReasoning,
+      validationReasoning,
+    ],
   );
   const selectedNode = useMemo<KnowledgeGraphNodeData | null>(
     () => elements.nodes.find((node) => node.id === selectedNodeId)?.data ?? null,
     [elements.nodes, selectedNodeId],
   );
-  const actions = createKnowledgeGraphActions({
+  const actions = createBlueprintDataActions({
     controls,
     datasetSplit,
     setState,
     setSelectedNodeId,
+    inferenceMemoryProfile,
   });
 
   useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setState((current) => {
+        const memory = syncBlueprintMemoryProfile(
+          current.graphDefinition,
+          current.memory,
+          inferenceMemoryProfile,
+        );
+        return memory === current.memory
+          ? current
+          : {
+              ...current,
+              memory,
+              epoch: 0,
+              lossHistory: [],
+            };
+      });
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [inferenceMemoryProfile]);
+
+  useEffect(() => {
     const timer = window.setTimeout(
-      () => saveKnowledgeNetworkState(fileId, state),
+      () => saveKnowledgeGraphSession(fileId, state),
       300,
     );
     return () => window.clearTimeout(timer);
   }, [fileId, state]);
 
   return {
-    networkState: state,
     elements,
     selectedNode,
     selectNode: setSelectedNodeId,
@@ -182,9 +225,12 @@ export function useKnowledgeGraphController({ fileId }: { fileId: string }) {
     networkControls: {
       memory: controls.network.memory,
       reasoning: controls.network.reasoning,
+      memoryProfileSource: state.memory.memoryProfileSource,
+      hasBlueprintProfile: inferenceMemoryProfile.groups.length > 0,
       initializationSeed: controls.network.initializationSeed,
       onMemoryChange: actions.setAvailableMemoryPoints,
       onReasoningChange: actions.setAvailableReasoningPoints,
+      onMemoryProfileSourceChange: actions.selectMemoryProfileSource,
       onInitializationSeedChange: (value: string) => (
         actions.updateTrainingControls({ initializationSeed: value })
       ),
@@ -222,10 +268,16 @@ export function useKnowledgeGraphController({ fileId }: { fileId: string }) {
       onSplitRatioChange: actions.setDatasetSplitRatio,
     },
     lossHistory: state.lossHistory,
+    inferenceStage: {
+      value: state.memory.selectedInferenceStage,
+      max: state.memory.availableReasoningPoints,
+      onChange: actions.selectInferenceStage,
+    },
     setNodeMemory: actions.setNodeMemory,
+    setEdgeMemory: actions.setEdgeMemory,
   };
 }
 
-export type KnowledgeGraphController = ReturnType<
-  typeof useKnowledgeGraphController
+export type BlueprintDataController = ReturnType<
+  typeof useBlueprintDataController
 >;

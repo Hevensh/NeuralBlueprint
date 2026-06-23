@@ -1,4 +1,4 @@
-import {
+﻿import {
   Handle,
   Position,
   type NodeProps,
@@ -6,6 +6,7 @@ import {
 import type { CSSProperties } from 'react';
 import { knowledgePreviewColor } from './knowledgePreviewColor';
 import type { KnowledgeGraphNodeType } from './KnowledgeGraphNodeTypes';
+import { TrainingSignalPreview } from './TrainingSignalPreview';
 
 const HANDLE_POSITIONS = [
   Position.Top,
@@ -23,8 +24,8 @@ export function KnowledgeGraphNode({
   data,
   selected,
 }: NodeProps<KnowledgeGraphNodeType>) {
-  const masteryPercent = (data.stats.mastery * 100).toFixed(2);
-  const overfitPercent = data.stats.overfitPercent.toFixed(2);
+  const masteryPercent = (data.metrics.mastery * 100).toFixed(2);
+  const overfitPercent = data.metrics.overfitPercent.toFixed(2);
   const nodeStyle: NodeStyle = {
     '--knowledge-node-color': data.color,
     ...(data.datasetHighlightColor
@@ -58,16 +59,16 @@ export function KnowledgeGraphNode({
           className="knowledge-node-preview"
           style={{
             color: knowledgePreviewColor(
-              data.stats.mastery,
-              data.stats.overfitPercent,
+              data.metrics.mastery,
+              data.metrics.overfitPercent,
             ),
           }}
         >
           {data.showMemoryPreview && (
             <span className="knowledge-node-preview-line">
-              {formatMemory(data.stats.allocatedMemory)}
+              {formatMemory(data.metrics.allocatedMemory)}
               {' / '}
-              {formatMemory(data.stats.requiredMemory)}
+              {formatMemory(data.properties.requiredMemory)}
             </span>
           )}
           {data.showMetricPreview && (
@@ -78,6 +79,10 @@ export function KnowledgeGraphNode({
               <span className="knowledge-node-preview-line">
                 O {overfitPercent}%
               </span>
+              <TrainingSignalPreview
+                className="knowledge-node-preview-line knowledge-training-line"
+                stages={data.metrics.stagePreviews}
+              />
             </>
           )}
         </div>}

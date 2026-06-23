@@ -8,7 +8,7 @@ import {
 import type {
   DependencyEdge,
   InterferenceEdge,
-  KnowledgeGraph,
+  KnowledgeGraphDefinition,
   KnowledgeNode,
   NodeId,
   SubstituteEdge,
@@ -51,7 +51,7 @@ const POSITION_CANDIDATES = 96;
 
 export function generateRandomKnowledgeGraph(
   options: KnowledgeGraphGenerationOptions = {},
-): KnowledgeGraph {
+): KnowledgeGraphDefinition {
   const random = options.seed?.trim()
     ? createSeededRandom(options.seed.trim())
     : Math.random;
@@ -86,7 +86,7 @@ export function generateRandomKnowledgeGraph(
         id: `dep_${depEdges.length + 1}`,
         source: nodes[source],
         target: nodes[target],
-        stats: createEdgeStats(random, 9, 18, 13.5, 1.5),
+        properties: createEdgeProperties(random, 9, 18, 13.5, 1.5),
       });
     } else if (pair.kind === 'substitute') {
       const [source, target] = random() < 0.5
@@ -97,7 +97,7 @@ export function generateRandomKnowledgeGraph(
         id: `sub_${subEdges.length + 1}`,
         source: nodes[source],
         target: nodes[target],
-        stats: createEdgeStats(random, 9, 18, 13.5, 1.5),
+        properties: createEdgeProperties(random, 9, 18, 13.5, 1.5),
       });
     } else {
       interEdges.push({
@@ -105,7 +105,7 @@ export function generateRandomKnowledgeGraph(
         id: `inter_${interEdges.length + 1}`,
         source: nodes[pair.source],
         target: nodes[pair.target],
-        stats: createEdgeStats(random, 6, 12, 9, 1),
+        properties: createEdgeProperties(random, 6, 12, 9, 1),
       });
     }
   });
@@ -441,7 +441,7 @@ function relationKind(index: number): RelationKind {
   ) as RelationKind;
 }
 
-function createEdgeStats(
+function createEdgeProperties(
   random: Random,
   min: number,
   max: number,

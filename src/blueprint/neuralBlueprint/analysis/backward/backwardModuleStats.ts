@@ -1,34 +1,23 @@
 import type {
   ModuleNodeData,
-  ModuleStatsBackwardContext,
-  ModuleStatsBackwardResult,
+  ModuleStatsBackward,
 } from '../../ModuleBaseNodeTypes';
 import { backwardDropoutStats } from './dropout';
-import { backwardIdentityStats } from './identity';
 import { backwardLinearStats } from './linear';
 import { backwardReLUStats } from './relu';
 
 export function backwardModuleStats(
-  context: ModuleStatsBackwardContext,
-): ModuleStatsBackwardResult {
-  switch (context.node.kind) {
+  node: ModuleNodeData,
+  gradient: ModuleStatsBackward,
+): ModuleStatsBackward {
+  switch (node.kind) {
     case 'Linear':
-      return backwardLinearStats(withNode(context, context.node));
+      return backwardLinearStats(node, gradient);
     case 'ReLU':
-      return backwardReLUStats(withNode(context, context.node));
+      return backwardReLUStats(node, gradient);
     case 'Dropout':
-      return backwardDropoutStats(withNode(context, context.node));
+      return backwardDropoutStats(node, gradient);
     default:
-      return backwardIdentityStats(context);
+      return gradient;
   }
-}
-
-function withNode<TNode extends ModuleNodeData>(
-  context: ModuleStatsBackwardContext,
-  node: TNode,
-): ModuleStatsBackwardContext<TNode> {
-  return {
-    ...context,
-    node,
-  };
 }

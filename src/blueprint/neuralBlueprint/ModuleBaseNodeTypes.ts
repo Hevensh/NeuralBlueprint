@@ -60,10 +60,8 @@ export interface BackwardOutputPairStats {
   covariance: number;
 }
 
-export interface ModuleStatsForwardContext<
-  TNode extends ModuleNodeData = ModuleNodeData,
-> {
-  node: TNode;
+export interface ModuleStatsForwardContext {
+  node: ModuleNodeData;
   inputs: ModuleStats[];
   inputNodes: ModuleNodeData[];
   nodeMap: Map<string, ModuleNodeData>;
@@ -74,10 +72,6 @@ export interface ModuleStatsForwardResult {
   stats: ModuleStats;
   sumInputPairStats?: SumInputPairStats[];
 }
-
-export type ModuleStatsForwardFunction = (
-  context: ModuleStatsForwardContext
-) => ModuleStatsForwardResult;
 
 export interface ModuleStatsBackward {
   /** Dimension of the gradient propagated toward the module input. */
@@ -98,22 +92,6 @@ export interface ModuleStatsBackward {
   negativeRate?: number;
 }
 
-export interface ModuleStatsBackwardContext<
-  TNode extends ModuleNodeData = ModuleNodeData,
-> {
-  node: TNode;
-  gradient: ModuleStatsBackward;
-  outputNodes: ModuleNodeData[];
-}
-
-export interface ModuleStatsBackwardResult {
-  stats: ModuleStatsBackward;
-}
-
-export type ModuleStatsBackwardFunction = (
-  context: ModuleStatsBackwardContext
-) => ModuleStatsBackwardResult;
-
 export interface ModuleBaseNodeData<
   TKind extends ModuleBaseNodeKind = ModuleBaseNodeKind,
 > extends Record<string, unknown> {
@@ -123,8 +101,6 @@ export interface ModuleBaseNodeData<
   kind: TKind;
   predecessors: ModuleNodeData[];
   successors: ModuleNodeData[];
-  forwardStats?: ModuleStatsForwardFunction;
-  backwardStats?: ModuleStatsBackwardFunction;
   forwardTopologyOrder?: number;
   inferenceTopologyOrder?: Set<number>;
   backwardTopologyOrder?: number;

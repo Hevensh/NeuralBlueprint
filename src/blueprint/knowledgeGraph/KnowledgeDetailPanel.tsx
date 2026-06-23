@@ -1,31 +1,45 @@
-import { NumberField } from '../../NumberField';
+﻿import { NumberField } from '../../NumberField';
 import type {
   KnowledgeGraphEdgeData,
   KnowledgeGraphNodeData,
 } from './KnowledgeGraphNodeTypes';
+import { formatTrainingSignal } from './formatTrainingSignal';
 
 interface KnowledgeDetailPanelProps {
   selectedNode: KnowledgeGraphNodeData | null;
   selectedEdge: KnowledgeGraphEdgeData | null;
+  inferenceStage: number;
+  maxInferenceStage: number;
   showMemory: boolean;
   showMetrics: boolean;
   onShowMemoryChange: () => void;
   onShowMetricsChange: () => void;
   onMemoryChange: (nodeId: string, memory: number) => void;
+  onEdgeMemoryChange: (edgeId: string, memory: number) => void;
+  onInferenceStageChange: (stage: number) => void;
 }
 
 export function KnowledgeDetailPanel({
   selectedNode,
   selectedEdge,
+  inferenceStage,
+  maxInferenceStage,
   showMemory,
   showMetrics,
   onShowMemoryChange,
   onShowMetricsChange,
   onMemoryChange,
+  onEdgeMemoryChange,
+  onInferenceStageChange,
 }: KnowledgeDetailPanelProps) {
   return (
     <aside className="right-panel">
       <div className="title">Properties</div>
+      <InferenceStageSlider
+        max={maxInferenceStage}
+        value={inferenceStage}
+        onChange={onInferenceStageChange}
+      />
       <div className="property-toggle-group">
         <button
           aria-pressed={showMemory}
@@ -50,6 +64,7 @@ export function KnowledgeDetailPanel({
             selectedEdge={selectedEdge}
             showMemory={showMemory}
             showMetrics={showMetrics}
+            onMemoryChange={onEdgeMemoryChange}
           />
         )
         : selectedNode
@@ -66,30 +81,67 @@ export function KnowledgeDetailPanel({
   );
 }
 
+function InferenceStageSlider({
+  value,
+  max,
+  onChange,
+}: {
+  value: number;
+  max: number;
+  onChange: (stage: number) => void;
+}) {
+  return (
+    <div className="knowledge-stage-control">
+      <div className="knowledge-stage-header">
+        <span>Inference Stage</span>
+        <strong>{value} / {max}</strong>
+      </div>
+      <input
+        aria-label="Inference Stage"
+        disabled={max === 0}
+        max={max}
+        min={0}
+        step={1}
+        type="range"
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value))}
+      />
+    </div>
+  );
+}
+
 function EdgeProperties({
   selectedEdge,
   showMemory,
   showMetrics,
+  onMemoryChange,
 }: {
   selectedEdge: KnowledgeGraphEdgeData;
   showMemory: boolean;
   showMetrics: boolean;
+  onMemoryChange: (edgeId: string, memory: number) => void;
 }) {
-  const { stats } = selectedEdge;
+  const { metrics } = selectedEdge;
   return (
     <div className="property-panel">
       <Value label="Type" value={selectedEdge.kind} />
       <Value label="Source" value={selectedEdge.source.name} />
       <Value label="Target" value={selectedEdge.target.name} />
+      <Value label="Lambda" value={format(selectedEdge.properties.lambda)} />
       {showMemory && (
         <>
           <Value
             label="Required Memory"
-            value={format(stats.requiredMemory)}
+            value={format(selectedEdge.properties.requiredMemory)}
           />
-          <Value
-            label="Allocated Memory"
-            value={format(stats.allocatedMemory)}
+          <NumberField
+            label={`Allocated Memory (${selectedEdge.memorySelectionLabel})`}
+            min={0}
+            value={metrics.allocatedMemory}
+            onChange={(memory) => onMemoryChange(
+              selectedEdge.id,
+              Math.max(0, memory),
+            )}
           />
         </>
       )}
@@ -97,16 +149,17 @@ function EdgeProperties({
         <>
           <Value
             label="Mastery"
-            value={`${(stats.mastery * 100).toFixed(2)}%`}
+            value={`${(metrics.mastery * 100).toFixed(2)}%`}
           />
           <Value
             label="Effective Mastery"
-            value={`${(stats.effectiveMastery * 100).toFixed(2)}%`}
+            value={`${(metrics.effectiveMastery * 100).toFixed(2)}%`}
           />
           <Value
             label="Overfit"
-            value={`${stats.overfitPercent.toFixed(2)}%`}
+            value={`${metrics.overfitPercent.toFixed(2)}%`}
           />
+          <TrainingProperties training={metrics.training} />
         </>
       )}
     </div>
@@ -124,22 +177,25 @@ function NodeProperties({
   showMetrics: boolean;
   onMemoryChange: (nodeId: string, memory: number) => void;
 }) {
-  const { stats } = selectedNode;
+  const { metrics } = selectedNode;
   return (
     <div className="property-panel">
       <Value label="Name" value={selectedNode.name} />
       <Value label="Neighbors" value={selectedNode.neighborCount} />
       <Value
         label="Data Split"
-        value={`${stats.trainDataAmount}/${stats.valDataAmount}/${stats.testDataAmount}`}
+        value={`${metrics.trainDataAmount}/${metrics.valDataAmount}/${metrics.testDataAmount}`}
       />
       {showMemory && (
         <>
-          <Value label="Required Memory" value={format(stats.requiredMemory)} />
+          <Value
+            label="Required Memory"
+            value={format(selectedNode.properties.requiredMemory)}
+          />
           <NumberField
-            label="Allocated Memory"
+            label={`Allocated Memory (${selectedNode.memorySelectionLabel})`}
             min={0}
-            value={stats.allocatedMemory}
+            value={metrics.allocatedMemory}
             onChange={(memory) => onMemoryChange(
               selectedNode.id,
               Math.max(0, memory),
@@ -151,21 +207,45 @@ function NodeProperties({
         <>
           <Value
             label="Effective Memory"
-            value={format(stats.effectiveRequiredMemory)}
+            value={format(metrics.effectiveRequiredMemory)}
           />
           <Value
             label="Mastery"
-            value={`${(stats.mastery * 100).toFixed(2)}%`}
+            value={`${(metrics.mastery * 100).toFixed(2)}%`}
           />
           <Value
             label="Overfit"
-            value={`${stats.overfitPercent.toFixed(2)}%`}
+            value={`${metrics.overfitPercent.toFixed(2)}%`}
           />
+          <TrainingProperties training={metrics.training} />
         </>
       )}
-      <Value label="Train Loss" value={format(stats.trainLoss)} />
-      <Value label="Val Loss" value={format(stats.valLoss)} />
+      <Value label="Train Loss" value={format(metrics.trainLoss)} />
+      <Value label="Val Loss" value={format(metrics.valLoss)} />
     </div>
+  );
+}
+
+function TrainingProperties({
+  training,
+}: {
+  training: KnowledgeGraphNodeData['metrics']['training'];
+}) {
+  return (
+    <>
+      <Value
+        label="Self Growth"
+        value={formatTrainingSignal(training.self)}
+      />
+      <Value
+        label="Adjacent Growth"
+        value={formatTrainingSignal(training.adjacent)}
+      />
+      <Value
+        label="Stage Utility Uₛ"
+        value={formatTrainingSignal(training.total)}
+      />
+    </>
   );
 }
 

@@ -3,8 +3,10 @@ import {
   type ChangeEvent,
   type Dispatch,
   type SetStateAction,
+  useEffect,
   useMemo,
 } from 'react';
+import type { InferenceMemoryProfile } from '../InferenceMemoryProfileTypes';
 import { NumberField } from '../../NumberField';
 import { buildInferenceMemoryProfile } from './analysis/inferenceMemoryProfile';
 import { updateState } from './analysis/updateState';
@@ -25,6 +27,7 @@ interface NeuralBlueprintRightPanelProp {
   setShowVarianceAnalysis: Dispatch<SetStateAction<boolean>>;
   setAnalysisDirection: Dispatch<SetStateAction<ModuleAnalysisDirection>>;
   setSelectedNode: Dispatch<SetStateAction<ModuleNodeData | null>>;
+  onInferenceMemoryProfileChange: (profile: InferenceMemoryProfile) => void;
 }
 
 export function NeuralBlueprintRightPanel({
@@ -36,6 +39,7 @@ export function NeuralBlueprintRightPanel({
   setShowVarianceAnalysis,
   setAnalysisDirection,
   setSelectedNode,
+  onInferenceMemoryProfileChange,
 }: NeuralBlueprintRightPanelProp) {
   const { getNodes, setNodes } = useReactFlow<ModuleBaseNode, Edge>();
   const nodes = useNodes<ModuleBaseNode>();
@@ -43,6 +47,9 @@ export function NeuralBlueprintRightPanel({
     () => buildInferenceMemoryProfile(nodes),
     [nodes],
   );
+  useEffect(() => {
+    onInferenceMemoryProfileChange(inferenceMemoryProfile);
+  }, [inferenceMemoryProfile, onInferenceMemoryProfileChange]);
 
   const updateSelectedNode = <TNode extends ModuleNodeData>(
     nodeData: TNode,

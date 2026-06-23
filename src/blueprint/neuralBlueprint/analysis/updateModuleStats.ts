@@ -68,8 +68,7 @@ export function runForwardStats(
       return;
     }
 
-    const forward = node.forwardStats ?? forwardModuleStats;
-    const result = forward({
+    const result = forwardModuleStats({
       node,
       inputs,
       inputNodes,
@@ -77,7 +76,6 @@ export function runForwardStats(
       statsByNodeId: stats,
     });
 
-    node.forwardStats = forward;
     node.sumInputPairStats = result.sumInputPairStats;
     node.stats = result.stats;
     stats.set(node.id, result.stats);
@@ -139,19 +137,13 @@ export function runBackwardStats(
     const gradient = node.kind === 'Output'
       ? getDefaultOutputGradient(node.stats?.rank ?? 64)
       : aggregateBackwardStats(flattened.gradients, outputPairStats);
-    const backward = node.backwardStats ?? backwardModuleStats;
-    const result = backward({
-      node,
-      gradient,
-      outputNodes: flattened.outputNodes,
-    });
+    const result = backwardModuleStats(node, gradient);
 
-    node.backwardStats = backward;
     node.backwardOutputPairStats = outputPairStats.length > 0
       ? outputPairStats
       : undefined;
-    node.statsBackward = result.stats;
-    stats.set(node.id, result.stats);
+    node.statsBackward = result;
+    stats.set(node.id, result);
   });
 
   return stats;

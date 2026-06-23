@@ -4,6 +4,40 @@
   gap: 10px;
 }
 
+.knowledge-stage-control {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 10px;
+  border: 1px solid rgba(34, 211, 238, 0.22);
+  border-radius: 7px;
+  background: rgba(2, 6, 23, 0.38);
+}
+
+.knowledge-stage-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.knowledge-stage-header strong {
+  color: #67e8f9;
+  font-variant-numeric: tabular-nums;
+}
+
+.knowledge-stage-control input[type="range"] {
+  width: 100%;
+  accent-color: #22d3ee;
+  cursor: pointer;
+}
+
+.knowledge-stage-control input[type="range"]:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
 .knowledge-graph-canvas {
   background:
     radial-gradient(circle at 50% 0%, rgba(14, 116, 144, 0.18), transparent 48%),
@@ -96,6 +130,33 @@
   text-overflow: ellipsis;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.72);
   white-space: nowrap;
+}
+
+.knowledge-training-line {
+  align-items: flex-start;
+  flex-direction: column;
+  justify-content: flex-start;
+  overflow: visible;
+  color: #a5f3fc;
+  font-size: 7px;
+  font-weight: 760;
+  letter-spacing: -0.02em;
+  text-align: left;
+  white-space: normal;
+}
+
+.knowledge-stage-utility {
+  display: block;
+  width: 100%;
+}
+
+.knowledge-node-preview .knowledge-training-line,
+.knowledge-edge-preview > .knowledge-training-line {
+  width: 100%;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding-left: 4px;
+  text-align: left;
 }
 
 .knowledge-graph-canvas .react-flow__node:hover .knowledge-node-preview,
@@ -250,6 +311,12 @@
   align-items: center;
   justify-content: center;
   min-height: 9px;
+}
+
+.knowledge-edge-preview .knowledge-training-line {
+  color: #a5f3fc;
+  font-size: 7px;
+  font-weight: 760;
 }
 
 .knowledge-edge-preview.hovered {

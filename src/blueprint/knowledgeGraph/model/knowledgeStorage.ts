@@ -1,20 +1,18 @@
-import { appStorage } from '../../../dataStorage/storageAdapter';
+﻿import { appStorage } from '../../../dataStorage/storageAdapter';
 import type { KnowledgeDatasetCollection } from './datasetSplit';
-import type { KnowledgeGraph, MasterGraph } from './types';
+import type { KnowledgeGraphDefinition, KnowledgeGraphMemory } from './types';
 
-const STORAGE_PREFIX = 'knowledgeGraph:v2:';
+const STORAGE_PREFIX = 'knowledgeGraph:v10:';
 
-export type KnowledgeNetworkState = {
-  graph: KnowledgeGraph;
-  master: MasterGraph;
+export type KnowledgeGraphSessionState = {
+  graphDefinition: KnowledgeGraphDefinition;
+  memory: KnowledgeGraphMemory;
   epoch: number;
   lossHistory: KnowledgeLossPoint[];
   viewport?: KnowledgeGraphViewport;
-  initialization?: TrainingInitializationState;
   graphControls: KnowledgeGraphControlState;
   trainingControls: TrainingControlState;
   datasetCollection: KnowledgeDatasetCollection;
-  generationSeed: string;
   trainingRandomState: number;
 };
 
@@ -28,15 +26,6 @@ export type KnowledgeLossPoint = {
   epoch: number;
   trainLoss: number;
   valLoss: number | null;
-};
-
-export type TrainingInitializationState = {
-  availableMemoryPoints: number;
-  availableReasoningPoints: number;
-  modelStabilityPercent: number;
-  learningRate?: number;
-  regularizationRate?: number;
-  initializationSeed?: string;
 };
 
 export type TrainingControlState = {
@@ -53,16 +42,16 @@ export type KnowledgeGraphControlState = {
   generationSeed: string;
 };
 
-export function loadKnowledgeNetworkState(
+export function loadKnowledgeGraphSession(
   fileId: string,
-): KnowledgeNetworkState | null {
+): KnowledgeGraphSessionState | null {
   const raw = appStorage.getItem(`${STORAGE_PREFIX}${fileId}`);
-  return raw ? JSON.parse(raw) as KnowledgeNetworkState : null;
+  return raw ? JSON.parse(raw) as KnowledgeGraphSessionState : null;
 }
 
-export function saveKnowledgeNetworkState(
+export function saveKnowledgeGraphSession(
   fileId: string,
-  state: KnowledgeNetworkState,
+  state: KnowledgeGraphSessionState,
 ): void {
   appStorage.setItem(`${STORAGE_PREFIX}${fileId}`, JSON.stringify(state));
 }

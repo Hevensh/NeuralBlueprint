@@ -1,6 +1,6 @@
-import type { DatasetSplitResult } from '../model/datasetSplit';
-import type { KnowledgeLossReport } from '../model/lossMetrics';
-import type { KnowledgeGraphStats } from '../model/types';
+import type { DatasetSplitResult } from '../../knowledgeGraph/model/datasetSplit';
+import type { KnowledgeLossReport } from '../../knowledgeGraph/model/lossMetrics';
+import type { KnowledgeGraphStats } from '../../knowledgeGraph/model/types';
 import { ControlSection, StatValue } from './ControlSection';
 
 export interface CurrentStatisticsProps {

@@ -1,9 +1,9 @@
-import {
+﻿import {
   createSeededRandom,
   sampleNormal,
   type Random,
 } from './random';
-import type { KnowledgeGraph, NodeId } from './types';
+import type { KnowledgeGraphDefinition, NodeId } from './types';
 
 export type DatasetSplitRatio = {
   train: number;
@@ -50,7 +50,7 @@ const DATASET_COLORS = [
 ];
 
 export function generateKnowledgeDatasets(
-  graph: KnowledgeGraph,
+  graph: KnowledgeGraphDefinition,
   datasetCount: number,
   seed = '42',
   splitRatio: DatasetSplitRatio = { train: 4, val: 1, test: 0 },
@@ -122,7 +122,7 @@ export function generateKnowledgeDatasets(
 }
 
 function selectCoveredNodes(
-  graph: KnowledgeGraph,
+  graph: KnowledgeGraphDefinition,
   coverageCount: number,
   neighbors: Record<NodeId, Set<NodeId>>,
   coverageCounts: Record<NodeId, number>,
@@ -167,7 +167,7 @@ function selectCoveredNodes(
 }
 
 function pickDatasetCenter(
-  graph: KnowledgeGraph,
+  graph: KnowledgeGraphDefinition,
   coverageCounts: Record<NodeId, number>,
   random: Random,
 ) {
@@ -185,7 +185,7 @@ function pickDatasetCenter(
   }, random).id;
 }
 
-function graphCenter(graph: KnowledgeGraph) {
+function graphCenter(graph: KnowledgeGraphDefinition) {
   const nodes = Object.values(graph.nodes);
   return {
     x: nodes.reduce((sum, node) => sum + node.position.x, 0) / nodes.length,
@@ -193,7 +193,7 @@ function graphCenter(graph: KnowledgeGraph) {
   };
 }
 
-function graphAdjacency(graph: KnowledgeGraph) {
+function graphAdjacency(graph: KnowledgeGraphDefinition) {
   const neighbors = Object.fromEntries(
     Object.keys(graph.nodes).map((nodeId) => [nodeId, new Set<NodeId>()]),
   ) as Record<NodeId, Set<NodeId>>;
@@ -209,7 +209,7 @@ function graphAdjacency(graph: KnowledgeGraph) {
 }
 
 function nodeDistance(
-  graph: KnowledgeGraph,
+  graph: KnowledgeGraphDefinition,
   firstNodeId: NodeId,
   secondNodeId: NodeId,
 ) {
@@ -243,7 +243,7 @@ function datasetSeedAt(seed: string, index: number) {
 }
 
 export function splitEnabledKnowledgeDatasets(
-  graph: KnowledgeGraph,
+  graph: KnowledgeGraphDefinition,
   collection: KnowledgeDatasetCollection | undefined,
 ): DatasetSplitResult {
   const enabled = collection?.datasets.filter((dataset) => dataset.enabled) ?? [];
@@ -304,7 +304,7 @@ function sanitizeRatio(ratio: DatasetSplitRatio): DatasetSplitRatio {
 }
 
 function emptySplit(
-  graph: KnowledgeGraph,
+  graph: KnowledgeGraphDefinition,
   ratios: DatasetSplitRatio = { train: 0, val: 0, test: 0 },
 ): DatasetSplitResult {
   return {

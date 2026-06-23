@@ -1,13 +1,10 @@
 import type {
   InputNodeData,
-  ModuleStatsForwardContext,
-  ModuleStatsForwardResult,
+  ModuleStats,
 } from '../../ModuleBaseNodeTypes';
 import { EPS } from './utils/constants';
 
-export function forwardInputStats({
-  node,
-}: ModuleStatsForwardContext<InputNodeData>): ModuleStatsForwardResult {
+export function forwardInputStats(node: InputNodeData): ModuleStats {
   const rank = node.outFeatures;
   const effectiveRank = node.inputEffectiveRank;
   const inputDistribution = node.normalizationMode === 'standard'
@@ -25,12 +22,10 @@ export function forwardInputStats({
     };
 
   return {
-    stats: {
-      rank,
-      dimLabel: 'normal',
-      effectiveRank,
-      saturation: effectiveRank / Math.max(rank, EPS),
-      ...inputDistribution,
-    },
+    rank,
+    dimLabel: 'normal',
+    effectiveRank,
+    saturation: effectiveRank / Math.max(rank, EPS),
+    ...inputDistribution,
   };
 }

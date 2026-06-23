@@ -1,13 +1,24 @@
 import { appStorage } from '../../dataStorage/storageAdapter';
 import type { KnowledgeLossPoint } from '../knowledgeGraph/model/knowledgeStorage';
 
-const STORAGE_PREFIX = 'trainingCurves:v1:';
+const STORAGE_PREFIX = 'trainingCurves:v2:';
 
 export type TrainingCurveSnapshot = {
   id: string;
   createdAt: string;
   epoch: number;
   history: KnowledgeLossPoint[];
+  graphGeneration: {
+    minNodes: number;
+    maxNodes: number;
+    datasetCount: number;
+    seed: string;
+  };
+  networkCapability: {
+    memoryPoints: number;
+    reasoningPoints: number;
+    seed: string;
+  };
 };
 
 export function loadTrainingCurves(fileId: string) {

@@ -1,9 +1,9 @@
 import type {
   DropoutNodeData,
-  ModuleStatsForwardContext,
-  ModuleStatsForwardResult,
+  ModuleNodeData,
+  ModuleStats,
 } from '../../ModuleBaseNodeTypes';
-import { EMPTY_STATS, EPS } from './utils/constants';
+import { EPS } from './utils/constants';
 import {
   clamp01,
   getDropoutSaturation,
@@ -11,31 +11,27 @@ import {
   statsFromMoments,
 } from './utils/math';
 
-export function forwardDropoutStats({
-  node,
-  inputs,
-  inputNodes,
-}: ModuleStatsForwardContext<DropoutNodeData>): ModuleStatsForwardResult {
-  const input = inputs[0] ?? EMPTY_STATS;
-  const inputNode = inputNodes[0];
+export function forwardDropoutStats(
+  node: DropoutNodeData,
+  input: ModuleStats,
+  inputNode?: ModuleNodeData,
+): ModuleStats {
   const dropoutRate = clamp01(node.dropoutRate);
   const keepRate = 1 - dropoutRate;
 
   if (keepRate <= EPS) {
     return {
-      stats: {
-        rank: input.rank,
-        dimLabel: 'normal',
-        effectiveRank: input.rank,
-        saturation: 1,
-        minRank: input.minRank,
-        mean: 0,
-        variance: 0,
-        zeroRate: 1,
-        negativeRate: 0,
-        inputElementCorr: inputNode ? { [inputNode.id]: 0 } : undefined,
-        inputLinearCorr: inputNode ? { [inputNode.id]: 0 } : undefined,
-      },
+      rank: input.rank,
+      dimLabel: 'normal',
+      effectiveRank: input.rank,
+      saturation: 1,
+      minRank: input.minRank,
+      mean: 0,
+      variance: 0,
+      zeroRate: 1,
+      negativeRate: 0,
+      inputElementCorr: inputNode ? { [inputNode.id]: 0 } : undefined,
+      inputLinearCorr: inputNode ? { [inputNode.id]: 0 } : undefined,
     };
   }
 
@@ -48,18 +44,16 @@ export function forwardDropoutStats({
   );
 
   return {
-    stats: {
-      rank: input.rank,
-      dimLabel: 'normal',
-      effectiveRank,
-      saturation,
-      minRank: input.minRank,
-      mean: outputMoments.mean,
-      variance: outputMoments.variance,
-      zeroRate: dropoutRate + keepRate * input.zeroRate,
-      negativeRate: keepRate * (input.negativeRate ?? 0),
-      inputElementCorr: inputNode ? { [inputNode.id]: Math.sqrt(keepRate) } : undefined,
-      inputLinearCorr: inputNode ? { [inputNode.id]: rankCorr } : undefined,
-    },
+    rank: input.rank,
+    dimLabel: 'normal',
+    effectiveRank,
+    saturation,
+    minRank: input.minRank,
+    mean: outputMoments.mean,
+    variance: outputMoments.variance,
+    zeroRate: dropoutRate + keepRate * input.zeroRate,
+    negativeRate: keepRate * (input.negativeRate ?? 0),
+    inputElementCorr: inputNode ? { [inputNode.id]: Math.sqrt(keepRate) } : undefined,
+    inputLinearCorr: inputNode ? { [inputNode.id]: rankCorr } : undefined,
   };
 }

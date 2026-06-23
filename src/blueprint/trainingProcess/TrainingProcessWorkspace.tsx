@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { NetworkCapabilityControls } from '../knowledgeGraph/controls/NetworkCapabilityControls';
-import { TrainingConfigurationControls } from '../knowledgeGraph/controls/TrainingConfigurationControls';
-import type { KnowledgeGraphController } from '../knowledgeGraph/useKnowledgeGraphController';
+import { NetworkCapabilityControls } from '../dataController/controls/NetworkCapabilityControls';
+import { TrainingConfigurationControls } from '../dataController/controls/TrainingConfigurationControls';
+import type { BlueprintDataController } from '../dataController/useBlueprintDataController';
 import { TrainingCurveStoragePanel } from './TrainingCurveStoragePanel';
 import { TrainingProcessView } from './TrainingProcessView';
 import { TrainingStatistics } from './TrainingStatistics';
@@ -15,7 +15,7 @@ export function TrainingProcessWorkspace({
   controller,
   fileId,
 }: {
-  controller: KnowledgeGraphController;
+  controller: BlueprintDataController;
   fileId: string;
 }) {
   const [snapshots, setSnapshots] = useState(
@@ -27,13 +27,13 @@ export function TrainingProcessWorkspace({
     controller.lossHistory.length > 0
       ? controller.lossHistory
       : [{
-          epoch: controller.networkState.epoch,
+          epoch: controller.statistics.epoch,
           trainLoss: controller.statistics.loss.graphTrainLoss,
           valLoss: controller.statistics.loss.graphValLoss,
         }]
   ), [
     controller.lossHistory,
-    controller.networkState.epoch,
+    controller.statistics.epoch,
     controller.statistics.loss.graphTrainLoss,
     controller.statistics.loss.graphValLoss,
   ]);
@@ -42,7 +42,7 @@ export function TrainingProcessWorkspace({
   );
   const visibleHistory = selectedSnapshot?.history ?? liveHistory;
   const visibleEpoch = selectedSnapshot?.epoch
-    ?? controller.networkState.epoch;
+    ?? controller.statistics.epoch;
 
   useEffect(() => {
     saveTrainingCurves(fileId, snapshots);
@@ -52,8 +52,19 @@ export function TrainingProcessWorkspace({
     const snapshot: TrainingCurveSnapshot = {
       id: `curve-${Date.now()}`,
       createdAt: new Date().toISOString(),
-      epoch: controller.networkState.epoch,
+      epoch: controller.statistics.epoch,
       history: liveHistory.map((point) => ({ ...point })),
+      graphGeneration: {
+        minNodes: controller.graphControls.minNodes,
+        maxNodes: controller.graphControls.maxNodes,
+        datasetCount: controller.graphControls.datasetCount,
+        seed: controller.graphControls.seed,
+      },
+      networkCapability: {
+        memoryPoints: controller.statistics.stats.availableMemoryPoints,
+        reasoningPoints: controller.statistics.stats.availableReasoningPoints,
+        seed: controller.networkControls.initializationSeed,
+      },
     };
     setSnapshots((current) => [snapshot, ...current].slice(0, 20));
     setSelectedSnapshotId(snapshot.id);

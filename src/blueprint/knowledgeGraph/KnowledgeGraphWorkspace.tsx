@@ -1,19 +1,19 @@
 import { useState } from 'react';
-import { CurrentStatistics } from './controls/CurrentStatistics';
-import { KnowledgeGraphControls } from './controls/KnowledgeGraphControls';
-import { NetworkCapabilityControls } from './controls/NetworkCapabilityControls';
-import { TrainingConfigurationControls } from './controls/TrainingConfigurationControls';
+import { CurrentStatistics } from '../dataController/controls/CurrentStatistics';
+import { KnowledgeGraphControls } from '../dataController/controls/KnowledgeGraphControls';
+import { NetworkCapabilityControls } from '../dataController/controls/NetworkCapabilityControls';
+import { TrainingConfigurationControls } from '../dataController/controls/TrainingConfigurationControls';
+import type { BlueprintDataController } from '../dataController/useBlueprintDataController';
 import { KnowledgeDetailPanel } from './KnowledgeDetailPanel';
 import { KnowledgeDatasetSelector } from './KnowledgeDatasetSelector';
 import { KnowledgeGraphView } from './KnowledgeGraphView';
 import type { KnowledgeDataset } from './model/datasetSplit';
-import type { KnowledgeGraphController } from './useKnowledgeGraphController';
 import './knowledgeGraph.css';
 
 export function KnowledgeGraphWorkspace({
   controller,
 }: {
-  controller: KnowledgeGraphController;
+  controller: BlueprintDataController;
 }) {
   const [showMemory, setShowMemory] = useState(true);
   const [showMetrics, setShowMetrics] = useState(true);
@@ -66,11 +66,15 @@ export function KnowledgeGraphWorkspace({
       <KnowledgeDetailPanel
         selectedNode={controller.selectedNode}
         selectedEdge={selectedEdge}
+        inferenceStage={controller.inferenceStage.value}
+        maxInferenceStage={controller.inferenceStage.max}
         showMemory={showMemory}
         showMetrics={showMetrics}
         onShowMemoryChange={() => setShowMemory((current) => !current)}
         onShowMetricsChange={toggleMetrics}
         onMemoryChange={controller.setNodeMemory}
+        onEdgeMemoryChange={controller.setEdgeMemory}
+        onInferenceStageChange={controller.inferenceStage.onChange}
       />
     </>
   );

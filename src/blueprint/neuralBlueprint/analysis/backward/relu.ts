@@ -1,20 +1,17 @@
 import type {
-  ModuleStatsBackwardContext,
-  ModuleStatsBackwardResult,
+  ModuleStatsBackward,
   ReLUNodeData,
 } from '../../ModuleBaseNodeTypes';
 import { applyBackwardGate } from './utils';
 
-export function backwardReLUStats({
-  node,
-  gradient,
-}: ModuleStatsBackwardContext<ReLUNodeData>): ModuleStatsBackwardResult {
+export function backwardReLUStats(
+  node: ReLUNodeData,
+  gradient: ModuleStatsBackward,
+): ModuleStatsBackward {
   const forwardInput = node.predecessors[0]?.stats;
   const keepRate = 1
     - (forwardInput?.zeroRate ?? 0)
     - (forwardInput?.negativeRate ?? 0.5);
 
-  return {
-    stats: applyBackwardGate(gradient, keepRate),
-  };
+  return applyBackwardGate(gradient, keepRate);
 }

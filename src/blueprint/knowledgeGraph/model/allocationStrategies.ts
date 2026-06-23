@@ -2,77 +2,123 @@ import {
   clearAllocatedMemory,
   entityRequiredMemory,
   getTrainingEntities,
-  readEntityMemory,
+  readEntityPoolStageMemory,
   writeEntityMemory,
-} from './masterOperations';
+  writeEntityPoolStageMemory,
+} from './memoryOperations';
+import {
+  calculateNodeDependencyDepths,
+  entityDependencyStage,
+} from './dependencyDepth';
 import type { DatasetSplitResult } from './datasetSplit';
 import { computeKnowledgeLossReport } from './lossMetrics';
-import { cloneMasterGraph, updateOwnMasteries } from './masterGraph';
+import { cloneKnowledgeGraphMemory } from './memoryState';
 import { createSeededRandom, sampleNormal } from './random';
-import { estimateMasteryWithReasoningBudget } from './reasoning';
+import { estimateStagedMastery } from './reasoning';
 import type {
   KnowledgeEntity,
-  KnowledgeGraph,
-  MasterGraph,
+  KnowledgeGraphDefinition,
+  KnowledgeGraphMemory,
 } from './types';
 
 export function initializeAllocation(
-  graph: KnowledgeGraph,
-  master: MasterGraph,
+  graph: KnowledgeGraphDefinition,
+  memory: KnowledgeGraphMemory,
   seed: string,
   stabilityPercent: number,
 ) {
   const entities = getTrainingEntities(graph);
-  const next = cloneMasterGraph(master);
+  const next = cloneKnowledgeGraphMemory(memory);
   clearAllocatedMemory(next, entities);
   allocateRandomly(next, entities, seed, stabilityPercent);
-  return updateOwnMasteries(graph, next);
+  return next;
 }
 
 export function perfectAllocation(
-  graph: KnowledgeGraph,
-  master: MasterGraph,
+  graph: KnowledgeGraphDefinition,
+  memory: KnowledgeGraphMemory,
 ) {
-  const next = cloneMasterGraph(master);
-  getTrainingEntities(graph).forEach((entity) => {
-    writeEntityMemory(next, entity, entityRequiredMemory(entity));
+  const next = cloneKnowledgeGraphMemory(memory);
+  const entities = getTrainingEntities(graph);
+  clearAllocatedMemory(next, entities);
+  const depths = calculateNodeDependencyDepths(graph);
+  [
+    ...Object.values(graph.nodes),
+    ...graph.depEdges,
+  ]
+    .sort((left, right) => (
+      stageOf(left) - stageOf(right)
+    ))
+    .forEach((entity) => {
+      writeEntityMemory(
+        next,
+        entity,
+        entityRequiredMemory(entity),
+        stageOf(entity),
+      );
+    });
+
+  graph.interEdges.forEach((edge) => {
+    const sourceStage = entityDependencyStage(
+      edge.source,
+      depths,
+      next.availableReasoningPoints,
+    );
+    const targetStage = entityDependencyStage(
+      edge.target,
+      depths,
+      next.availableReasoningPoints,
+    );
+    if (sourceStage === targetStage) return;
+    writeEntityMemory(
+      next,
+      edge,
+      entityRequiredMemory(edge),
+      Math.min(sourceStage, targetStage),
+    );
   });
-  return updateOwnMasteries(graph, next);
+  return next;
+
+  function stageOf(entity: KnowledgeEntity) {
+    return entityDependencyStage(
+      entity,
+      depths,
+      next.availableReasoningPoints,
+    );
+  }
 }
 
 export function transferAllocation(
-  graph: KnowledgeGraph,
-  master: MasterGraph,
+  graph: KnowledgeGraphDefinition,
+  memory: KnowledgeGraphMemory,
   seed: string,
   stabilityPercent: number,
 ) {
-  const next = perfectAllocation(graph, master);
+  const next = perfectAllocation(graph, memory);
   const nodeEntities = Object.values(graph.nodes);
   clearAllocatedMemory(next, nodeEntities);
   allocateRandomly(next, nodeEntities, seed, stabilityPercent);
-  return updateOwnMasteries(graph, next);
+  return next;
 }
 
 export function evaluateAllocation(
-  graph: KnowledgeGraph,
-  master: MasterGraph,
+  graph: KnowledgeGraphDefinition,
+  memory: KnowledgeGraphMemory,
   dataset: DatasetSplitResult,
 ) {
-  const train = estimateMasteryWithReasoningBudget(
+  const train = estimateStagedMastery(
     graph,
-    master,
-    master.availableReasoningPoints,
+    memory,
     'train',
   );
-  const validation = estimateMasteryWithReasoningBudget(
+  const validation = estimateStagedMastery(
     graph,
-    master,
-    master.availableReasoningPoints,
+    memory,
     'val',
   );
   return computeKnowledgeLossReport(
     graph,
-    master,
+    memory,
     train,
     validation,
     dataset,
@@ -80,7 +126,7 @@ export function evaluateAllocation(
 }
 
 function allocateRandomly(
-  master: MasterGraph,
+  memory: KnowledgeGraphMemory,
   entities: KnowledgeEntity[],
   seed: string,
   stabilityPercent: number,
@@ -97,11 +143,37 @@ function allocateRandomly(
   );
   const points = Math.min(
     sampled,
-    Math.max(0, Math.floor(master.availableMemoryPoints)),
+    Math.max(0, Math.floor(memory.availableMemoryPoints)),
   );
 
+  const remaining = memory.budgetPools.map((pool) => pool.memoryPoint);
   for (let point = 0; point < points; point += 1) {
+    const poolIndex = weightedIndex(remaining, random);
+    if (poolIndex < 0) break;
+    const pool = memory.budgetPools[poolIndex];
+    if (!pool) break;
+    const stage = pool.inferenceStages[
+      Math.floor(random() * pool.inferenceStages.length)
+    ];
     const entity = entities[Math.floor(random() * entities.length)];
-    writeEntityMemory(master, entity, readEntityMemory(master, entity) + 1);
+    writeEntityPoolStageMemory(
+      memory,
+      entity,
+      pool.id,
+      stage,
+      readEntityPoolStageMemory(memory, entity, pool.id, stage) + 1,
+    );
+    remaining[poolIndex] -= 1;
   }
+}
+
+function weightedIndex(weights: number[], random: () => number) {
+  const total = weights.reduce((sum, weight) => sum + Math.max(0, weight), 0);
+  if (total <= 0) return -1;
+  let cursor = random() * total;
+  const index = weights.findIndex((weight) => {
+    cursor -= Math.max(0, weight);
+    return cursor <= 0;
+  });
+  return index < 0 ? weights.length - 1 : index;
 }

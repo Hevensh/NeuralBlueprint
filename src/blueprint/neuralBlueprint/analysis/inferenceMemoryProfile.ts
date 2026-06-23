@@ -1,31 +1,16 @@
 import type { ModuleBaseNode } from '../ModuleBaseNodeTypes';
+import type {
+  InferenceMemoryGroup,
+  InferenceMemoryProfile,
+  InferenceMemoryStageSegment,
+} from '../../InferenceMemoryProfileTypes';
 
-export interface InferenceMemoryGroup {
-  id: string;
-  nodeIds: string[];
-  inferenceStages: number[];
-  memoryPoint: number;
-  ratio: number;
-}
-
-export interface InferenceMemoryStageSegment {
-  groupId: string;
-  memoryPoint: number;
-  ratio: number;
-}
-
-export interface InferenceMemoryStage {
-  stage: number;
-  memoryPoint: number;
-  ratio: number;
-  segments: InferenceMemoryStageSegment[];
-}
-
-export interface InferenceMemoryProfile {
-  totalMemoryPoint: number;
-  groups: InferenceMemoryGroup[];
-  stages: InferenceMemoryStage[];
-}
+export type {
+  InferenceMemoryGroup,
+  InferenceMemoryProfile,
+  InferenceMemoryStage,
+  InferenceMemoryStageSegment,
+} from '../../InferenceMemoryProfileTypes';
 
 export function buildInferenceMemoryProfile(
   nodes: ModuleBaseNode[],

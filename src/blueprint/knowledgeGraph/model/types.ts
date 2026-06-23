@@ -19,7 +19,7 @@ export type KnowledgeNode = {
   };
 };
 
-export type KnowledgeEdgeStats = {
+export type KnowledgeEdgeProperties = {
   requiredMemory: number;
   overfitCoefficient: number;
   lambda: number;
@@ -30,7 +30,7 @@ export type KnowledgeEdge<Kind extends KnowledgeEdgeKind> = {
   id: EdgeId;
   source: KnowledgeNode;
   target: KnowledgeNode;
-  stats: KnowledgeEdgeStats;
+  properties: KnowledgeEdgeProperties;
 };
 
 export type DependencyEdge = KnowledgeEdge<'dependency'>;
@@ -42,22 +42,38 @@ export type AnyKnowledgeEdge =
   | InterferenceEdge;
 export type KnowledgeEntity = KnowledgeNode | AnyKnowledgeEdge;
 
-export type KnowledgeGraph = {
+export type KnowledgeGraphDefinition = {
   nodes: Record<NodeId, KnowledgeNode>;
   depEdges: DependencyEdge[];
   subEdges: SubstituteEdge[];
   interEdges: InterferenceEdge[];
 };
 
-export type KnowledgeMaster = {
-  id: NodeId;
-  memory: number;
-  mastery: number;
+export type MemoryProfileSource = 'preset' | 'blueprint';
+
+export type KnowledgeMemoryBudgetPool = {
+  id: string;
+  inferenceStages: number[];
+  memoryPoint: number;
 };
 
-export type MasterGraph = {
-  nodes: Record<NodeId, KnowledgeMaster>;
-  edges: Record<EdgeId, KnowledgeMaster>;
+export type KnowledgeMemoryAllocation = {
+  nodes: Record<NodeId, number>;
+  edges: Record<EdgeId, number>;
+};
+
+export type KnowledgeMemoryStageTable = {
+  stage: number;
+  allocations: Record<string, KnowledgeMemoryAllocation>;
+};
+
+export type KnowledgeGraphMemory = {
+  budgetPools: KnowledgeMemoryBudgetPool[];
+  stageTables: KnowledgeMemoryStageTable[];
+  selectedInferenceStage: number;
+  memoryProfileSource: MemoryProfileSource;
+  presetMemoryPoints: number;
+  presetReasoningPoints: number;
   availableMemoryPoints: number;
   availableReasoningPoints: number;
 };

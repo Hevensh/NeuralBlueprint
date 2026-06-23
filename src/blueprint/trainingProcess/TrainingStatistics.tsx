@@ -1,4 +1,4 @@
-import { ControlSection, StatValue } from '../knowledgeGraph/controls/ControlSection';
+import { ControlSection, StatValue } from '../dataController/controls/ControlSection';
 import type { KnowledgeLossPoint } from '../knowledgeGraph/model/knowledgeStorage';
 import type { KnowledgeLossReport } from '../knowledgeGraph/model/lossMetrics';
 

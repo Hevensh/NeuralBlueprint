@@ -1,16 +1,19 @@
 import type {
   EdgeId,
-  KnowledgeGraph,
-  MasterGraph,
+  KnowledgeGraphDefinition,
+  KnowledgeGraphMemory,
   NodeId,
 } from './types';
 import type { ReasoningMasteryEstimate } from './reasoning';
 import type { DatasetSplitResult } from './datasetSplit';
+import {
+  readEntityMemoryThroughStage,
+} from './memoryOperations';
 
 const EPS = 1e-8;
 
 export type EntityOverfitMetrics = {
-  overfitFactor: number;
+  overfitRate: number;
   overfitPercent: number;
   effectiveMastery: number;
 };
@@ -42,10 +45,25 @@ export function clamp01(value: number): number {
 }
 
 export function computeOverfitFactor(allocatedMemory: number, requiredMemory: number, rho: number, eps = EPS): number {
-  if (allocatedMemory <= requiredMemory) return 1;
+  return 1 - computeOverfitRate(
+    allocatedMemory,
+    requiredMemory,
+    rho,
+    eps,
+  );
+}
 
+export function computeOverfitRate(
+  allocatedMemory: number,
+  requiredMemory: number,
+  rho: number,
+  eps = EPS,
+): number {
+  if (allocatedMemory <= requiredMemory) return 0;
   const x = allocatedMemory / (requiredMemory + eps);
-  return clamp01(sigmoid(3 * (Math.pow(2, 2 - rho) - rho * (x - 1))));
+  return clamp01(
+    sigmoid(3 * (rho * (x - 1) - Math.pow(2, 2 - rho))),
+  );
 }
 
 export function computeOverfitPercent(overfitFactor: number): number {
@@ -67,48 +85,50 @@ export function computeNodeValLoss(effectiveMastery: number, lossMin: number, lo
   return lossMax - clamp01(effectiveMastery) * (lossMax - lossMin);
 }
 
-export function computeEdgeMastery(edgeMemory: number, edgeRequiredMemory: number, eps = EPS): number {
-  return clamp01(Math.max(0, edgeMemory) / (Math.max(eps, edgeRequiredMemory) + eps));
-}
-
-export function computeEdgeEffectiveMastery(edgeMemory: number, edgeRequiredMemory: number, rho: number, eps = EPS): number {
-  const mastery = computeEdgeMastery(edgeMemory, edgeRequiredMemory, eps);
-  if (edgeMemory <= edgeRequiredMemory) return mastery;
-  return mastery * computeOverfitFactor(edgeMemory, edgeRequiredMemory, rho, eps);
-}
-
-function edgeOverfitMetrics(memory: number, requiredMemory: number, overfitCoefficient: number): EntityOverfitMetrics {
-  const overfitFactor = computeOverfitFactor(memory, requiredMemory, overfitCoefficient);
+function edgeOverfitMetrics(
+  memory: number,
+  requiredMemory: number,
+  overfitCoefficient: number,
+  effectiveMastery: number,
+): EntityOverfitMetrics {
+  const overfitRate = computeOverfitRate(
+    memory,
+    requiredMemory,
+    overfitCoefficient,
+  );
   return {
-    overfitFactor,
-    overfitPercent: computeOverfitPercent(overfitFactor),
-    effectiveMastery: computeEdgeEffectiveMastery(memory, requiredMemory, overfitCoefficient),
+    overfitRate,
+    overfitPercent: overfitRate * 100,
+    effectiveMastery,
   };
 }
 
 export function computeKnowledgeLossReport(
-  graph: KnowledgeGraph,
-  master: MasterGraph,
+  graph: KnowledgeGraphDefinition,
+  memory: KnowledgeGraphMemory,
   trainEstimate: ReasoningMasteryEstimate,
   valEstimate = trainEstimate,
   datasetSplit?: DatasetSplitResult,
 ): KnowledgeLossReport {
   const graphNodes = Object.values(graph.nodes);
   const nodeEntries = graphNodes.map((node) => {
-    const nodeMaster = master.nodes[node.id];
-    const allocatedMemory = Math.max(0, nodeMaster?.memory ?? 0);
+    const finalStage = trainEstimate.stages.at(-1);
+    const allocatedMemory = Math.max(
+      0,
+      finalStage?.adjustedMemory[node.id] ?? 0,
+    );
     const trainEffectiveRequiredMemory = trainEstimate.effectiveCost[node.id] ?? node.requiredMemory;
     const trainEffectiveMastery = trainEstimate.mastery[node.id] ?? 0;
     const valEffectiveMastery = valEstimate.mastery[node.id] ?? trainEffectiveMastery;
-    const overfitFactor = computeOverfitFactor(allocatedMemory, node.requiredMemory, node.overfitCoefficient);
+    const overfitRate = finalStage?.overfitRate[node.id] ?? 0;
     const trainLoss = computeNodeTrainLoss(trainEffectiveMastery, allocatedMemory, trainEffectiveRequiredMemory, node.lossMin, node.lossMax);
     const valLoss = computeNodeValLoss(valEffectiveMastery, node.lossMin, node.lossMax);
 
     return [
       node.id,
       {
-        overfitFactor,
-        overfitPercent: computeOverfitPercent(overfitFactor),
+        overfitRate,
+        overfitPercent: overfitRate * 100,
         effectiveMastery: valEffectiveMastery,
         trainLoss,
         valLoss,
@@ -118,7 +138,12 @@ export function computeKnowledgeLossReport(
 
   const nodes = Object.fromEntries(nodeEntries);
   const normalizedSplitWeight = (split: 'train' | 'val') => {
-    const weights = graphNodes.map((node) => Math.max(0, datasetSplit?.nodes[node.id]?.[split] ?? node.dataAmount));
+    const weights = graphNodes.map((node) => (
+      Math.max(
+        0,
+        datasetSplit?.nodes[node.id]?.[split] ?? node.dataAmount,
+      ) + 1
+    ));
     const weightSum = weights.reduce((sum, weight) => sum + weight, 0);
     return (index: number) => (weightSum > 0 ? weights[index] / weightSum : 0);
   };
@@ -137,9 +162,14 @@ export function computeKnowledgeLossReport(
       ].map((edge) => [
         edge.id,
         edgeOverfitMetrics(
-          master.edges[edge.id]?.memory ?? 0,
-          edge.stats.requiredMemory,
-          edge.stats.overfitCoefficient,
+          readEntityMemoryThroughStage(
+            memory,
+            edge,
+            memory.availableReasoningPoints,
+          ),
+          edge.properties.requiredMemory,
+          edge.properties.overfitCoefficient,
+          valEstimate.stages.at(-1)?.edges[edge.id]?.mastery ?? 0,
         ),
       ]),
     ),

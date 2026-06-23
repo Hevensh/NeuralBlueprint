@@ -58,9 +58,9 @@ export function getInvalidInferenceStats(
 
 export function getFanIn(
   node: LinearNodeData,
-  inputs?: Pick<ModuleStats, 'rank'>[],
+  input?: Pick<ModuleStats, 'rank'>,
 ) {
-  const inferredRank = inputs?.[0]?.rank ?? node.predecessors.reduce(
+  const inferredRank = input?.rank ?? node.predecessors.reduce(
     (sum, predecessor) => sum + (predecessor.stats?.rank ?? DEFAULT_RANK),
     0,
   );
