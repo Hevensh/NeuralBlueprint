@@ -120,11 +120,15 @@
   transform: translateX(-50%);
 }
 
-.knowledge-node-preview-line {
+.knowledge-node-preview-line,
+.knowledge-edge-preview > span {
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 9px;
+}
+
+.knowledge-node-preview-line {
   overflow: hidden;
   color: inherit;
   font-size: 8px;
@@ -137,6 +141,7 @@
 }
 
 .knowledge-training-line {
+  display: flex;
   align-items: flex-start;
   flex-direction: column;
   justify-content: flex-start;
@@ -157,8 +162,6 @@
 .knowledge-node-preview .knowledge-training-line,
 .knowledge-edge-preview > .knowledge-training-line {
   width: 100%;
-  align-items: flex-start;
-  justify-content: flex-start;
   padding-left: 4px;
   text-align: left;
 }
@@ -233,9 +236,10 @@
 .knowledge-edge-dependency,
 .knowledge-edge-path.dependency,
 .knowledge-edge-preview.dependency {
-  --knowledge-edge-base: #64748b;
-  --knowledge-edge-hover: #22d3ee;
-  --knowledge-edge-selected: #67e8f9;
+  --knowledge-edge-base: #2786af;
+  --knowledge-edge-hover: #38bdf8;
+  --knowledge-edge-selected: #4fb6dc;
+  --knowledge-edge-selected-glow: rgba(79, 182, 220, 0.34);
 }
 
 .knowledge-edge-substitute,
@@ -244,6 +248,7 @@
   --knowledge-edge-base: #22c55e;
   --knowledge-edge-hover: #22c55e;
   --knowledge-edge-selected: #4ade80;
+  --knowledge-edge-selected-glow: rgba(74, 222, 128, 0.28);
 }
 
 .knowledge-edge-interference,
@@ -252,37 +257,55 @@
   --knowledge-edge-base: #ef4444;
   --knowledge-edge-hover: #ef4444;
   --knowledge-edge-selected: #f87171;
+  --knowledge-edge-selected-glow: rgba(248, 113, 113, 0.28);
 }
 
-.knowledge-graph-canvas .knowledge-edge .react-flow__edge-path {
-  stroke: var(--knowledge-edge-base);
+.knowledge-graph-canvas
+  .knowledge-edge
+  .react-flow__edge-path.knowledge-edge-path {
+  stroke: var(--knowledge-edge-base) !important;
   color: var(--knowledge-edge-base);
-  stroke-width: 4;
+  stroke-width: 4 !important;
+  filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.14)) !important;
+}
+
+.knowledge-graph-canvas .knowledge-edge.selected,
+.knowledge-graph-canvas .knowledge-edge:hover,
+.knowledge-graph-canvas .knowledge-edge.selected:hover {
+  filter: none !important;
 }
 
 .knowledge-graph-canvas
   :is(.knowledge-edge-substitute, .knowledge-edge-interference)
-  .react-flow__edge-path {
+  .react-flow__edge-path.knowledge-edge-path {
   stroke-dasharray: 10 7;
 }
 
-.knowledge-graph-canvas .knowledge-edge:hover .react-flow__edge-path,
-.knowledge-edge-path.preview-hovered {
-  stroke: var(--knowledge-edge-hover);
+.knowledge-graph-canvas
+  .knowledge-edge
+  .react-flow__edge-path.knowledge-edge-path.preview-hovered {
+  stroke: var(--knowledge-edge-hover) !important;
   color: var(--knowledge-edge-hover);
-  stroke-width: 5;
+  stroke-width: 5 !important;
   filter:
     drop-shadow(0 0 3px currentColor)
-    drop-shadow(0 0 6px currentColor);
+    drop-shadow(0 0 6px currentColor) !important;
 }
 
-.knowledge-graph-canvas .knowledge-edge.selected .react-flow__edge-path {
-  stroke: var(--knowledge-edge-selected);
+.knowledge-graph-canvas
+  .knowledge-edge.selected
+  .react-flow__edge-path.knowledge-edge-path,
+.knowledge-graph-canvas
+  .knowledge-edge
+  .react-flow__edge-path.knowledge-edge-path.knowledge-edge-path-selected {
+  stroke: var(--knowledge-edge-selected) !important;
   color: var(--knowledge-edge-selected);
-  stroke-width: 5.5;
+  stroke-width: 5 !important;
   filter:
     drop-shadow(0 0 3px currentColor)
-    drop-shadow(0 0 7px currentColor);
+    drop-shadow(0 0 6px currentColor)
+    drop-shadow(0 0 4.5px var(--knowledge-edge-selected-glow))
+    drop-shadow(0 0 9px var(--knowledge-edge-selected-glow)) !important;
 }
 
 .knowledge-edge-preview {
@@ -308,19 +331,6 @@
   white-space: nowrap;
   box-shadow: 0 0 10px
     color-mix(in srgb, var(--knowledge-edge-base) 16%, transparent);
-}
-
-.knowledge-edge-preview > span {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 9px;
-}
-
-.knowledge-edge-preview .knowledge-training-line {
-  color: #a5f3fc;
-  font-size: 7px;
-  font-weight: 760;
 }
 
 .knowledge-edge-preview.hovered {

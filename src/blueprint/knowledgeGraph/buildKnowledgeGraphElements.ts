@@ -150,7 +150,12 @@ export function buildKnowledgeGraphElements(
       ...edgeHandles(source, target),
       className: `knowledge-edge knowledge-edge-${edge.kind}`,
       ...(markerEnd
-        ? { markerEnd: { type: MarkerType.ArrowClosed } }
+        ? {
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+              color: '#38bdf8',
+            },
+          }
         : {}),
       data: {
         id: edge.id,

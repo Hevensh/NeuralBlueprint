@@ -41,6 +41,7 @@ export function KnowledgeGraphEdge({
         className={[
           'knowledge-edge-path',
           data?.kind,
+          selected ? 'knowledge-edge-path-selected' : '',
           hovered ? 'preview-hovered' : '',
         ].filter(Boolean).join(' ')}
         markerEnd={markerEnd}
