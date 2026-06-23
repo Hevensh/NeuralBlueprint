@@ -168,25 +168,48 @@
 
 .knowledge-graph-canvas .react-flow__node:hover .knowledge-node-preview,
 .knowledge-graph-canvas .react-flow__node.selected .knowledge-node-preview {
-  border-color: #a5f3fc;
-  background: rgba(8, 47, 73, 0.58);
+  border-color: color-mix(
+    in srgb,
+    var(--knowledge-node-color) 76%,
+    #e0f2fe
+  );
+  background-color: rgba(8, 47, 73, 0.58);
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--knowledge-node-color) 30%, transparent),
+    rgba(2, 6, 23, 0.16)
+  );
   box-shadow:
-    0 0 0 8px rgba(34, 211, 238, 0.12),
-    0 0 16px rgba(34, 211, 238, 0.34);
+    0 0 0 2px
+      color-mix(in srgb, var(--knowledge-node-color) 16%, transparent),
+    0 0 18px
+      color-mix(in srgb, var(--knowledge-node-color) 34%, transparent);
 }
 
 .knowledge-graph-canvas .react-flow__node:hover .knowledge-node-core,
 .knowledge-graph-canvas .react-flow__node.selected .knowledge-node-core {
-  border-color: #a5f3fc;
+  border-color: color-mix(
+    in srgb,
+    var(--knowledge-node-color) 82%,
+    #e0f2fe
+  );
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--knowledge-node-color) 46%, transparent),
+    color-mix(in srgb, var(--knowledge-node-color) 12%, transparent)
+  );
   box-shadow:
-    0 0 24px rgba(34, 211, 238, 0.96),
+    0 0 22px
+      color-mix(in srgb, var(--knowledge-node-color) 48%, transparent),
     inset 0 0 20px rgba(255, 255, 255, 0.08);
 }
 
 .knowledge-graph-canvas .react-flow__node.selected .knowledge-node-core {
   box-shadow:
-    0 0 0 3px rgba(103, 232, 249, 0.28),
-    0 0 30px rgba(34, 211, 238, 0.62),
+    0 0 0 3px
+      color-mix(in srgb, var(--knowledge-node-color) 24%, transparent),
+    0 0 30px
+      color-mix(in srgb, var(--knowledge-node-color) 54%, transparent),
     inset 0 0 22px rgba(255, 255, 255, 0.1);
 }
 
@@ -334,20 +357,42 @@
 }
 
 .knowledge-edge-preview.hovered {
-  border-color: var(--knowledge-edge-hover);
-  background: rgba(8, 47, 73, 0.5);
-  box-shadow: 0 0 10px
-    color-mix(in srgb, var(--knowledge-edge-hover) 22%, transparent);
+  border-color: color-mix(
+    in srgb,
+    var(--knowledge-edge-hover) 72%,
+    #e0f2fe
+  );
+  background-color: rgba(8, 47, 73, 0.5);
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--knowledge-edge-hover) 26%, transparent),
+    rgba(2, 6, 23, 0.16)
+  );
+  box-shadow:
+    0 0 0 2px
+      color-mix(in srgb, var(--knowledge-edge-hover) 14%, transparent),
+    0 0 16px
+      color-mix(in srgb, var(--knowledge-edge-hover) 28%, transparent);
 }
 
 .knowledge-edge-preview.selected {
-  border-color: var(--knowledge-edge-selected);
-  background: rgba(8, 47, 73, 0.54);
+  border-color: color-mix(
+    in srgb,
+    var(--knowledge-edge-selected) 68%,
+    #e0f2fe
+  );
+  background-color: rgba(8, 47, 73, 0.58);
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--knowledge-edge-selected) 30%, transparent),
+    rgba(2, 6, 23, 0.16)
+  );
   box-shadow:
-    0 0 0 1px
-      color-mix(in srgb, var(--knowledge-edge-selected) 14%, transparent),
-    0 0 11px
-      color-mix(in srgb, var(--knowledge-edge-selected) 28%, transparent);
+    0 0 0 2px
+      color-mix(in srgb, var(--knowledge-edge-selected) 16%, transparent),
+    0 0 18px
+      color-mix(in srgb, var(--knowledge-edge-selected) 42%, transparent),
+    inset 0 0 12px rgba(255, 255, 255, 0.05);
 }
 
 .knowledge-dataset-selector {
