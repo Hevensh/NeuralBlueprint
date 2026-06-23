@@ -140,7 +140,7 @@ export function NeuralBlueprintCanvasInner({
   ), [analysisDirection, nodes]);
   const edgeOptions = useMemo(() => {
     const isBackward = analysisDirection === 'backward';
-    const color = isBackward ? '#c084fc' : '#38bdf8';
+    const color = isBackward ? '#50d88b' : '#38bdf8';
     const marker = {
       type: MarkerType.ArrowClosed,
       color,
@@ -151,7 +151,7 @@ export function NeuralBlueprintCanvasInner({
       markerStart: isBackward ? marker : undefined,
       markerEnd: isBackward ? undefined : marker,
       style: {
-        stroke: isBackward ? '#9333ea' : '#2786af',
+        stroke: isBackward ? '#15965a' : '#2786af',
         strokeWidth: 4,
       },
     };
@@ -506,7 +506,7 @@ export function NeuralBlueprintCanvasInner({
         defaultViewport={INITIAL_VIEWPORT}
         defaultEdgeOptions={edgeOptions}
         connectionLineStyle={{
-          stroke: analysisDirection === 'backward' ? '#c084fc' : '#38bdf8',
+          stroke: analysisDirection === 'backward' ? '#50d88b' : '#38bdf8',
           strokeWidth: 2,
         }}
         onNodesChange={handleNodesChange}
