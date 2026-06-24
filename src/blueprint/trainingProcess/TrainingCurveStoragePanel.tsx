@@ -1,4 +1,4 @@
-import type { TrainingCurveSnapshot } from './trainingCurveStorage';
+import type { TrainingCurveSnapshot } from '../../dataStorage/trainingCurveStorage';
 
 export function TrainingCurveStoragePanel({
   snapshots,

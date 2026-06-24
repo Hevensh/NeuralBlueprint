@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { NumberField } from '../../../NumberField';
+import type { NetworkCapabilityMode } from '../../../taskData/blueprintFeatureConfig';
 import {
   ControlGrid,
   ControlSection,
@@ -7,6 +9,7 @@ import {
 import type { MemoryProfileSource } from '../../knowledgeGraph/model/types';
 
 export interface NetworkCapabilityControlsProps {
+  mode?: NetworkCapabilityMode;
   memory: number;
   reasoning: number;
   memoryProfileSource: MemoryProfileSource;
@@ -21,51 +24,80 @@ export interface NetworkCapabilityControlsProps {
 }
 
 export function NetworkCapabilityControls(props: NetworkCapabilityControlsProps) {
+  const {
+    mode: configuredMode = 'select',
+    memory,
+    reasoning,
+    memoryProfileSource,
+    hasBlueprintProfile,
+    initializationSeed,
+    onMemoryChange,
+    onReasoningChange,
+    onMemoryProfileSourceChange,
+    onInitializationSeedChange,
+    onInitialize,
+    onReset,
+  } = props;
+  const source = configuredMode === 'select'
+    ? memoryProfileSource
+    : configuredMode;
+
+  useEffect(() => {
+    if (
+      configuredMode !== 'select'
+      && memoryProfileSource !== configuredMode
+    ) {
+      onMemoryProfileSourceChange(configuredMode);
+    }
+  }, [configuredMode, memoryProfileSource, onMemoryProfileSourceChange]);
+
   return (
-    <ControlSection title="Network Capability" onReset={props.onReset}>
-      <div className="top-bar-tabs property-direction-tabs">
-        <button
-          className={`top-bar-tab ${
-            props.memoryProfileSource === 'preset' ? 'active' : ''
-          }`}
-          onClick={() => props.onMemoryProfileSourceChange('preset')}
-          type="button"
-        >
-          Preset
-        </button>
-        <button
-          className={`top-bar-tab ${
-            props.memoryProfileSource === 'blueprint' ? 'active' : ''
-          }`}
-          disabled={!props.hasBlueprintProfile}
-          onClick={() => props.onMemoryProfileSourceChange('blueprint')}
-          type="button"
-        >
-          Blueprint
-        </button>
-      </div>
+    <ControlSection title="Network Capability" onReset={onReset}>
+      {configuredMode === 'select' && (
+        <div className="top-bar-tabs property-direction-tabs">
+          <button
+            className={`top-bar-tab ${
+              source === 'preset' ? 'active' : ''
+            }`}
+            onClick={() => onMemoryProfileSourceChange('preset')}
+            type="button"
+          >
+            Preset
+          </button>
+          <button
+            className={`top-bar-tab ${
+              source === 'blueprint' ? 'active' : ''
+            }`}
+            disabled={!hasBlueprintProfile}
+            onClick={() => onMemoryProfileSourceChange('blueprint')}
+            type="button"
+          >
+            Blueprint
+          </button>
+        </div>
+      )}
       <ControlGrid>
         <NumberField
-          disabled={props.memoryProfileSource === 'blueprint'}
+          disabled={source === 'blueprint'}
           label="Memory"
           min={0}
-          value={props.memory}
-          onChange={(value) => props.onMemoryChange(Math.max(0, Math.floor(value)))}
+          value={memory}
+          onChange={(value) => onMemoryChange(Math.max(0, Math.floor(value)))}
         />
         <NumberField
-          disabled={props.memoryProfileSource === 'blueprint'}
+          disabled={source === 'blueprint'}
           label="Reasoning"
           min={0}
-          value={props.reasoning}
-          onChange={(value) => props.onReasoningChange(Math.max(0, Math.floor(value)))}
+          value={reasoning}
+          onChange={(value) => onReasoningChange(Math.max(0, Math.floor(value)))}
         />
       </ControlGrid>
       <TextField
         label="Initialization Seed"
-        value={props.initializationSeed}
-        onChange={props.onInitializationSeedChange}
+        value={initializationSeed}
+        onChange={onInitializationSeedChange}
       />
-      <button className="action-button" onClick={props.onInitialize} type="button">
+      <button className="action-button" onClick={onInitialize} type="button">
         Initialize Model
       </button>
     </ControlSection>

@@ -79,6 +79,7 @@ const nodeTypes = {
 interface NeuralBlueprintCanvasInnerProp {
   arrangeRequest: number;
   analysisDirection: ModuleAnalysisDirection;
+  availableModuleKinds: ModuleBaseNodeKind[];
   fileId: string;
   showRankAnalysis: boolean;
   showVarianceAnalysis: boolean;
@@ -88,6 +89,7 @@ interface NeuralBlueprintCanvasInnerProp {
 export function NeuralBlueprintCanvasInner({
   arrangeRequest,
   analysisDirection,
+  availableModuleKinds,
   fileId,
   showRankAnalysis,
   showVarianceAnalysis,
@@ -479,6 +481,7 @@ export function NeuralBlueprintCanvasInner({
 
     const kind = event.dataTransfer.getData(MODULE_BASE_NODE_DRAG_TYPE);
     if (!isModuleBaseNodeKind(kind)) return;
+    if (!availableModuleKinds.includes(kind)) return;
 
     createModuleBaseNode(
       kind,
@@ -487,7 +490,7 @@ export function NeuralBlueprintCanvasInner({
         y: event.clientY,
       }),
     );
-  }, [createModuleBaseNode, screenToFlowPosition]);
+  }, [availableModuleKinds, createModuleBaseNode, screenToFlowPosition]);
 
   return (
     <div

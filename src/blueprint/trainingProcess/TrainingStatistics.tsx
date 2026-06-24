@@ -1,5 +1,5 @@
 import { ControlSection, StatValue } from '../dataController/controls/ControlSection';
-import type { KnowledgeLossPoint } from '../knowledgeGraph/model/knowledgeStorage';
+import type { KnowledgeLossPoint } from '../knowledgeGraph/model/types';
 import type { KnowledgeLossReport } from '../knowledgeGraph/model/lossMetrics';
 
 export function TrainingStatistics({

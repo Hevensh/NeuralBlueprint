@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { BlueprintTaskFeatureConfig } from '../../taskData/blueprintFeatureConfig';
 import { CurrentStatistics } from '../dataController/controls/CurrentStatistics';
 import { KnowledgeGraphControls } from '../dataController/controls/KnowledgeGraphControls';
 import { NetworkCapabilityControls } from '../dataController/controls/NetworkCapabilityControls';
@@ -12,8 +13,10 @@ import './knowledgeGraph.css';
 
 export function KnowledgeGraphWorkspace({
   controller,
+  features,
 }: {
   controller: BlueprintDataController;
+  features: BlueprintTaskFeatureConfig['knowledgeGraph'];
 }) {
   const [showMemory, setShowMemory] = useState(true);
   const [showMetrics, setShowMetrics] = useState(true);
@@ -32,9 +35,17 @@ export function KnowledgeGraphWorkspace({
   return (
     <>
       <aside className="left-panel">
-        <KnowledgeGraphControls {...controller.graphControls} />
-        <NetworkCapabilityControls {...controller.networkControls} />
-        <TrainingConfigurationControls {...controller.trainingControls} />
+        {features.showKnowledgeGraphControls && (
+          <KnowledgeGraphControls {...controller.graphControls} />
+        )}
+        <NetworkCapabilityControls
+          {...controller.networkControls}
+          mode={features.networkCapabilityMode}
+        />
+        <TrainingConfigurationControls
+          {...controller.trainingControls}
+          showAllocationButtons={features.showAllocationButtons}
+        />
         <CurrentStatistics {...controller.statistics} />
       </aside>
 

@@ -6,6 +6,7 @@ import {
 
 export interface TrainingConfigurationControlsProps {
   disabled?: boolean;
+  showAllocationButtons?: boolean;
   learningRate: number;
   regularizationRate: number;
   trainSteps: number;
@@ -53,22 +54,26 @@ export function TrainingConfigurationControls(
       >
         Train
       </button>
-      <button
-        className="action-button"
-        disabled={props.disabled}
-        onClick={props.onTransfer}
-        type="button"
-      >
-        Transfer Allocation
-      </button>
-      <button
-        className="action-button"
-        disabled={props.disabled}
-        onClick={props.onPerfect}
-        type="button"
-      >
-        Perfect Allocation
-      </button>
+      {props.showAllocationButtons !== false && (
+        <>
+          <button
+            className="action-button"
+            disabled={props.disabled}
+            onClick={props.onTransfer}
+            type="button"
+          >
+            Transfer Allocation
+          </button>
+          <button
+            className="action-button"
+            disabled={props.disabled}
+            onClick={props.onPerfect}
+            type="button"
+          >
+            Perfect Allocation
+          </button>
+        </>
+      )}
     </ControlSection>
   );
 }

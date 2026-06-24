@@ -1,6 +1,7 @@
 import { ReactFlowProvider } from '@xyflow/react';
 import { useCallback, useState } from 'react';
 import type { CloseFileType } from '../dataStorage/systemType';
+import { getBlueprintTaskFeatureConfig } from '../taskData/blueprintFeatureConfig';
 import { KnowledgeGraphWorkspace } from './knowledgeGraph/KnowledgeGraphWorkspace';
 import { NeuralBlueprintWorkspace } from './neuralBlueprint/NeuralBlueprintWorkspace';
 import { PageType, type PageType as BlueprintPageType } from './PageTypes';
@@ -18,8 +19,9 @@ interface BlueprintCanvasProp {
 }
 
 export function BlueprintCanvas({ fileId, closeFile }: BlueprintCanvasProp) {
+  const features = getBlueprintTaskFeatureConfig();
   const [activeWorkspace, setActiveWorkspace] = useState<BlueprintPageType>(
-    PageType.NeuralBlueprint,
+    () => getInitialWorkspace(features),
   );
   const [inferenceMemoryProfile, setInferenceMemoryProfile] =
     useState<InferenceMemoryProfile>(EMPTY_INFERENCE_MEMORY_PROFILE);
@@ -49,30 +51,47 @@ export function BlueprintCanvas({ fileId, closeFile }: BlueprintCanvasProp) {
         <button className="close-button" onClick={closeFile} />
         <BlueprintTopBarTabs
           activeWorkspace={activeWorkspace}
+          showNeuralBlueprintTab={features.neuralBlueprint.canOpenTab}
+          showKnowledgeGraphTab={features.knowledgeGraph.canOpenTab}
           onWorkspaceChange={setActiveWorkspace}
         />
         <div className="title">{title}</div>
       </header>
 
       <ReactFlowProvider key={activeWorkspace}>
-        {activeWorkspace === PageType.NeuralBlueprint && (
+        {activeWorkspace === PageType.NeuralBlueprint
+          && features.neuralBlueprint.canOpenTab && (
           <NeuralBlueprintWorkspace
             fileId={fileId}
+            features={features.neuralBlueprint}
             onInferenceMemoryProfileChange={updateInferenceMemoryProfile}
           />
         )}
-        {activeWorkspace === PageType.KnowledgeGraph && (
-          <KnowledgeGraphWorkspace controller={dataController} />
+        {activeWorkspace === PageType.KnowledgeGraph
+          && features.knowledgeGraph.canOpenTab && (
+          <KnowledgeGraphWorkspace
+            controller={dataController}
+            features={features.knowledgeGraph}
+          />
         )}
         {activeWorkspace === PageType.TrainingProcess && (
           <TrainingProcessWorkspace
             controller={dataController}
+            features={features.knowledgeGraph}
             fileId={fileId}
           />
         )}
       </ReactFlowProvider>
     </div>
   );
+}
+
+function getInitialWorkspace(
+  features: ReturnType<typeof getBlueprintTaskFeatureConfig>,
+): BlueprintPageType {
+  if (features.neuralBlueprint.canOpenTab) return PageType.NeuralBlueprint;
+  if (features.knowledgeGraph.canOpenTab) return PageType.KnowledgeGraph;
+  return PageType.TrainingProcess;
 }
 
 function profileSignature(profile: InferenceMemoryProfile) {

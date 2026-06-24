@@ -49,6 +49,12 @@ export type KnowledgeGraphDefinition = {
   interEdges: InterferenceEdge[];
 };
 
+export type KnowledgeLossPoint = {
+  epoch: number;
+  trainLoss: number;
+  valLoss: number | null;
+};
+
 export type MemoryProfileSource = 'preset' | 'blueprint';
 
 export type KnowledgeMemoryBudgetPool = {

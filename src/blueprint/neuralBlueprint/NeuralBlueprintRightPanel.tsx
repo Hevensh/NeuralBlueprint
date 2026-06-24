@@ -7,6 +7,7 @@ import {
   useMemo,
 } from 'react';
 import type { InferenceMemoryProfile } from '../InferenceMemoryProfileTypes';
+import type { BlueprintTaskFeatureConfig } from '../../taskData/blueprintFeatureConfig';
 import { NumberField } from '../../NumberField';
 import { buildInferenceMemoryProfile } from './analysis/inferenceMemoryProfile';
 import { updateState } from './analysis/updateState';
@@ -20,6 +21,7 @@ import type {
 
 interface NeuralBlueprintRightPanelProp {
   analysisDirection: ModuleAnalysisDirection;
+  features: BlueprintTaskFeatureConfig['neuralBlueprint'];
   selectedNode: ModuleNodeData | null;
   showRankAnalysis: boolean;
   showVarianceAnalysis: boolean;
@@ -32,6 +34,7 @@ interface NeuralBlueprintRightPanelProp {
 
 export function NeuralBlueprintRightPanel({
   analysisDirection,
+  features,
   selectedNode,
   showRankAnalysis,
   showVarianceAnalysis,
@@ -98,38 +101,46 @@ export function NeuralBlueprintRightPanel({
       data-analysis-direction={analysisDirection}
     >
       <div className="title">Properties</div>
-      <div className="top-bar-tabs property-direction-tabs">
-        <button
-          className={`top-bar-tab ${analysisDirection === 'forward' ? 'active' : ''}`}
-          onClick={() => setAnalysisDirection('forward')}
-          type="button"
-        >
-          Forward
-        </button>
-        <button
-          className={`top-bar-tab ${analysisDirection === 'backward' ? 'active' : ''}`}
-          onClick={() => setAnalysisDirection('backward')}
-          type="button"
-        >
-          Backward
-        </button>
-      </div>
-      <div className="property-toggle-group">
-        <button
-          className={`toggle-button ${showVarianceAnalysis ? 'active' : ''}`}
-          onClick={() => setShowVarianceAnalysis((current) => !current)}
-          type="button"
-        >
-          Variance Analysis
-        </button>
-        <button
-          className={`toggle-button ${showRankAnalysis ? 'active' : ''}`}
-          onClick={() => setShowRankAnalysis((current) => !current)}
-          type="button"
-        >
-          Rank Analysis
-        </button>
-      </div>
+      {features.showBackwardAnalysisControl && (
+        <div className="top-bar-tabs property-direction-tabs">
+          <button
+            className={`top-bar-tab ${analysisDirection === 'forward' ? 'active' : ''}`}
+            onClick={() => setAnalysisDirection('forward')}
+            type="button"
+          >
+            Forward
+          </button>
+          <button
+            className={`top-bar-tab ${analysisDirection === 'backward' ? 'active' : ''}`}
+            onClick={() => setAnalysisDirection('backward')}
+            type="button"
+          >
+            Backward
+          </button>
+        </div>
+      )}
+      {(features.showVarianceAnalysisToggle || features.showRankAnalysisToggle) && (
+        <div className="property-toggle-group">
+          {features.showVarianceAnalysisToggle && (
+            <button
+              className={`toggle-button ${showVarianceAnalysis ? 'active' : ''}`}
+              onClick={() => setShowVarianceAnalysis((current) => !current)}
+              type="button"
+            >
+              Variance Analysis
+            </button>
+          )}
+          {features.showRankAnalysisToggle && (
+            <button
+              className={`toggle-button ${showRankAnalysis ? 'active' : ''}`}
+              onClick={() => setShowRankAnalysis((current) => !current)}
+              type="button"
+            >
+              Rank Analysis
+            </button>
+          )}
+        </div>
+      )}
       {selectedNode ? (
         <div className="property-panel">
           <label className="property-field">

@@ -1,4 +1,4 @@
-import type { KnowledgeLossPoint } from '../knowledgeGraph/model/knowledgeStorage';
+import type { KnowledgeLossPoint } from '../knowledgeGraph/model/types';
 import { LossHistoryChart } from './LossHistoryChart';
 import './TrainingProcess.css';
 

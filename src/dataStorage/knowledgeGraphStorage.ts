@@ -1,6 +1,10 @@
-﻿import { appStorage } from '../../../dataStorage/storageAdapter';
-import type { KnowledgeDatasetCollection } from './datasetSplit';
-import type { KnowledgeGraphDefinition, KnowledgeGraphMemory } from './types';
+import type { KnowledgeDatasetCollection } from '../blueprint/knowledgeGraph/model/datasetSplit';
+import type {
+  KnowledgeGraphDefinition,
+  KnowledgeGraphMemory,
+  KnowledgeLossPoint,
+} from '../blueprint/knowledgeGraph/model/types';
+import { appStorage } from './storageAdapter';
 
 const STORAGE_PREFIX = 'knowledgeGraph:v10:';
 
@@ -20,12 +24,6 @@ export type KnowledgeGraphViewport = {
   x: number;
   y: number;
   zoom: number;
-};
-
-export type KnowledgeLossPoint = {
-  epoch: number;
-  trainLoss: number;
-  valLoss: number | null;
 };
 
 export type TrainingControlState = {

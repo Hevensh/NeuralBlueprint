@@ -1,4 +1,5 @@
 import type { Viewport } from "@xyflow/react";
+import { INITIAL_DESKTOP_FILES } from "../taskData/desktopDefaults";
 import type { DesktopFile, DesktopIconNodeType } from "../desktop/desktopTypes";
 import { appStorage } from "./storageAdapter";
 
@@ -7,35 +8,18 @@ const DESKTOP_DATA_STORAGE_KEY = 'neural-blueprint:desktop:v1';
 const DESKTOP_VIEW_STORAGE_KEY = 'neural-blueprint:desktop-view:v1';
 
 
-const initialFiles: DesktopFile[] = [
-  {
-    id: 'experimental_nbp',
-    name: 'Experimental Blueprint',
-    type: 'nbp',
-    deletable: false,
-    position: { x: 120, y: 100 },
-  },
-  {
-    id: 'experimental_rep',
-    name: 'Experimental Report',
-    type: 'rep',
-    deletable: false,
-    position: { x: 120, y: 240 },
-  },
-];
-
 export function loadDesktopFiles(): DesktopFile[] {
   // console.log('loading files');
   try {
     const raw = appStorage.getItem(DESKTOP_DATA_STORAGE_KEY);
-    if (!raw) return initialFiles;
+    if (!raw) return INITIAL_DESKTOP_FILES;
 
     const parsed = JSON.parse(raw) as DesktopFile[];
 
     // console.log('files loaded');
     return parsed;
   } catch {
-    return initialFiles;
+    return INITIAL_DESKTOP_FILES;
   }
 }
 

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import type { BlueprintTaskFeatureConfig } from '../../taskData/blueprintFeatureConfig';
 import { NetworkCapabilityControls } from '../dataController/controls/NetworkCapabilityControls';
 import { TrainingConfigurationControls } from '../dataController/controls/TrainingConfigurationControls';
 import type { BlueprintDataController } from '../dataController/useBlueprintDataController';
@@ -9,13 +10,15 @@ import {
   loadTrainingCurves,
   saveTrainingCurves,
   type TrainingCurveSnapshot,
-} from './trainingCurveStorage';
+} from '../../dataStorage/trainingCurveStorage';
 
 export function TrainingProcessWorkspace({
   controller,
+  features,
   fileId,
 }: {
   controller: BlueprintDataController;
+  features: BlueprintTaskFeatureConfig['knowledgeGraph'];
   fileId: string;
 }) {
   const [snapshots, setSnapshots] = useState(
@@ -81,10 +84,14 @@ export function TrainingProcessWorkspace({
   return (
     <>
       <aside className="left-panel">
-        <NetworkCapabilityControls {...controller.networkControls} />
+        <NetworkCapabilityControls
+          {...controller.networkControls}
+          mode={features.networkCapabilityMode}
+        />
         <TrainingConfigurationControls
           {...controller.trainingControls}
           disabled={selectedSnapshotId !== null}
+          showAllocationButtons={features.showAllocationButtons}
         />
         <TrainingStatistics
           epoch={visibleEpoch}

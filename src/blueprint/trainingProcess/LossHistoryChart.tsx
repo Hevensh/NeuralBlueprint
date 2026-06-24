@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { KnowledgeLossPoint } from '../knowledgeGraph/model/knowledgeStorage';
+import type { KnowledgeLossPoint } from '../knowledgeGraph/model/types';
 import './TrainingProcess.css';
 
 type ChartPoint = {

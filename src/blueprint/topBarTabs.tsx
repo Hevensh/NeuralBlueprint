@@ -11,16 +11,30 @@ const blueprintTabs: Array<{
 
 interface BlueprintTopBarTabsProps {
   activeWorkspace: BlueprintPageType;
+  showNeuralBlueprintTab?: boolean;
+  showKnowledgeGraphTab?: boolean;
   onWorkspaceChange: (workspace: BlueprintPageType) => void;
 }
 
 export function BlueprintTopBarTabs({
   activeWorkspace,
+  showNeuralBlueprintTab = true,
+  showKnowledgeGraphTab = true,
   onWorkspaceChange,
 }: BlueprintTopBarTabsProps) {
+  const visibleTabs = blueprintTabs.filter((tab) => {
+    if (tab.workspace === PageType.NeuralBlueprint) {
+      return showNeuralBlueprintTab;
+    }
+    if (tab.workspace === PageType.KnowledgeGraph) {
+      return showKnowledgeGraphTab;
+    }
+    return true;
+  });
+
   return (
     <div className="top-bar-tabs">
-      {blueprintTabs.map((tab) => (
+      {visibleTabs.map((tab) => (
         <button
           className={`top-bar-tab ${tab.workspace === activeWorkspace ? 'active' : ''}`}
           key={tab.label}

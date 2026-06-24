@@ -12,12 +12,14 @@ import { generateRandomKnowledgeGraph } from '../knowledgeGraph/model/graphGener
 import type {
   KnowledgeGraphViewport,
   KnowledgeGraphSessionState,
-} from '../knowledgeGraph/model/knowledgeStorage';
+} from '../../dataStorage/knowledgeGraphStorage';
 import {
   DEFAULT_GRAPH_CONTROLS,
   DEFAULT_DATASET_SPLIT_RATIO,
   DEFAULT_NETWORK_CAPABILITY,
   DEFAULT_TRAINING_CONTROLS,
+} from '../../taskData/knowledgeGraphDefaults';
+import {
   mergeGraphControls,
   mergeTrainingControls,
   type BlueprintControllerControls,

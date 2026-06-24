@@ -1,30 +1,19 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 import type { InferenceMemoryProfile } from '../InferenceMemoryProfileTypes';
-import {
-  generateKnowledgeDatasets,
-  splitEnabledKnowledgeDatasets,
-} from '../knowledgeGraph/model/datasetSplit';
-import { generateRandomKnowledgeGraph } from '../knowledgeGraph/model/graphGenerator';
+import { splitEnabledKnowledgeDatasets } from '../knowledgeGraph/model/datasetSplit';
 import {
   loadKnowledgeGraphSession,
   saveKnowledgeGraphSession,
   type KnowledgeGraphSessionState,
-} from '../knowledgeGraph/model/knowledgeStorage';
+} from '../../dataStorage/knowledgeGraphStorage';
 import { computeKnowledgeLossReport } from '../knowledgeGraph/model/lossMetrics';
 import {
   calculateKnowledgeStats,
-  createKnowledgeGraphMemory,
   syncBlueprintMemoryProfile,
 } from '../knowledgeGraph/model/memoryState';
-import {
-  DEFAULT_GRAPH_CONTROLS,
-  DEFAULT_DATASET_SPLIT_RATIO,
-  DEFAULT_NETWORK_CAPABILITY,
-  DEFAULT_TRAINING_CONTROLS,
-  getControllerControls,
-} from './controlState';
+import { createDefaultKnowledgeGraphSession } from '../../taskData/knowledgeGraphDefaults';
+import { getControllerControls } from './controlState';
 import { estimateStagedMastery } from '../knowledgeGraph/model/reasoning';
-import { createTrainingRandomState } from '../knowledgeGraph/model/trainingSimulation';
 import { buildKnowledgeGraphElements } from '../knowledgeGraph/buildKnowledgeGraphElements';
 import type { KnowledgeGraphNodeData } from '../knowledgeGraph/KnowledgeGraphNodeTypes';
 import { createBlueprintDataActions } from './blueprintDataActions';
@@ -33,41 +22,7 @@ import { estimateUtilityReport } from '../knowledgeGraph/model/utilityEstimate';
 function createInitialState(fileId: string): KnowledgeGraphSessionState {
   const saved = loadKnowledgeGraphSession(fileId);
   if (saved) return saved;
-
-  const graphControls = DEFAULT_GRAPH_CONTROLS;
-  const networkControls = DEFAULT_NETWORK_CAPABILITY;
-  const trainingControls = DEFAULT_TRAINING_CONTROLS;
-  const graphDefinition = generateRandomKnowledgeGraph({
-    seed: graphControls.generationSeed,
-  });
-  const memory = createKnowledgeGraphMemory(
-    graphDefinition,
-    networkControls.memory,
-    networkControls.reasoning,
-  );
-
-  return {
-    graphDefinition,
-    memory,
-    epoch: 0,
-    lossHistory: [],
-    datasetCollection: generateKnowledgeDatasets(
-      graphDefinition,
-      graphControls.datasetCount,
-      graphControls.generationSeed,
-      DEFAULT_DATASET_SPLIT_RATIO,
-    ),
-    graphControls,
-    trainingControls: {
-      learningRate: trainingControls.learningRate,
-      regularizationRate: trainingControls.regularizationRate,
-      trainSteps: trainingControls.trainSteps,
-      initializationSeed: networkControls.initializationSeed,
-    },
-    trainingRandomState: createTrainingRandomState(
-      networkControls.initializationSeed,
-    ),
-  };
+  return createDefaultKnowledgeGraphSession();
 }
 
 export function useBlueprintDataController({

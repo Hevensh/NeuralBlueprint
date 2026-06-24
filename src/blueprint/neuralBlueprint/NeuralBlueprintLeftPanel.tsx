@@ -65,10 +65,18 @@ function handleDragStart(
 }
 
 interface NeuralBlueprintLeftPanelProp {
+  availableModuleKinds: ModuleBaseNodeKind[];
   onArrangeNodes: () => void;
 }
 
-export function NeuralBlueprintLeftPanel({ onArrangeNodes }: NeuralBlueprintLeftPanelProp) {
+export function NeuralBlueprintLeftPanel({
+  availableModuleKinds,
+  onArrangeNodes,
+}: NeuralBlueprintLeftPanelProp) {
+  const availableModules = moduleBaseNodeTemplates.filter((module) => (
+    availableModuleKinds.includes(module.kind)
+  ));
+
   return (
     <aside className="left-panel">
       <div className="panel-section-spacer" />
@@ -78,7 +86,7 @@ export function NeuralBlueprintLeftPanel({ onArrangeNodes }: NeuralBlueprintLeft
       <div className="panel-section-spacer" />
       <div className="title">Neural Modules</div>
       <div className="module-list">
-        {moduleBaseNodeTemplates.map((module) => (
+        {availableModules.map((module) => (
           <div
             className="module-card"
             draggable

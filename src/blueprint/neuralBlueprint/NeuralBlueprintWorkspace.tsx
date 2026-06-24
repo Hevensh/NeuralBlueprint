@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { loadNeuralBlueprintUi } from '../../dataStorage/neuralBlueprintStorage';
+import type { BlueprintTaskFeatureConfig } from '../../taskData/blueprintFeatureConfig';
 import type { InferenceMemoryProfile } from '../InferenceMemoryProfileTypes';
 import type {
   ModuleAnalysisDirection,
@@ -11,11 +12,13 @@ import { NeuralBlueprintRightPanel } from './NeuralBlueprintRightPanel';
 
 interface NeuralBlueprintWorkspaceProp {
   fileId: string;
+  features: BlueprintTaskFeatureConfig['neuralBlueprint'];
   onInferenceMemoryProfileChange: (profile: InferenceMemoryProfile) => void;
 }
 
 export function NeuralBlueprintWorkspace({
   fileId,
+  features,
   onInferenceMemoryProfileChange,
 }: NeuralBlueprintWorkspaceProp) {
   const [initialUi] = useState(() => loadNeuralBlueprintUi(fileId));
@@ -26,23 +29,35 @@ export function NeuralBlueprintWorkspace({
     initialUi.analysisDirection,
   );
   const [arrangeRequest, setArrangeRequest] = useState(0);
+  const effectiveAnalysisDirection = features.showBackwardAnalysisControl
+    ? analysisDirection
+    : 'forward';
+  const effectiveShowVarianceAnalysis = features.showVarianceAnalysisToggle
+    && showVarianceAnalysis;
+  const effectiveShowRankAnalysis = features.showRankAnalysisToggle
+    && showRankAnalysis;
 
   return (
     <>
-      <NeuralBlueprintLeftPanel onArrangeNodes={() => setArrangeRequest((request) => request + 1)} />
+      <NeuralBlueprintLeftPanel
+        availableModuleKinds={features.availableModuleKinds}
+        onArrangeNodes={() => setArrangeRequest((request) => request + 1)}
+      />
       <NeuralBlueprintCanvasInner
         arrangeRequest={arrangeRequest}
-        analysisDirection={analysisDirection}
+        analysisDirection={effectiveAnalysisDirection}
+        availableModuleKinds={features.availableModuleKinds}
         fileId={fileId}
-        showRankAnalysis={showRankAnalysis}
-        showVarianceAnalysis={showVarianceAnalysis}
+        showRankAnalysis={effectiveShowRankAnalysis}
+        showVarianceAnalysis={effectiveShowVarianceAnalysis}
         setSelectedNode={setSelectedNode}
       />
       <NeuralBlueprintRightPanel
-        analysisDirection={analysisDirection}
+        analysisDirection={effectiveAnalysisDirection}
+        features={features}
         selectedNode={selectedNode}
-        showRankAnalysis={showRankAnalysis}
-        showVarianceAnalysis={showVarianceAnalysis}
+        showRankAnalysis={effectiveShowRankAnalysis}
+        showVarianceAnalysis={effectiveShowVarianceAnalysis}
         setShowRankAnalysis={setShowRankAnalysis}
         setShowVarianceAnalysis={setShowVarianceAnalysis}
         setAnalysisDirection={setAnalysisDirection}

@@ -1,5 +1,5 @@
-import { appStorage } from '../../dataStorage/storageAdapter';
-import type { KnowledgeLossPoint } from '../knowledgeGraph/model/knowledgeStorage';
+import type { KnowledgeLossPoint } from '../blueprint/knowledgeGraph/model/types';
+import { appStorage } from './storageAdapter';
 
 const STORAGE_PREFIX = 'trainingCurves:v2:';
 

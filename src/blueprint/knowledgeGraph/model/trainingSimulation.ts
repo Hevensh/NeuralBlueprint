@@ -3,7 +3,7 @@ import {
   type DatasetSplitResult,
   type KnowledgeDatasetCollection,
 } from './datasetSplit';
-import type { KnowledgeLossPoint } from './knowledgeStorage';
+import type { KnowledgeLossPoint } from './types';
 import { computeKnowledgeLossReport } from './lossMetrics';
 import { cloneKnowledgeGraphMemory } from './memoryState';
 import {
