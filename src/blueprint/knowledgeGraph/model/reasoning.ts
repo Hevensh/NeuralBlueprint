@@ -66,7 +66,8 @@ export function estimateStagedMastery(
   );
   let overfitRate = nodeOverfitRates(
     nodes,
-    adjustedMemory,
+    memory,
+    0,
     effectiveCost,
   );
   let edgeEstimates = nextEdgeEstimates(edges, memory, 0, mode);
@@ -111,7 +112,8 @@ export function estimateStagedMastery(
     );
     overfitRate = nodeOverfitRates(
       nodes,
-      adjustedMemory,
+      memory,
+      stage,
       effectiveCost,
     );
     edgeEstimates = nextEdgeEstimates(
@@ -232,13 +234,14 @@ function nextNodeMemory(
 
 function nodeOverfitRates(
   nodes: KnowledgeNode[],
-  adjustedMemory: Record<NodeId, number>,
+  memory: KnowledgeGraphMemory,
+  stage: number,
   costs: Record<NodeId, number>,
 ) {
   return Object.fromEntries(nodes.map((node) => [
     node.id,
     computeOverfitRate(
-      adjustedMemory[node.id] ?? 0,
+      readEntityMemoryThroughStage(memory, node, stage),
       costs[node.id] ?? node.requiredMemory,
       node.overfitCoefficient,
     ),

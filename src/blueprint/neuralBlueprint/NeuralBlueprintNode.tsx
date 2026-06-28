@@ -8,9 +8,7 @@ export function NeuralBlueprintNode({
 }: NodeProps<ModuleBaseNode>) {
   const isBackward = data.analysisDirection === 'backward';
   const stats = isBackward ? data.statsBackward : data.stats;
-  const outputDim = !isBackward && data.stats?.dimLabel !== 'normal'
-    ? data.stats?.dimLabel ?? '---'
-    : formatInteger(stats?.rank);
+  const outputDim = getOutputDimLabel(data, isBackward, stats?.rank);
   const effectiveRank = formatFixed(stats?.effectiveRank, 2);
   const saturation = formatFixed(stats?.saturation, 3);
   const mean = formatFixed(stats?.mean, 3);
@@ -65,6 +63,27 @@ function NodePreviewItem({
 
 function formatInteger(value: number | undefined) {
   return Number.isFinite(value) ? String(Math.round(value as number)) : '---';
+}
+
+function getOutputDimLabel(
+  data: ModuleBaseNode['data'],
+  isBackward: boolean,
+  rank: number | undefined,
+) {
+  if (isBackward) return formatInteger(rank);
+
+  if (data.kind === 'Output') {
+    if (data.stats?.dimLabel === 'not the same') return 'not the same';
+    if (data.predecessors.length === 0) {
+      return `need ${formatInteger(data.neededOutputDim)}`;
+    }
+    if (data.stats?.dimLabel !== 'normal') return data.stats?.dimLabel ?? '---';
+    return formatInteger(rank);
+  }
+
+  return data.stats?.dimLabel !== 'normal'
+    ? data.stats?.dimLabel ?? '---'
+    : formatInteger(rank);
 }
 
 function formatFixed(value: number | undefined, digits: number) {

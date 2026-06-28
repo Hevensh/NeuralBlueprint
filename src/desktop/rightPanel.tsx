@@ -6,9 +6,15 @@ interface DesktopRightPanelProp {
   selectedFile: DesktopFile | null;
   onRenameFile: (fileId: string, name: string) => void;
   onDeleteFile: (fileId: string) => void;
+  onResetFile: (file: DesktopFile) => void;
 }
 
-export function DesktopRightPanel({ selectedFile, onRenameFile, onDeleteFile }: DesktopRightPanelProp) {
+export function DesktopRightPanel({
+  selectedFile,
+  onRenameFile,
+  onDeleteFile,
+  onResetFile,
+}: DesktopRightPanelProp) {
   const handleNameChange = (event: ChangeEvent<HTMLInputElement>) => {
     if (!selectedFile) return;
     onRenameFile(selectedFile.id, event.target.value);
@@ -39,8 +45,16 @@ export function DesktopRightPanel({ selectedFile, onRenameFile, onDeleteFile }: 
             className="action-button danger"
             disabled={!selectedFile.deletable}
             onClick={() => onDeleteFile(selectedFile.id)}
+            type="button"
           >
             Delete
+          </button>
+          <button
+            className="action-button"
+            onClick={() => onResetFile(selectedFile)}
+            type="button"
+          >
+            Reset
           </button>
         </div>
       ) : (

@@ -7,6 +7,7 @@
 import { useState } from 'react';
 import { knowledgePreviewColor } from './knowledgePreviewColor';
 import type { KnowledgeGraphEdgeType } from './KnowledgeGraphNodeTypes';
+import { formatTrainingSignal } from './formatTrainingSignal';
 import { TrainingSignalPreview } from './TrainingSignalPreview';
 
 export function KnowledgeGraphEdge({
@@ -31,7 +32,10 @@ export function KnowledgeGraphEdge({
     targetY,
     targetPosition,
   });
-  const showPreview = data?.showMemoryPreview || data?.showMetricPreview;
+  const showPreview = data?.showMemoryPreview
+    || data?.showMetricPreview
+    || data?.showUtilityPreview
+    || data?.showGlobalDebugPreview;
   const hovered = data?.hovered || previewHovered;
 
   return (
@@ -80,11 +84,16 @@ export function KnowledgeGraphEdge({
               <>
                 <span>M {(data.metrics.mastery * 100).toFixed(2)}%</span>
                 <span>O {data.metrics.overfitPercent.toFixed(2)}%</span>
-                <TrainingSignalPreview
-                  className="knowledge-training-line"
-                  stages={data.metrics.stagePreviews}
-                />
               </>
+            )}
+            {data.showUtilityPreview && (
+              <span>U {formatTrainingSignal(data.metrics.training.total)}</span>
+            )}
+            {data.showGlobalDebugPreview && (
+              <TrainingSignalPreview
+                className="knowledge-training-line"
+                stages={data.metrics.stagePreviews}
+              />
             )}
           </div>
         </EdgeLabelRenderer>

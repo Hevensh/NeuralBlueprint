@@ -65,6 +65,9 @@ export function createBlueprintDataActions({
   ) => {
     setState((current) => ({
       ...current,
+      modelInitialized: patch.initializationSeed === undefined
+        ? current.modelInitialized
+        : false,
       trainingControls: mergeTrainingControls(
         current.trainingControls,
         patch,
@@ -111,6 +114,7 @@ export function createBlueprintDataActions({
         ...current.trainingControls,
         initializationSeed: defaults.initializationSeed,
       },
+      modelInitialized: false,
     }));
   };
 
@@ -149,6 +153,7 @@ export function createBlueprintDataActions({
         trainingRandomState: createTrainingRandomState(
           controls.network.initializationSeed,
         ),
+        modelInitialized: false,
       };
     });
     setSelectedNodeId(null);
@@ -163,6 +168,7 @@ export function createBlueprintDataActions({
         availableMemoryPoints,
         current.memory.presetReasoningPoints,
       ),
+      modelInitialized: false,
     }));
   };
 
@@ -175,6 +181,7 @@ export function createBlueprintDataActions({
         current.memory.presetMemoryPoints,
         availableReasoningPoints,
       ),
+      modelInitialized: false,
     }));
   };
 
@@ -198,6 +205,7 @@ export function createBlueprintDataActions({
       ),
       epoch: 0,
       lossHistory: [],
+      modelInitialized: false,
     }));
   };
 
@@ -276,17 +284,15 @@ export function createBlueprintDataActions({
 
   const stabilityPercent = () => Math.max(
     0,
-    Math.min(100, 15 + 2.5 * controls.training.learningRate),
+    Math.min(100, 17.5 + 2.5 * controls.training.learningRate),
   );
 
   const initializeNeuralMemory = () => {
     setState((current) => {
-      const stability = stabilityPercent();
       const nextMemory = initializeAllocation(
         current.graphDefinition,
         current.memory,
         controls.network.initializationSeed,
-        stability,
       );
       const loss = evaluateAllocation(
         current.graphDefinition,
@@ -307,12 +313,14 @@ export function createBlueprintDataActions({
           trainLoss: loss.graphTrainLoss,
           valLoss: loss.graphValLoss,
         }],
+        modelInitialized: true,
       };
     });
   };
 
   const runTrainingStep = () => {
     setState((current) => {
+      if (!current.modelInitialized) return current;
       const result = runTrainingSimulation(
         current.graphDefinition,
         current.memory,

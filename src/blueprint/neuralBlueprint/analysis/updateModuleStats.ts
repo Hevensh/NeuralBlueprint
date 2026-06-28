@@ -15,6 +15,7 @@ import {
   getEmptyStats,
   getInvalidInferenceStats,
 } from './forward/utils/moduleStats';
+import { EMPTY_STATS } from './forward/utils/constants';
 
 export function updateModuleStats(nodes: ModuleBaseNode[]): void {
   const nodeData = nodes.map((node) => node.data);
@@ -124,6 +125,16 @@ export function runBackwardStats(
       return;
     }
 
+    if (
+      node.kind !== 'Output'
+      && outputGradients.some(isInvalidBackwardStats)
+    ) {
+      node.backwardOutputPairStats = undefined;
+      node.statsBackward = EMPTY_STATS;
+      stats.set(node.id, EMPTY_STATS);
+      return;
+    }
+
     const flattened = flattenSumOutputs(
       outputGradients,
       outputNodes,
@@ -135,7 +146,7 @@ export function runBackwardStats(
       nodeMap,
     );
     const gradient = node.kind === 'Output'
-      ? getDefaultOutputGradient(node.stats?.rank ?? 64)
+      ? getOutputInitialGradient(node)
       : aggregateBackwardStats(flattened.gradients, outputPairStats);
     const result = backwardModuleStats(node, gradient);
 
@@ -147,4 +158,21 @@ export function runBackwardStats(
   });
 
   return stats;
+}
+
+function getOutputInitialGradient(node: ModuleNodeData): ModuleStatsBackward {
+  const rank = node.stats?.rank;
+  if (node.stats?.dimLabel !== 'normal' || !Number.isFinite(rank)) {
+    return EMPTY_STATS;
+  }
+
+  return getDefaultOutputGradient(rank as number);
+}
+
+function isInvalidBackwardStats(stats: ModuleStatsBackward) {
+  return !Number.isFinite(stats.rank)
+    || !Number.isFinite(stats.effectiveRank)
+    || !Number.isFinite(stats.saturation)
+    || !Number.isFinite(stats.mean)
+    || !Number.isFinite(stats.variance);
 }

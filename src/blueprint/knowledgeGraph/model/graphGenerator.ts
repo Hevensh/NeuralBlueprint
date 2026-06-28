@@ -8,6 +8,8 @@ import {
 import type {
   DependencyEdge,
   InterferenceEdge,
+  KnowledgeEdgeKind,
+  KnowledgeEdgeProperties,
   KnowledgeGraphDefinition,
   KnowledgeNode,
   NodeId,
@@ -26,9 +28,8 @@ type Pair = {
   target: NodeId;
   distance: number;
 };
-type RelationKind = 'dependency' | 'substitute' | 'interference';
 
-const NODE_COLORS = [
+export const KNOWLEDGE_NODE_COLORS = [
   '#0ea5e9',
   '#10b981',
   '#f59e0b',
@@ -86,7 +87,7 @@ export function generateRandomKnowledgeGraph(
         id: `dep_${depEdges.length + 1}`,
         source: nodes[source],
         target: nodes[target],
-        properties: createEdgeProperties(random, 9, 18, 13.5, 1.5),
+        properties: createGeneratedKnowledgeEdgeProperties(random, 'dependency'),
       });
     } else if (pair.kind === 'substitute') {
       const [source, target] = random() < 0.5
@@ -97,7 +98,7 @@ export function generateRandomKnowledgeGraph(
         id: `sub_${subEdges.length + 1}`,
         source: nodes[source],
         target: nodes[target],
-        properties: createEdgeProperties(random, 9, 18, 13.5, 1.5),
+        properties: createGeneratedKnowledgeEdgeProperties(random, 'substitute'),
       });
     } else {
       interEdges.push({
@@ -105,7 +106,7 @@ export function generateRandomKnowledgeGraph(
         id: `inter_${interEdges.length + 1}`,
         source: nodes[pair.source],
         target: nodes[pair.target],
-        properties: createEdgeProperties(random, 6, 12, 9, 1),
+        properties: createGeneratedKnowledgeEdgeProperties(random, 'interference'),
       });
     }
   });
@@ -123,35 +124,58 @@ function createNodes(
   random: Random,
 ): Record<NodeId, KnowledgeNode> {
   const positions = createGeometricPositions(nodeCount, random);
-  const colors = shuffle(
-    Array.from(
-      { length: nodeCount },
-      (_, index) => NODE_COLORS[index % NODE_COLORS.length],
-    ),
-    random,
-  );
+  const colors = createGeneratedKnowledgeNodeColors(nodeCount, random);
 
   return Object.fromEntries(
     positions.map((position, index) => {
       const id = `knowledge_${index + 1}`;
-      const lossMin = Math.exp(sampleNormal(random, -3, 0.8));
-      const lossMax = Math.max(
-        lossMin * 2,
-        Math.exp(sampleNormal(random, 3, 0.8)),
-      );
-      return [id, {
-        kind: 'node',
+      return [id, createGeneratedKnowledgeNode(
+        random,
         id,
-        label: `K${index + 1}`,
-        dataAmount: clippedNormalInt(random, 90, 10, 1, 120),
-        requiredMemory: clippedNormalInt(random, 30, 2, 24, 36),
-        overfitCoefficient: coefficient(random),
-        lossMin: Number(lossMin.toFixed(5)),
-        lossMax: Number(lossMax.toFixed(5)),
-        color: colors[index],
+        `K${index + 1}`,
         position,
-      }];
+        colors[index],
+      )];
     }),
+  );
+}
+
+export function createGeneratedKnowledgeNode(
+  random: Random,
+  id: NodeId,
+  label: string,
+  position: KnowledgeNode['position'],
+  color: string,
+): KnowledgeNode {
+  const lossMin = Math.exp(sampleNormal(random, -2, 0.8));
+  const lossMax = Math.max(
+    lossMin * 2,
+    Math.exp(sampleNormal(random, 2, 0.8)),
+  );
+  return {
+    kind: 'node',
+    id,
+    label,
+    dataAmount: clippedNormalInt(random, 90, 10, 1, 120),
+    requiredMemory: clippedNormalInt(random, 30, 2, 24, 36),
+    overfitCoefficient: coefficient(random),
+    lossMin: Number(lossMin.toFixed(5)),
+    lossMax: Number(lossMax.toFixed(5)),
+    color,
+    position,
+  };
+}
+
+export function createGeneratedKnowledgeNodeColors(
+  count: number,
+  random: Random,
+) {
+  return shuffle(
+    Array.from(
+      { length: count },
+      (_, index) => KNOWLEDGE_NODE_COLORS[index % KNOWLEDGE_NODE_COLORS.length],
+    ),
+    random,
   );
 }
 
@@ -435,10 +459,19 @@ function distance(a: Point, b: Point) {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
-function relationKind(index: number): RelationKind {
+function relationKind(index: number): KnowledgeEdgeKind {
   return (
     ['dependency', 'substitute', 'dependency', 'interference'][index % 4]
-  ) as RelationKind;
+  ) as KnowledgeEdgeKind;
+}
+
+export function createGeneratedKnowledgeEdgeProperties(
+  random: Random,
+  kind: KnowledgeEdgeKind,
+): KnowledgeEdgeProperties {
+  return kind === 'interference'
+    ? createEdgeProperties(random, 6, 12, 9, 1)
+    : createEdgeProperties(random, 9, 18, 13.5, 1.5);
 }
 
 function createEdgeProperties(
@@ -447,7 +480,7 @@ function createEdgeProperties(
   max: number,
   mean: number,
   standardDeviation: number,
-) {
+): KnowledgeEdgeProperties {
   return {
     requiredMemory: clippedNormalInt(random, mean, standardDeviation, min, max),
     overfitCoefficient: coefficient(random),

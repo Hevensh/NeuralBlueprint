@@ -1,12 +1,14 @@
 import type {
   ModuleStatsForwardContext,
   ModuleStatsForwardResult,
+  OutputNodeData,
 } from '../../ModuleBaseNodeTypes';
 import { forwardInputStats } from './input';
 import { forwardLinearStats } from './linear';
 import { forwardReLUStats } from './relu';
 import { forwardDropoutStats } from './dropout';
 import { aggregateForwardStats } from '../aggregation/forward';
+import { getInvalidInferenceStats } from './utils/moduleStats';
 
 export function forwardModuleStats(
   context: ModuleStatsForwardContext,
@@ -39,9 +41,26 @@ export function forwardModuleStats(
         stats: input,
         sumInputPairStats: aggregation.sumInputPairStats,
       };
+    case 'Output':
+      return {
+        stats: forwardOutputStats(context.node, input),
+      };
     default:
       return {
         stats: input,
       };
   }
+}
+
+function forwardOutputStats(
+  node: OutputNodeData,
+  input: ModuleStatsForwardResult['stats'],
+) {
+  const neededOutputDim = Math.round(node.neededOutputDim);
+
+  if (input.rank !== neededOutputDim) {
+    return getInvalidInferenceStats(node, 'not the same');
+  }
+
+  return input;
 }

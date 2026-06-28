@@ -1,0 +1,123 @@
+.knowledge-node-shell {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  color: #f8fafc;
+  filter: drop-shadow(
+    0 0 8px
+    color-mix(in srgb, var(--knowledge-node-color) 28%, transparent)
+  );
+}
+
+.knowledge-node-core {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  padding: 7px;
+  border: 2px solid color-mix(
+    in srgb,
+    var(--knowledge-node-color) 68%,
+    transparent
+  );
+  border-radius: 50%;
+  background: color-mix(
+    in srgb,
+    var(--knowledge-node-color) 36%,
+    transparent
+  );
+  box-shadow:
+    inset 0 0 16px rgba(255, 255, 255, 0.04),
+    0 8px 20px rgba(0, 0, 0, 0.28);
+  text-align: center;
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.knowledge-node-name {
+  max-width: 54px;
+  overflow: hidden;
+  font-size: 16px;
+  font-weight: 720;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.78),
+    0 0 6px rgba(255, 255, 255, 0.1);
+  white-space: nowrap;
+}
+
+.knowledge-graph-canvas .react-flow__node:hover .knowledge-node-core,
+.knowledge-graph-canvas .react-flow__node.selected .knowledge-node-core {
+  border-color: color-mix(
+    in srgb,
+    var(--knowledge-node-color) 82%,
+    #e0f2fe
+  );
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--knowledge-node-color) 46%, transparent),
+    color-mix(in srgb, var(--knowledge-node-color) 12%, transparent)
+  );
+  box-shadow:
+    0 0 22px
+      color-mix(in srgb, var(--knowledge-node-color) 48%, transparent),
+    inset 0 0 20px rgba(255, 255, 255, 0.08);
+}
+
+.knowledge-graph-canvas .react-flow__node.selected .knowledge-node-core {
+  box-shadow:
+    0 0 0 3px
+      color-mix(in srgb, var(--knowledge-node-color) 24%, transparent),
+    0 0 30px
+      color-mix(in srgb, var(--knowledge-node-color) 54%, transparent),
+    inset 0 0 22px rgba(255, 255, 255, 0.1);
+}
+
+.knowledge-node-handle {
+  width: 7px;
+  height: 7px;
+  border: 0;
+  background: transparent;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.knowledge-node-shell.dataset-highlighted[aria-selected="false"] {
+  filter:
+    drop-shadow(
+      0 0 8px
+      color-mix(in srgb, var(--knowledge-dataset-color) 74%, transparent)
+    )
+    drop-shadow(
+      0 0 18px
+      color-mix(in srgb, var(--knowledge-dataset-color) 42%, transparent)
+    );
+}
+
+.knowledge-node-shell.dataset-highlighted[aria-selected="false"]
+  .knowledge-node-core {
+  border-color: var(--knowledge-dataset-color);
+  box-shadow:
+    0 0 0 4px
+      color-mix(in srgb, var(--knowledge-dataset-color) 24%, transparent),
+    0 0 22px
+      color-mix(in srgb, var(--knowledge-dataset-color) 52%, transparent),
+    inset 0 0 20px rgba(255, 255, 255, 0.08);
+}
+
+.knowledge-node-shell.dataset-highlighted[aria-selected="false"]
+  .knowledge-node-preview {
+  border-color: color-mix(
+    in srgb,
+    var(--knowledge-dataset-color) 76%,
+    #e2e8f0
+  );
+  box-shadow: 0 0 14px
+    color-mix(in srgb, var(--knowledge-dataset-color) 34%, transparent);
+}
+

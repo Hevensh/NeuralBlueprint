@@ -6,6 +6,7 @@
 import type { CSSProperties } from 'react';
 import { knowledgePreviewColor } from './knowledgePreviewColor';
 import type { KnowledgeGraphNodeType } from './KnowledgeGraphNodeTypes';
+import { formatTrainingSignal } from './formatTrainingSignal';
 import { TrainingSignalPreview } from './TrainingSignalPreview';
 
 const HANDLE_POSITIONS = [
@@ -54,7 +55,10 @@ export function KnowledgeGraphNode({
         <span className="knowledge-node-name">{data.name}</span>
       </div>
 
-      {(data.showMemoryPreview || data.showMetricPreview) &&
+      {(data.showMemoryPreview
+        || data.showMetricPreview
+        || data.showUtilityPreview
+        || data.showGlobalDebugPreview) &&
         <div
           className="knowledge-node-preview"
           style={{
@@ -79,11 +83,18 @@ export function KnowledgeGraphNode({
               <span className="knowledge-node-preview-line">
                 O {overfitPercent}%
               </span>
-              <TrainingSignalPreview
-                className="knowledge-node-preview-line knowledge-training-line"
-                stages={data.metrics.stagePreviews}
-              />
             </>
+          )}
+          {data.showUtilityPreview && (
+            <span className="knowledge-node-preview-line">
+              U {formatTrainingSignal(data.metrics.training.total)}
+            </span>
+          )}
+          {data.showGlobalDebugPreview && (
+            <TrainingSignalPreview
+              className="knowledge-node-preview-line knowledge-training-line"
+              stages={data.metrics.stagePreviews}
+            />
           )}
         </div>}
       {HANDLE_POSITIONS.map((position) => (

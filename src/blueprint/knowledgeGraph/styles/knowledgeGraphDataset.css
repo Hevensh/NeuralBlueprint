@@ -1,0 +1,281 @@
+.knowledge-dataset-selector {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  z-index: 25;
+  display: grid;
+  gap: 9px;
+  width: min(760px, calc(100% - 40px));
+  box-sizing: border-box;
+  padding: 8px;
+  border: 1px solid rgba(34, 211, 238, 0.3);
+  border-radius: 8px;
+  background: rgba(2, 6, 23, 0.72);
+  box-shadow:
+    0 10px 24px rgba(0, 0, 0, 0.24),
+    inset 0 0 18px rgba(34, 211, 238, 0.04);
+  color: #cbd5e1;
+  transform: translateX(-50%);
+}
+
+.knowledge-dataset-selector.open {
+  background: rgba(2, 6, 23, 0.92);
+}
+
+.knowledge-dataset-selector-toggle {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 2px 4px;
+  border: 0;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.knowledge-dataset-selector-toggle strong {
+  overflow: hidden;
+  color: #e2e8f0;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.knowledge-dataset-selector-toggle span {
+  color: #94a3b8;
+  font-variant-numeric: tabular-nums;
+}
+
+.knowledge-dataset-selector-toggle:hover strong,
+.knowledge-dataset-selector-toggle:hover span:last-child {
+  color: #67e8f9;
+}
+
+.knowledge-dataset-mini-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 4px 2px;
+}
+
+.knowledge-dataset-mini {
+  width: 18px;
+  height: 12px;
+  padding: 0;
+  border: 1px solid color-mix(
+    in srgb,
+    var(--knowledge-dataset-color) 58%,
+    transparent
+  );
+  border-radius: 3px;
+  appearance: none;
+  cursor: pointer;
+}
+
+.knowledge-dataset-mini:focus {
+  outline: none;
+}
+
+.knowledge-dataset-mini:focus-visible {
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.18);
+}
+
+.knowledge-dataset-mini.enabled {
+  border-color: var(--knowledge-dataset-color);
+  background: color-mix(
+    in srgb,
+    var(--knowledge-dataset-color) 30%,
+    transparent
+  );
+  box-shadow:
+    inset 0 0 0 1px
+      color-mix(in srgb, var(--knowledge-dataset-color) 32%, transparent),
+    0 0 6px
+      color-mix(in srgb, var(--knowledge-dataset-color) 34%, transparent);
+}
+
+.knowledge-dataset-mini.disabled {
+  border-color: color-mix(
+    in srgb,
+    var(--knowledge-dataset-color) 46%,
+    transparent
+  );
+  background: rgba(15, 23, 42, 0.52);
+  opacity: 0.58;
+}
+
+.knowledge-dataset-card-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(142px, 168px));
+  justify-content: start;
+  gap: 8px;
+}
+
+.knowledge-dataset-card-wrap {
+  position: relative;
+}
+
+.knowledge-dataset-card {
+  position: relative;
+  width: 100%;
+  min-height: 80px;
+  box-sizing: border-box;
+  border: 1px solid color-mix(
+    in srgb,
+    var(--knowledge-dataset-color) 52%,
+    transparent
+  );
+  border-radius: 7px;
+  background: color-mix(
+    in srgb,
+    var(--knowledge-dataset-color) 30%,
+    transparent
+  );
+  filter: drop-shadow(
+    0 0 8px
+    color-mix(in srgb, var(--knowledge-dataset-color) 20%, transparent)
+  );
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.knowledge-dataset-card:hover {
+  border-color: color-mix(
+    in srgb,
+    var(--knowledge-dataset-color) 84%,
+    transparent
+  );
+  box-shadow:
+    0 0 0 2px
+      color-mix(in srgb, var(--knowledge-dataset-color) 14%, transparent),
+    0 0 16px
+      color-mix(in srgb, var(--knowledge-dataset-color) 28%, transparent);
+}
+
+.knowledge-dataset-card.editing {
+  border-color: color-mix(
+    in srgb,
+    var(--knowledge-dataset-color) 92%,
+    transparent
+  );
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--knowledge-dataset-color) 30%, transparent),
+    rgba(2, 6, 23, 0.16)
+  );
+  box-shadow:
+    0 0 0 2px
+      color-mix(in srgb, var(--knowledge-dataset-color) 16%, transparent),
+    0 0 18px
+      color-mix(in srgb, var(--knowledge-dataset-color) 30%, transparent);
+}
+
+.knowledge-dataset-card-main {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 28px 8px 9px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.knowledge-dataset-card-main strong {
+  overflow: hidden;
+  color: #e2e8f0;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.knowledge-dataset-card-main span {
+  color: #94a3b8;
+  font-size: 10px;
+  line-height: 1.25;
+}
+
+.knowledge-dataset-status {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  width: 12px;
+  height: 12px;
+  padding: 0;
+  border: 1px solid #64748b;
+  border-radius: 50%;
+  background: #1e293b;
+  cursor: pointer;
+}
+
+.knowledge-dataset-status.enabled {
+  border-color: #4ade80;
+  background: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.14);
+}
+
+.knowledge-dataset-settings {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 85;
+  display: grid;
+  gap: 10px;
+  width: 260px;
+  box-sizing: border-box;
+  padding: 10px;
+  border: 1px solid rgba(34, 211, 238, 0.34);
+  border-radius: 7px;
+  background: rgba(2, 6, 23, 0.98);
+  box-shadow:
+    0 16px 36px rgba(0, 0, 0, 0.4),
+    0 0 18px rgba(34, 211, 238, 0.1);
+}
+
+.knowledge-dataset-settings > strong {
+  color: #e2e8f0;
+  font-size: 12px;
+}
+
+.knowledge-dataset-ratio-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.knowledge-dataset-ratio-field {
+  gap: 5px;
+}
+
+.knowledge-dataset-seed {
+  display: grid;
+  gap: 5px;
+}
+
+.knowledge-dataset-ratio-field .property-label,
+.knowledge-dataset-seed > span {
+  color: #94a3b8;
+  font-size: 10px;
+  text-transform: capitalize;
+}
+
+.knowledge-dataset-ratio-field .property-input,
+.knowledge-dataset-seed .property-input {
+  min-width: 0;
+  min-height: 30px;
+  height: 30px;
+  border-radius: 6px;
+  font-size: 11px;
+}
+
+.knowledge-dataset-ratio-field .number-field-arrows {
+  width: 20px;
+}
+

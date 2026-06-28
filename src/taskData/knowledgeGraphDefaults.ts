@@ -1,11 +1,12 @@
 import type { KnowledgeGraphSessionState } from '../dataStorage/knowledgeGraphStorage';
 import {
+  createEmptyKnowledgeDatasetCollection,
   generateKnowledgeDatasets,
   type DatasetSplitRatio,
 } from '../blueprint/knowledgeGraph/model/datasetSplit';
-import { generateRandomKnowledgeGraph } from '../blueprint/knowledgeGraph/model/graphGenerator';
 import { createKnowledgeGraphMemory } from '../blueprint/knowledgeGraph/model/memoryState';
 import { createTrainingRandomState } from '../blueprint/knowledgeGraph/model/trainingSimulation';
+import type { KnowledgeGraphDefinition } from '../blueprint/knowledgeGraph/model/types';
 
 export const DEFAULT_DATASET_SPLIT_RATIO: DatasetSplitRatio = {
   train: 4,
@@ -16,7 +17,7 @@ export const DEFAULT_DATASET_SPLIT_RATIO: DatasetSplitRatio = {
 export const DEFAULT_GRAPH_CONTROLS = {
   minNodes: 12,
   maxNodes: 16,
-  datasetCount: 4,
+  datasetCount: 1,
   generationSeed: '42',
 };
 
@@ -32,29 +33,37 @@ export const DEFAULT_TRAINING_CONTROLS = {
   trainSteps: 10,
 };
 
-export function createDefaultKnowledgeGraphSession(): KnowledgeGraphSessionState {
-  const graphDefinition = generateRandomKnowledgeGraph({
-    minNodes: DEFAULT_GRAPH_CONTROLS.minNodes,
-    maxNodes: DEFAULT_GRAPH_CONTROLS.maxNodes,
-    seed: DEFAULT_GRAPH_CONTROLS.generationSeed,
-  });
+export const EMPTY_KNOWLEDGE_GRAPH: KnowledgeGraphDefinition = {
+  nodes: {},
+  depEdges: [],
+  subEdges: [],
+  interEdges: [],
+};
+
+export function createKnowledgeGraphSession(
+  graphDefinition: KnowledgeGraphDefinition = EMPTY_KNOWLEDGE_GRAPH,
+  datasetCollection?: KnowledgeGraphSessionState['datasetCollection'],
+): KnowledgeGraphSessionState {
   const memory = createKnowledgeGraphMemory(
     graphDefinition,
     DEFAULT_NETWORK_CAPABILITY.memory,
     DEFAULT_NETWORK_CAPABILITY.reasoning,
   );
+  const hasGraph = Object.keys(graphDefinition.nodes).length > 0;
 
   return {
     graphDefinition,
     memory,
     epoch: 0,
     lossHistory: [],
-    datasetCollection: generateKnowledgeDatasets(
-      graphDefinition,
-      DEFAULT_GRAPH_CONTROLS.datasetCount,
-      DEFAULT_GRAPH_CONTROLS.generationSeed,
-      DEFAULT_DATASET_SPLIT_RATIO,
-    ),
+    datasetCollection: datasetCollection ?? (hasGraph
+      ? generateKnowledgeDatasets(
+          graphDefinition,
+          DEFAULT_GRAPH_CONTROLS.datasetCount,
+          DEFAULT_GRAPH_CONTROLS.generationSeed,
+          DEFAULT_DATASET_SPLIT_RATIO,
+        )
+      : createEmptyKnowledgeDatasetCollection()),
     graphControls: DEFAULT_GRAPH_CONTROLS,
     trainingControls: {
       learningRate: DEFAULT_TRAINING_CONTROLS.learningRate,
@@ -65,5 +74,6 @@ export function createDefaultKnowledgeGraphSession(): KnowledgeGraphSessionState
     trainingRandomState: createTrainingRandomState(
       DEFAULT_NETWORK_CAPABILITY.initializationSeed,
     ),
+    modelInitialized: false,
   };
 }

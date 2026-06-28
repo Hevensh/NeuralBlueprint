@@ -18,10 +18,10 @@ import {
   type HeightCollectionResult,
 } from './arrangeNodesUtils';
 
-const COLUMN_GAP = 240;
-const START_X = 120;
-const START_Y = 180;
 const DEFAULT_NODE_HEIGHT = 72;
+export const MODULE_LAYOUT_COLUMN_GAP = 240;
+export const MODULE_LAYOUT_START_X = 120;
+export const MODULE_LAYOUT_START_Y = 180;
 
 interface LayoutState {
   nodeHeights: Map<string, number>;
@@ -52,8 +52,8 @@ export function arrangeModuleNodes(nodes: ModuleBaseNode[]) {
     const columnOrder = blockColumn + columnOffset;
     const level = blockLevel + rowOffset * 2;
     const position = {
-      x: START_X + columnOrder * COLUMN_GAP,
-      y: START_Y + level * getNodeHeight(node) / 2,
+      x: MODULE_LAYOUT_START_X + columnOrder * MODULE_LAYOUT_COLUMN_GAP,
+      y: MODULE_LAYOUT_START_Y + level * getNodeHeight(node) / 2,
     };
 
     return {
@@ -376,6 +376,6 @@ function getTopologyOrder(node: ModuleBaseNode) {
   return node.data.forwardTopologyOrder ?? 0;
 }
 
-function getNodeHeight(node: ModuleBaseNode) {
-  return (node.measured?.height ?? node.height ?? DEFAULT_NODE_HEIGHT) + 32;
+export function getNodeHeight(node?: Pick<ModuleBaseNode, 'measured' | 'height'>) {
+  return (node?.measured?.height ?? node?.height ?? DEFAULT_NODE_HEIGHT) + 32;
 }

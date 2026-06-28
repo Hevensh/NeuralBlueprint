@@ -7,6 +7,15 @@ export type ModuleDimLabel = 'normal' | 'not the same' | '---';
 export type InputNormalizationMode = '0-1' | 'standard';
 export type LinearInitializationMode = 'standard_normal' | 'xavier_normal';
 export type BiasInitializationMode = 'zeros' | 'standard_normal';
+export type ModuleLockedProperty =
+  | 'outputDim'
+  | 'effectiveRank'
+  | 'neededOutputDim';
+
+export interface ModuleNodeLock {
+  deletion?: boolean;
+  properties?: ModuleLockedProperty[];
+}
 
 export interface ModuleStats {
   /** Output dimension / potential rank of the module output. */
@@ -108,6 +117,7 @@ export interface ModuleBaseNodeData<
   stats?: ModuleStats;
   statsBackward?: ModuleStatsBackward;
   analysisDirection?: ModuleAnalysisDirection;
+  locked?: ModuleNodeLock;
   memoryPoint?: number;
   inferencePoint?: number;
   sumInputPairStats?: SumInputPairStats[];
@@ -146,6 +156,7 @@ export interface SumNodeData extends ModuleBaseNodeData<'Sum'> {
 
 export interface OutputNodeData extends ModuleBaseNodeData<'Output'> {
   readonly kind: 'Output';
+  neededOutputDim: number;
 }
 
 export type ModuleNodeData =

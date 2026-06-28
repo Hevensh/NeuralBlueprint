@@ -6,6 +6,7 @@ import {
 
 export interface TrainingConfigurationControlsProps {
   disabled?: boolean;
+  trainDisabled?: boolean;
   showAllocationButtons?: boolean;
   learningRate: number;
   regularizationRate: number;
@@ -48,8 +49,9 @@ export function TrainingConfigurationControls(
       />
       <button
         className="action-button"
-        disabled={props.disabled}
+        disabled={props.disabled || props.trainDisabled}
         onClick={props.onTrain}
+        title={props.trainDisabled ? 'Initialize model before training' : undefined}
         type="button"
       >
         Train

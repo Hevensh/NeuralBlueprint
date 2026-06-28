@@ -37,6 +37,8 @@ export interface KnowledgeGraphNodeData extends Record<string, unknown> {
   memorySelectionLabel: string;
   showMemoryPreview: boolean;
   showMetricPreview: boolean;
+  showUtilityPreview: boolean;
+  showGlobalDebugPreview: boolean;
   datasetHighlighted?: boolean;
   datasetHighlightColor?: string;
   properties: KnowledgeGraphNodeProperties;
@@ -71,6 +73,8 @@ export interface KnowledgeGraphEdgeData extends Record<string, unknown> {
   target: KnowledgeGraphNodeData;
   showMemoryPreview: boolean;
   showMetricPreview: boolean;
+  showUtilityPreview: boolean;
+  showGlobalDebugPreview: boolean;
   hovered?: boolean;
   properties: KnowledgeGraphEdgeProperties;
   metrics: KnowledgeGraphEdgeMetrics;

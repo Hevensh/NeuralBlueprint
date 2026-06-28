@@ -32,14 +32,14 @@ function handleDragStart(
 }
 
 interface DesktopLeftPanelProp {
-  onFitView: () => void;
+  onResetPositions: () => void;
 }
 
-export function DesktopLeftPanel({ onFitView }: DesktopLeftPanelProp) {
+export function DesktopLeftPanel({ onResetPositions }: DesktopLeftPanelProp) {
   return (
     <aside className="left-panel">
       <div className="panel-section-spacer" />
-      <button className="action-button" onClick={onFitView}>
+      <button className="action-button" onClick={onResetPositions}>
         Center View
       </button>
       <div className="panel-section-spacer" />

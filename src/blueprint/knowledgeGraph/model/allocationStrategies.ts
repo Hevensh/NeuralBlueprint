@@ -25,12 +25,17 @@ export function initializeAllocation(
   graph: KnowledgeGraphDefinition,
   memory: KnowledgeGraphMemory,
   seed: string,
-  stabilityPercent: number,
 ) {
   const entities = getTrainingEntities(graph);
   const next = cloneKnowledgeGraphMemory(memory);
+  const random = randomFromSeed(seed);
   clearAllocatedMemory(next, entities);
-  allocateRandomly(next, entities, seed, stabilityPercent);
+  allocateRandomly(
+    next,
+    entities,
+    random,
+    initializationPointCount(next, entities, random),
+  );
   return next;
 }
 
@@ -96,8 +101,14 @@ export function transferAllocation(
 ) {
   const next = perfectAllocation(graph, memory);
   const nodeEntities = Object.values(graph.nodes);
+  const random = randomFromSeed(seed);
   clearAllocatedMemory(next, nodeEntities);
-  allocateRandomly(next, nodeEntities, seed, stabilityPercent);
+  allocateRandomly(
+    next,
+    nodeEntities,
+    random,
+    stabilityPointCount(next, stabilityPercent, random),
+  );
   return next;
 }
 
@@ -128,26 +139,17 @@ export function evaluateAllocation(
 function allocateRandomly(
   memory: KnowledgeGraphMemory,
   entities: KnowledgeEntity[],
-  seed: string,
-  stabilityPercent: number,
+  random: () => number,
+  points: number,
 ) {
   if (entities.length === 0) return;
-  const random = seed.trim() ? createSeededRandom(seed.trim()) : Math.random;
-  const sampled = Math.max(
-    0,
-    Math.round(sampleNormal(
-      random,
-      stabilityPercent / 2,
-      Math.max(0.001, stabilityPercent / 20),
-    )),
-  );
-  const points = Math.min(
-    sampled,
+  const pointCount = Math.min(
+    Math.max(0, Math.floor(points)),
     Math.max(0, Math.floor(memory.availableMemoryPoints)),
   );
 
   const remaining = memory.budgetPools.map((pool) => pool.memoryPoint);
-  for (let point = 0; point < points; point += 1) {
+  for (let point = 0; point < pointCount; point += 1) {
     const poolIndex = weightedIndex(remaining, random);
     if (poolIndex < 0) break;
     const pool = memory.budgetPools[poolIndex];
@@ -165,6 +167,42 @@ function allocateRandomly(
     );
     remaining[poolIndex] -= 1;
   }
+}
+
+function initializationPointCount(
+  memory: KnowledgeGraphMemory,
+  entities: KnowledgeEntity[],
+  random: () => number,
+) {
+  const ratio = Math.max(0, sampleNormal(random, 0.05, 0.01));
+  const capacity = Math.min(
+    memory.availableMemoryPoints,
+    entities.reduce((sum, entity) => sum + entityRequiredMemory(entity), 0),
+  );
+  return Math.round(capacity * ratio);
+}
+
+function stabilityPointCount(
+  memory: KnowledgeGraphMemory,
+  stabilityPercent: number,
+  random: () => number,
+) {
+  const sampled = Math.max(
+    0,
+    Math.round(sampleNormal(
+      random,
+      stabilityPercent / 2,
+      Math.max(0.001, stabilityPercent / 20),
+    )),
+  );
+  return Math.min(
+    sampled,
+    Math.max(0, Math.floor(memory.availableMemoryPoints)),
+  );
+}
+
+function randomFromSeed(seed: string) {
+  return seed.trim() ? createSeededRandom(seed.trim()) : Math.random;
 }
 
 function weightedIndex(weights: number[], random: () => number) {

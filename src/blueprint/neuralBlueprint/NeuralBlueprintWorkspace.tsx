@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { loadNeuralBlueprintUi } from '../../dataStorage/neuralBlueprintStorage';
-import type { BlueprintTaskFeatureConfig } from '../../taskData/blueprintFeatureConfig';
+import type { ResolvedBlueprintTaskFeatureConfig } from '../../taskData/blueprintFeatureConfig';
 import type { InferenceMemoryProfile } from '../InferenceMemoryProfileTypes';
 import type {
   ModuleAnalysisDirection,
@@ -12,7 +12,7 @@ import { NeuralBlueprintRightPanel } from './NeuralBlueprintRightPanel';
 
 interface NeuralBlueprintWorkspaceProp {
   fileId: string;
-  features: BlueprintTaskFeatureConfig['neuralBlueprint'];
+  features: ResolvedBlueprintTaskFeatureConfig['neuralBlueprint'];
   onInferenceMemoryProfileChange: (profile: InferenceMemoryProfile) => void;
 }
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { BlueprintTaskFeatureConfig } from '../../taskData/blueprintFeatureConfig';
+import type { ResolvedBlueprintTaskFeatureConfig } from '../../taskData/blueprintFeatureConfig';
 import { NetworkCapabilityControls } from '../dataController/controls/NetworkCapabilityControls';
 import { TrainingConfigurationControls } from '../dataController/controls/TrainingConfigurationControls';
 import type { BlueprintDataController } from '../dataController/useBlueprintDataController';
@@ -18,7 +18,7 @@ export function TrainingProcessWorkspace({
   fileId,
 }: {
   controller: BlueprintDataController;
-  features: BlueprintTaskFeatureConfig['knowledgeGraph'];
+  features: ResolvedBlueprintTaskFeatureConfig['knowledgeGraph'];
   fileId: string;
 }) {
   const [snapshots, setSnapshots] = useState(

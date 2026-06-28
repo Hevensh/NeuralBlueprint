@@ -31,6 +31,8 @@ interface KnowledgeGraphViewProps {
   selectedEdgeId: string | null;
   showMemoryPreview: boolean;
   showMetricPreview: boolean;
+  showUtilityPreview: boolean;
+  showGlobalDebugPreview: boolean;
   previewDataset: KnowledgeDataset | null;
   topOverlay?: ReactNode;
   lossHistory: LossHistoryPoint[];
@@ -47,6 +49,8 @@ export function KnowledgeGraphView({
   selectedEdgeId,
   showMemoryPreview,
   showMetricPreview,
+  showUtilityPreview,
+  showGlobalDebugPreview,
   previewDataset,
   topOverlay,
   lossHistory,
@@ -64,6 +68,8 @@ export function KnowledgeGraphView({
         ...node.data,
         showMemoryPreview,
         showMetricPreview,
+        showUtilityPreview,
+        showGlobalDebugPreview,
         datasetHighlighted: Boolean(
           previewDataset
           && (previewDataset.nodeDataAmounts[node.id] ?? 0) > 0
@@ -77,6 +83,8 @@ export function KnowledgeGraphView({
       selectedNodeId,
       showMemoryPreview,
       showMetricPreview,
+      showUtilityPreview,
+      showGlobalDebugPreview,
     ],
   );
   const visibleEdges = useMemo(
@@ -87,6 +95,8 @@ export function KnowledgeGraphView({
         ...edge.data,
         showMemoryPreview,
         showMetricPreview,
+        showUtilityPreview,
+        showGlobalDebugPreview,
         hovered: edge.id === hoveredEdgeId,
       },
     })),
@@ -96,6 +106,8 @@ export function KnowledgeGraphView({
       selectedEdgeId,
       showMemoryPreview,
       showMetricPreview,
+      showUtilityPreview,
+      showGlobalDebugPreview,
     ],
   );
 

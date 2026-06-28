@@ -49,6 +49,13 @@ const DATASET_COLORS = [
   '#06b6d4',
 ];
 
+export function createEmptyKnowledgeDatasetCollection(): KnowledgeDatasetCollection {
+  return {
+    activeDatasetId: '',
+    datasets: [],
+  };
+}
+
 export function generateKnowledgeDatasets(
   graph: KnowledgeGraphDefinition,
   datasetCount: number,

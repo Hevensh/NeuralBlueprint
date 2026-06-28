@@ -9,18 +9,19 @@ const DESKTOP_VIEW_STORAGE_KEY = 'neural-blueprint:desktop-view:v1';
 
 
 export function loadDesktopFiles(): DesktopFile[] {
-  // console.log('loading files');
-  try {
-    const raw = appStorage.getItem(DESKTOP_DATA_STORAGE_KEY);
-    if (!raw) return INITIAL_DESKTOP_FILES;
+  // // console.log('loading files');
+  // try {
+  //   const raw = appStorage.getItem(DESKTOP_DATA_STORAGE_KEY);
+  //   if (!raw) return INITIAL_DESKTOP_FILES;
 
-    const parsed = JSON.parse(raw) as DesktopFile[];
+  //   const parsed = JSON.parse(raw) as DesktopFile[];
 
-    // console.log('files loaded');
-    return parsed;
-  } catch {
-    return INITIAL_DESKTOP_FILES;
-  }
+  //   // console.log('files loaded');
+  //   return parsed;
+  // } catch {
+  //   return INITIAL_DESKTOP_FILES;
+  // }
+  return INITIAL_DESKTOP_FILES;
 }
 
 export function saveDesktopFiles(nodes: DesktopIconNodeType[]): void {

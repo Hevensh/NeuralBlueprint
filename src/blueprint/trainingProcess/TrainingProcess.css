@@ -212,13 +212,6 @@
   opacity: 0.38;
 }
 
-.training-curve-storage-actions {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  gap: 8px;
-}
-
 .training-curve-list {
   position: relative;
   z-index: 1;

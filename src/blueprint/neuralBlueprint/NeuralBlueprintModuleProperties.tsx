@@ -11,6 +11,7 @@ import type {
 } from './ModuleBaseNodeTypes';
 
 interface NeuralBlueprintModulePropertiesProps {
+  effectiveRankDisabled?: boolean;
   selectedNode: ModuleNodeData;
   showRankAnalysis: boolean;
   updateSelectedNode: UpdateSelectedNode;
@@ -22,6 +23,7 @@ type UpdateSelectedNode = <TNode extends ModuleNodeData>(
 ) => void;
 
 export function NeuralBlueprintModuleProperties({
+  effectiveRankDisabled,
   selectedNode,
   showRankAnalysis,
   updateSelectedNode,
@@ -29,6 +31,7 @@ export function NeuralBlueprintModuleProperties({
   if (selectedNode.kind === 'Input') {
     return (
       <InputProperties
+        effectiveRankDisabled={effectiveRankDisabled}
         node={selectedNode}
         showRankAnalysis={showRankAnalysis}
         updateNode={updateSelectedNode}
@@ -37,21 +40,33 @@ export function NeuralBlueprintModuleProperties({
   }
 
   if (selectedNode.kind === 'Linear') {
-    return <LinearProperties node={selectedNode} updateNode={updateSelectedNode} />;
+    return (
+      <LinearProperties
+        node={selectedNode}
+        updateNode={updateSelectedNode}
+      />
+    );
   }
 
   if (selectedNode.kind === 'Dropout') {
-    return <DropoutProperties node={selectedNode} updateNode={updateSelectedNode} />;
+    return (
+      <DropoutProperties
+        node={selectedNode}
+        updateNode={updateSelectedNode}
+      />
+    );
   }
 
   return null;
 }
 
 function InputProperties({
+  effectiveRankDisabled,
   node,
   showRankAnalysis,
   updateNode,
 }: {
+  effectiveRankDisabled?: boolean;
   node: InputNodeData;
   showRankAnalysis: boolean;
   updateNode: UpdateSelectedNode;
@@ -60,6 +75,7 @@ function InputProperties({
     <>
       {showRankAnalysis && (
         <NumberField
+          disabled={effectiveRankDisabled}
           label="Effective Rank"
           min={0}
           value={node.inputEffectiveRank}

@@ -29,20 +29,17 @@ export function TrainingCurveStoragePanel({
         </button>
       </div>
 
-      <div className="training-curve-storage-actions">
-        <button className="action-button" onClick={onSave} type="button">
-          Record Loss History
-        </button>
-        <button
-          className={`action-button ${
-            selectedSnapshotId === null ? 'primary' : ''
+      <button className="action-button" onClick={onSave} type="button">
+        Record Loss History
+      </button>
+      <button
+        className={`action-button ${selectedSnapshotId === null ? 'primary' : ''
           }`}
-          onClick={() => onSelect(null)}
-          type="button"
-        >
-          View Current Training
-        </button>
-      </div>
+        onClick={() => onSelect(null)}
+        type="button"
+      >
+        View Current Training
+      </button>
 
       <div className="training-curve-list">
         {snapshots.length === 0 && (
@@ -60,9 +57,8 @@ export function TrainingCurveStoragePanel({
           ), null);
           return (
             <article
-              className={`training-curve-card ${
-                selectedSnapshotId === snapshot.id ? 'selected' : ''
-              }`}
+              className={`training-curve-card ${selectedSnapshotId === snapshot.id ? 'selected' : ''
+                }`}
               key={snapshot.id}
             >
               <button

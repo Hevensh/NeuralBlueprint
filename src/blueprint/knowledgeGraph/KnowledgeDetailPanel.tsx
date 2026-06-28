@@ -10,10 +10,15 @@ interface KnowledgeDetailPanelProps {
   selectedEdge: KnowledgeGraphEdgeData | null;
   inferenceStage: number;
   maxInferenceStage: number;
+  enableMemoryAnalysis: boolean;
+  enableMasteryOverfitAnalysis: boolean;
+  enableUtilityAnalysis: boolean;
   showMemory: boolean;
   showMetrics: boolean;
+  showUtility: boolean;
   onShowMemoryChange: () => void;
   onShowMetricsChange: () => void;
+  onShowUtilityChange: () => void;
   onMemoryChange: (nodeId: string, memory: number) => void;
   onEdgeMemoryChange: (edgeId: string, memory: number) => void;
   onInferenceStageChange: (stage: number) => void;
@@ -24,10 +29,15 @@ export function KnowledgeDetailPanel({
   selectedEdge,
   inferenceStage,
   maxInferenceStage,
+  enableMemoryAnalysis,
+  enableMasteryOverfitAnalysis,
+  enableUtilityAnalysis,
   showMemory,
   showMetrics,
+  showUtility,
   onShowMemoryChange,
   onShowMetricsChange,
+  onShowUtilityChange,
   onMemoryChange,
   onEdgeMemoryChange,
   onInferenceStageChange,
@@ -35,35 +45,54 @@ export function KnowledgeDetailPanel({
   return (
     <aside className="right-panel">
       <div className="title">Properties</div>
-      <InferenceStageSlider
-        max={maxInferenceStage}
-        value={inferenceStage}
-        onChange={onInferenceStageChange}
-      />
-      <div className="property-toggle-group">
-        <button
-          aria-pressed={showMemory}
-          className={`toggle-button ${showMemory ? 'active' : ''}`}
-          onClick={onShowMemoryChange}
-          type="button"
-        >
-          Memory Allocation
-        </button>
-        <button
-          aria-pressed={showMetrics}
-          className={`toggle-button ${showMetrics ? 'active' : ''}`}
-          onClick={onShowMetricsChange}
-          type="button"
-        >
-          Mastery / Overfit
-        </button>
-      </div>
+      {enableMemoryAnalysis && (
+        <InferenceStageSlider
+          max={maxInferenceStage}
+          value={inferenceStage}
+          onChange={onInferenceStageChange}
+        />
+      )}
+      {(enableMemoryAnalysis || enableMasteryOverfitAnalysis || enableUtilityAnalysis) && (
+        <div className="property-toggle-group">
+          {enableMemoryAnalysis && (
+            <button
+              aria-pressed={showMemory}
+              className={`toggle-button ${showMemory ? 'active' : ''}`}
+              onClick={onShowMemoryChange}
+              type="button"
+            >
+              Memory Allocation
+            </button>
+          )}
+          {enableMasteryOverfitAnalysis && (
+            <button
+              aria-pressed={showMetrics}
+              className={`toggle-button ${showMetrics ? 'active' : ''}`}
+              onClick={onShowMetricsChange}
+              type="button"
+            >
+              Mastery / Overfit
+            </button>
+          )}
+          {enableUtilityAnalysis && (
+            <button
+              aria-pressed={showUtility}
+              className={`toggle-button ${showUtility ? 'active' : ''}`}
+              onClick={onShowUtilityChange}
+              type="button"
+            >
+              Utility
+            </button>
+          )}
+        </div>
+      )}
       {selectedEdge
         ? (
           <EdgeProperties
             selectedEdge={selectedEdge}
             showMemory={showMemory}
             showMetrics={showMetrics}
+            showUtility={showUtility}
             onMemoryChange={onEdgeMemoryChange}
           />
         )
@@ -73,6 +102,7 @@ export function KnowledgeDetailPanel({
             selectedNode={selectedNode}
             showMemory={showMemory}
             showMetrics={showMetrics}
+            showUtility={showUtility}
             onMemoryChange={onMemoryChange}
           />
         )
@@ -114,11 +144,13 @@ function EdgeProperties({
   selectedEdge,
   showMemory,
   showMetrics,
+  showUtility,
   onMemoryChange,
 }: {
   selectedEdge: KnowledgeGraphEdgeData;
   showMemory: boolean;
   showMetrics: boolean;
+  showUtility: boolean;
   onMemoryChange: (edgeId: string, memory: number) => void;
 }) {
   const { metrics } = selectedEdge;
@@ -159,9 +191,9 @@ function EdgeProperties({
             label="Overfit"
             value={`${metrics.overfitPercent.toFixed(2)}%`}
           />
-          <TrainingProperties training={metrics.training} />
         </>
       )}
+      {showUtility && <TrainingProperties training={metrics.training} />}
     </div>
   );
 }
@@ -170,11 +202,13 @@ function NodeProperties({
   selectedNode,
   showMemory,
   showMetrics,
+  showUtility,
   onMemoryChange,
 }: {
   selectedNode: KnowledgeGraphNodeData;
   showMemory: boolean;
   showMetrics: boolean;
+  showUtility: boolean;
   onMemoryChange: (nodeId: string, memory: number) => void;
 }) {
   const { metrics } = selectedNode;
@@ -217,9 +251,9 @@ function NodeProperties({
             label="Overfit"
             value={`${metrics.overfitPercent.toFixed(2)}%`}
           />
-          <TrainingProperties training={metrics.training} />
         </>
       )}
+      {showUtility && <TrainingProperties training={metrics.training} />}
       <Value label="Train Loss" value={format(metrics.trainLoss)} />
       <Value label="Val Loss" value={format(metrics.valLoss)} />
     </div>

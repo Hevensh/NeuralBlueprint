@@ -32,3 +32,7 @@ export function saveTrainingCurves(
 ) {
   appStorage.setItem(`${STORAGE_PREFIX}${fileId}`, JSON.stringify(snapshots));
 }
+
+export function clearTrainingCurves(fileId: string) {
+  appStorage.removeItem(`${STORAGE_PREFIX}${fileId}`);
+}

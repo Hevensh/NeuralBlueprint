@@ -69,6 +69,8 @@ export function buildKnowledgeGraphElements(
         memorySelectionLabel,
         showMemoryPreview: true,
         showMetricPreview: true,
+        showUtilityPreview: true,
+        showGlobalDebugPreview: true,
         properties: {
           dataAmount: node.dataAmount,
           requiredMemory: node.requiredMemory,
@@ -165,6 +167,8 @@ export function buildKnowledgeGraphElements(
         target,
         showMemoryPreview: true,
         showMetricPreview: true,
+        showUtilityPreview: true,
+        showGlobalDebugPreview: true,
         properties: {
           requiredMemory: edge.properties.requiredMemory,
           lambda: edge.properties.lambda,

@@ -18,6 +18,7 @@ export type KnowledgeGraphSessionState = {
   trainingControls: TrainingControlState;
   datasetCollection: KnowledgeDatasetCollection;
   trainingRandomState: number;
+  modelInitialized: boolean;
 };
 
 export type KnowledgeGraphViewport = {
@@ -52,4 +53,8 @@ export function saveKnowledgeGraphSession(
   state: KnowledgeGraphSessionState,
 ): void {
   appStorage.setItem(`${STORAGE_PREFIX}${fileId}`, JSON.stringify(state));
+}
+
+export function clearKnowledgeGraphSession(fileId: string): void {
+  appStorage.removeItem(`${STORAGE_PREFIX}${fileId}`);
 }

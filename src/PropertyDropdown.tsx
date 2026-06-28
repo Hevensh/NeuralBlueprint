@@ -8,10 +8,12 @@ interface PropertyDropdownOption<T extends string> {
 interface PropertyDropdownProp<T extends string> {
   options: PropertyDropdownOption<T>[];
   value: T;
+  disabled?: boolean;
   onChange: (value: T) => void;
 }
 
 export function PropertyDropdown<T extends string>({
+  disabled,
   options,
   value,
   onChange,
@@ -35,6 +37,7 @@ export function PropertyDropdown<T extends string>({
     <div className={`property-dropdown ${open ? 'open' : ''}`} ref={dropdownRef}>
       <button
         className="property-dropdown-trigger"
+        disabled={disabled}
         onClick={() => setOpen((currentOpen) => !currentOpen)}
         type="button"
       >

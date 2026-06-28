@@ -64,6 +64,17 @@ export function applyTopologyOrders(nodes: ModuleBaseNode[]): ModuleBaseNode[] {
 }
 
 function normalizeFixedOutputRank(node: ModuleNodeData): ModuleNodeData {
+  if (node.kind === 'Output') {
+    return {
+      ...node,
+      neededOutputDim: Number.isFinite(node.neededOutputDim)
+        ? node.neededOutputDim
+        : Number.isFinite(node.stats?.rank)
+          ? node.stats?.rank as number
+          : DEFAULT_OUTPUT_DIM,
+    };
+  }
+
   if (node.kind !== 'Input' && node.kind !== 'Linear') return node;
 
   const outFeatures = Number.isFinite(node.outFeatures)

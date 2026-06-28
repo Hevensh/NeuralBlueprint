@@ -72,13 +72,16 @@ export function computeOverfitPercent(overfitFactor: number): number {
 
 export function computeNodeTrainLoss(
   effectiveMastery: number,
+  overfitRate: number,
   allocatedMemory: number,
   effectiveRequiredMemory: number,
   lossMin: number,
   lossMax: number,
 ): number {
   const x = allocatedMemory / effectiveRequiredMemory;
-  return lossMax - clamp01(effectiveMastery) * (lossMax - lossMin / Math.sqrt(x / 2 + 0.5));
+  const rawLoss = lossMax - clamp01(effectiveMastery)
+    * (lossMax - lossMin / Math.sqrt(x / 2 + 0.5));
+  return rawLoss * (1 - clamp01(overfitRate));
 }
 
 export function computeNodeValLoss(effectiveMastery: number, lossMin: number, lossMax: number): number {
@@ -121,7 +124,7 @@ export function computeKnowledgeLossReport(
     const trainEffectiveMastery = trainEstimate.mastery[node.id] ?? 0;
     const valEffectiveMastery = valEstimate.mastery[node.id] ?? trainEffectiveMastery;
     const overfitRate = finalStage?.overfitRate[node.id] ?? 0;
-    const trainLoss = computeNodeTrainLoss(trainEffectiveMastery, allocatedMemory, trainEffectiveRequiredMemory, node.lossMin, node.lossMax);
+    const trainLoss = computeNodeTrainLoss(trainEffectiveMastery, overfitRate, allocatedMemory, trainEffectiveRequiredMemory, node.lossMin, node.lossMax);
     const valLoss = computeNodeValLoss(valEffectiveMastery, node.lossMin, node.lossMax);
 
     return [

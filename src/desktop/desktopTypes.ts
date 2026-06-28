@@ -1,4 +1,5 @@
 import type { Node } from '@xyflow/react';
+import type { BlueprintTaskFeatureConfig } from '../taskData/blueprintFeatureConfig';
 
 export type DesktopFileType = 'nbp' | 'rep';
 
@@ -11,6 +12,7 @@ export interface DesktopFile {
     x: number;
     y: number;
   };
+  config?: BlueprintTaskFeatureConfig;
 }
 
 export interface DesktopIconData extends Record<string, unknown> {

@@ -19,6 +19,7 @@ import {
   loadNeuralBlueprintGraph,
   saveNeuralBlueprintGraph,
 } from '../../dataStorage/neuralBlueprintStorage';
+import { getTaskFileInitialState } from '../../taskData/fileInitialState';
 import { PageType } from '../PageTypes';
 import { updateState } from './analysis/updateState';
 import {
@@ -103,7 +104,10 @@ export function NeuralBlueprintCanvasInner({
   } = useReactFlow<ModuleBaseNode, Edge>();
   const viewport = useViewport();
   const [initialGraph] = useState(() => {
-    const graph = loadNeuralBlueprintGraph(fileId);
+    const graph = loadNeuralBlueprintGraph(
+      fileId,
+      getTaskFileInitialState(fileId)?.neuralBlueprint?.graph,
+    );
     return {
       ...graph,
       nodes: updateState(graph.nodes),
@@ -307,7 +311,11 @@ export function NeuralBlueprintCanvasInner({
   }, [nodes, pushHistory, setNodes, setSelectedNode]);
 
   const handleNodesChange = useCallback((changes: NodeChange<ModuleBaseNode>[]) => {
-    const removedNodeIds = changes
+    const unlockedChanges = changes.filter((change) => (
+      change.type !== 'remove'
+      || !nodes.find((node) => node.id === change.id)?.data.locked?.deletion
+    ));
+    const removedNodeIds = unlockedChanges
       .filter((change) => change.type === 'remove')
       .map((change) => change.id);
 
@@ -318,7 +326,7 @@ export function NeuralBlueprintCanvasInner({
     }
 
     if (removedNodeIds.length === 0) {
-      onNodesChange(changes);
+      onNodesChange(unlockedChanges);
       return;
     }
 
@@ -327,7 +335,7 @@ export function NeuralBlueprintCanvasInner({
       !removedNodeIdSet.has(edge.source) && !removedNodeIdSet.has(edge.target)
     ));
     const nextNodes = updateState(rebuildNodeLinks(
-      applyNodeChanges(changes, nodes),
+      applyNodeChanges(unlockedChanges, nodes),
       nextEdges,
     ));
 

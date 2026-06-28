@@ -11,7 +11,8 @@ import {
   calculateKnowledgeStats,
   syncBlueprintMemoryProfile,
 } from '../knowledgeGraph/model/memoryState';
-import { createDefaultKnowledgeGraphSession } from '../../taskData/knowledgeGraphDefaults';
+import { createKnowledgeGraphSession } from '../../taskData/knowledgeGraphDefaults';
+import { getTaskFileInitialState } from '../../taskData/fileInitialState';
 import { getControllerControls } from './controlState';
 import { estimateStagedMastery } from '../knowledgeGraph/model/reasoning';
 import { buildKnowledgeGraphElements } from '../knowledgeGraph/buildKnowledgeGraphElements';
@@ -22,7 +23,11 @@ import { estimateUtilityReport } from '../knowledgeGraph/model/utilityEstimate';
 function createInitialState(fileId: string): KnowledgeGraphSessionState {
   const saved = loadKnowledgeGraphSession(fileId);
   if (saved) return saved;
-  return createDefaultKnowledgeGraphSession();
+  const initialState = getTaskFileInitialState(fileId)?.knowledgeGraph;
+  return createKnowledgeGraphSession(
+    initialState?.graphDefinition,
+    initialState?.datasetCollection,
+  );
 }
 
 export function useBlueprintDataController({
@@ -137,6 +142,7 @@ export function useBlueprintDataController({
               memory,
               epoch: 0,
               lossHistory: [],
+              modelInitialized: false,
             };
       });
     }, 0);
@@ -196,6 +202,7 @@ export function useBlueprintDataController({
       learningRate: controls.training.learningRate,
       regularizationRate: controls.training.regularizationRate,
       trainSteps: controls.training.trainSteps,
+      trainDisabled: !state.modelInitialized,
       onLearningRateChange: (value: number) => (
         actions.updateTrainingControls({ learningRate: value })
       ),

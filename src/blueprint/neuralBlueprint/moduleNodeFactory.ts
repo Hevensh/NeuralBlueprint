@@ -62,10 +62,15 @@ export function createModuleNodeData(
       };
     case 'ReLU':
     case 'Sum':
+      return {
+        ...base,
+        kind,
+      };
     case 'Output':
       return {
         ...base,
         kind,
+        neededOutputDim: DEFAULT_OUTPUT_DIM,
       };
   }
 }

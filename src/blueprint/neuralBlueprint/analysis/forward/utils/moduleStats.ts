@@ -73,11 +73,13 @@ export function getFanIn(
 }
 
 function getRetainedRank(node: ModuleNodeData) {
-  const rank = (
-    node.kind === 'Input' || node.kind === 'Linear'
-  )
-    ? node.outFeatures
-    : node.stats?.rank;
+  const rank = node.kind === 'Output'
+    ? node.neededOutputDim
+    : (
+        node.kind === 'Input' || node.kind === 'Linear'
+      )
+        ? node.outFeatures
+        : node.stats?.rank;
   return Number.isFinite(rank) ? rank as number : Number.NaN;
 }
 

@@ -1,9 +1,11 @@
+import type { DesktopFile } from '../desktop/desktopTypes';
+
 export type FileWorkspaceType = 'blueprint' | 'report';
 
 export interface ActiveFileState {
   workspace: FileWorkspaceType;
-  fileId: string;
+  file: DesktopFile;
 }
 
-export type OpenFileType = (workspace: FileWorkspaceType, fileId: string) => void;
+export type OpenFileType = (workspace: FileWorkspaceType, file: DesktopFile) => void;
 export type CloseFileType = () => void;

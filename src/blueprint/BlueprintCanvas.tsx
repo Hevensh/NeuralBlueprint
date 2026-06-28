@@ -1,7 +1,11 @@
 import { ReactFlowProvider } from '@xyflow/react';
 import { useCallback, useState } from 'react';
 import type { CloseFileType } from '../dataStorage/systemType';
-import { getBlueprintTaskFeatureConfig } from '../taskData/blueprintFeatureConfig';
+import type { DesktopFile } from '../desktop/desktopTypes';
+import {
+  resolveBlueprintTaskFeatureConfig,
+  type ResolvedBlueprintTaskFeatureConfig,
+} from '../taskData/blueprintFeatureConfig';
 import { KnowledgeGraphWorkspace } from './knowledgeGraph/KnowledgeGraphWorkspace';
 import { NeuralBlueprintWorkspace } from './neuralBlueprint/NeuralBlueprintWorkspace';
 import { PageType, type PageType as BlueprintPageType } from './PageTypes';
@@ -14,12 +18,13 @@ import {
 } from './InferenceMemoryProfileTypes';
 
 interface BlueprintCanvasProp {
-  fileId: string;
+  file: DesktopFile;
   closeFile: CloseFileType;
 }
 
-export function BlueprintCanvas({ fileId, closeFile }: BlueprintCanvasProp) {
-  const features = getBlueprintTaskFeatureConfig();
+export function BlueprintCanvas({ file, closeFile }: BlueprintCanvasProp) {
+  const fileId = file.id;
+  const features = resolveBlueprintTaskFeatureConfig(file.config);
   const [activeWorkspace, setActiveWorkspace] = useState<BlueprintPageType>(
     () => getInitialWorkspace(features),
   );
@@ -87,7 +92,7 @@ export function BlueprintCanvas({ fileId, closeFile }: BlueprintCanvasProp) {
 }
 
 function getInitialWorkspace(
-  features: ReturnType<typeof getBlueprintTaskFeatureConfig>,
+  features: ResolvedBlueprintTaskFeatureConfig,
 ): BlueprintPageType {
   if (features.neuralBlueprint.canOpenTab) return PageType.NeuralBlueprint;
   if (features.knowledgeGraph.canOpenTab) return PageType.KnowledgeGraph;

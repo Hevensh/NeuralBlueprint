@@ -11,11 +11,16 @@ import type {
   ModuleBaseNode,
   ModuleBaseNodeKind,
   ModuleNodeData,
+  ModuleNodeLock,
+  OutputNodeData,
 } from '../blueprint/neuralBlueprint/ModuleBaseNodeTypes';
-import { createModuleNodeData } from '../blueprint/neuralBlueprint/moduleNodeFactory';
+import {
+  createModuleNodeData,
+  DEFAULT_OUTPUT_DIM,
+} from '../blueprint/neuralBlueprint/moduleNodeFactory';
 import { appStorage } from './storageAdapter';
 
-interface StoredModuleBaseNode<TKind extends ModuleBaseNodeKind> {
+export interface StoredModuleBaseNode<TKind extends ModuleBaseNodeKind> {
   id: string;
   name: string;
   kind: TKind;
@@ -23,15 +28,16 @@ interface StoredModuleBaseNode<TKind extends ModuleBaseNodeKind> {
     x: number;
     y: number;
   };
+  locked?: ModuleNodeLock;
 }
 
-interface StoredInputNode extends StoredModuleBaseNode<'Input'> {
+export interface StoredInputNode extends StoredModuleBaseNode<'Input'> {
   outputDim: number;
   effectiveRank: number;
   normalizationMode?: InputNormalizationMode;
 }
 
-interface StoredLinearNode extends StoredModuleBaseNode<'Linear'> {
+export interface StoredLinearNode extends StoredModuleBaseNode<'Linear'> {
   outputDim: number;
   inFeatures?: number;
   useBias?: boolean;
@@ -39,25 +45,29 @@ interface StoredLinearNode extends StoredModuleBaseNode<'Linear'> {
   biasInitializationMode?: BiasInitializationMode;
 }
 
-interface StoredDropoutNode extends StoredModuleBaseNode<'Dropout'> {
+export interface StoredDropoutNode extends StoredModuleBaseNode<'Dropout'> {
   dropoutRate?: number;
 }
 
-type StoredModuleNode =
+export interface StoredOutputNode extends StoredModuleBaseNode<'Output'> {
+  neededOutputDim?: number;
+}
+
+export type StoredModuleNode =
   | StoredInputNode
   | StoredLinearNode
   | StoredDropoutNode
   | StoredModuleBaseNode<'ReLU'>
   | StoredModuleBaseNode<'Sum'>
-  | StoredModuleBaseNode<'Output'>;
+  | StoredOutputNode;
 
-interface StoredModuleEdge {
+export interface StoredModuleEdge {
   id: string;
   source: string;
   target: string;
 }
 
-interface StoredNeuralBlueprintGraph {
+export interface StoredNeuralBlueprintGraph {
   nodes: StoredModuleNode[];
   edges: StoredModuleEdge[];
   ui?: {
@@ -73,25 +83,22 @@ function getStorageKey(fileId: string) {
   return `${NEURAL_BLUEPRINT_STORAGE_PREFIX}${fileId}`;
 }
 
-export function loadNeuralBlueprintGraph(fileId: string) {
-  try {
-    const raw = appStorage.getItem(getStorageKey(fileId));
-    if (!raw) {
-      return { nodes: [], edges: [] };
-    }
+export function loadNeuralBlueprintGraph(
+  fileId: string,
+  initialGraph: StoredNeuralBlueprintGraph = { nodes: [], edges: [] },
+) {
+  const raw = appStorage.getItem(getStorageKey(fileId));
+  const graph = raw
+    ? JSON.parse(raw) as StoredNeuralBlueprintGraph
+    : initialGraph;
+  const nodes = buildNodes(graph.nodes, graph.edges);
+  const edges = graph.edges.map((edge) => ({
+    id: edge.id,
+    source: edge.source,
+    target: edge.target,
+  }));
 
-    const parsed = JSON.parse(raw) as StoredNeuralBlueprintGraph;
-    const nodes = buildNodes(parsed.nodes ?? [], parsed.edges ?? []);
-    const edges = (parsed.edges ?? []).map((edge) => ({
-      id: edge.id,
-      source: edge.source,
-      target: edge.target,
-    }));
-
-    return { nodes, edges };
-  } catch {
-    return { nodes: [], edges: [] };
-  }
+  return { nodes, edges };
 }
 
 export function loadNeuralBlueprintUi(fileId: string) {
@@ -145,6 +152,10 @@ export function saveNeuralBlueprintGraph(
   appStorage.setItem(getStorageKey(fileId), JSON.stringify(graph));
 }
 
+export function clearNeuralBlueprintGraph(fileId: string) {
+  appStorage.removeItem(getStorageKey(fileId));
+}
+
 function buildNodes(
   storedNodes: StoredModuleNode[],
   storedEdges: StoredModuleEdge[],
@@ -157,6 +168,7 @@ function buildNodes(
       name: node.name,
       type: PageType.NeuralBlueprint,
       position: node.position,
+      locked: node.locked,
     };
 
     switch (node.kind) {
@@ -186,8 +198,13 @@ function buildNodes(
         break;
       case 'ReLU':
       case 'Sum':
-      case 'Output':
         dataById.set(node.id, createModuleNodeData(node.kind, common));
+        break;
+      case 'Output':
+        dataById.set(node.id, {
+          ...createModuleNodeData('Output', common),
+          neededOutputDim: node.neededOutputDim ?? DEFAULT_OUTPUT_DIM,
+        });
         break;
     }
   });
@@ -207,6 +224,7 @@ function buildNodes(
     position: node.position,
     data: dataById.get(node.id) as ModuleNodeData,
     draggable: true,
+    deletable: !dataById.get(node.id)?.locked?.deletion,
     selectable: true,
   }));
 }
@@ -216,6 +234,7 @@ function toStoredNode(node: ModuleBaseNode): StoredModuleNode {
     id: node.id,
     name: node.data.name,
     position: node.position,
+    locked: node.data.locked,
   };
 
   switch (node.data.kind) {
@@ -227,11 +246,12 @@ function toStoredNode(node: ModuleBaseNode): StoredModuleNode {
       return toStoredDropoutNode(base, node.data);
     case 'ReLU':
     case 'Sum':
-    case 'Output':
       return {
         ...base,
         kind: node.data.kind,
       };
+    case 'Output':
+      return toStoredOutputNode(base, node.data);
   }
 }
 
@@ -271,5 +291,16 @@ function toStoredDropoutNode(
     ...base,
     kind: 'Dropout',
     dropoutRate: data.dropoutRate,
+  };
+}
+
+function toStoredOutputNode(
+  base: Omit<StoredOutputNode, 'kind'>,
+  data: OutputNodeData,
+): StoredOutputNode {
+  return {
+    ...base,
+    kind: 'Output',
+    neededOutputDim: data.neededOutputDim,
   };
 }

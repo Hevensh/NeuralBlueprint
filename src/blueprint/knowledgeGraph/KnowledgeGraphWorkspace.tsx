@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { BlueprintTaskFeatureConfig } from '../../taskData/blueprintFeatureConfig';
+import type { ResolvedBlueprintTaskFeatureConfig } from '../../taskData/blueprintFeatureConfig';
 import { CurrentStatistics } from '../dataController/controls/CurrentStatistics';
 import { KnowledgeGraphControls } from '../dataController/controls/KnowledgeGraphControls';
 import { NetworkCapabilityControls } from '../dataController/controls/NetworkCapabilityControls';
@@ -16,10 +16,11 @@ export function KnowledgeGraphWorkspace({
   features,
 }: {
   controller: BlueprintDataController;
-  features: BlueprintTaskFeatureConfig['knowledgeGraph'];
+  features: ResolvedBlueprintTaskFeatureConfig['knowledgeGraph'];
 }) {
   const [showMemory, setShowMemory] = useState(true);
   const [showMetrics, setShowMetrics] = useState(true);
+  const [showUtility, setShowUtility] = useState(true);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [previewDataset, setPreviewDataset] =
     useState<KnowledgeDataset | null>(null);
@@ -27,8 +28,16 @@ export function KnowledgeGraphWorkspace({
     useState<KnowledgeDataset | null>(null);
   const selectedEdge = controller.elements.edges.all
     .find((edge) => edge.id === selectedEdgeId)?.data ?? null;
+  const enableMemoryAnalysis = features.enableMemoryAnalysis;
+  const enableMasteryOverfitAnalysis =
+    enableMemoryAnalysis && features.enableMasteryOverfitAnalysis;
+  const enableUtilityAnalysis = features.enableUtilityAnalysis;
+  const showMemoryPreview = enableMemoryAnalysis && showMemory;
+  const showMetricPreview = enableMasteryOverfitAnalysis && showMetrics;
+  const showUtilityPreview = enableUtilityAnalysis && showUtility;
+  const showGlobalDebugPreview = features.enableGlobalDebugPreview;
   const toggleMetrics = () => {
-    if (!showMetrics) setShowMemory(true);
+    if (!showMetrics && enableMemoryAnalysis) setShowMemory(true);
     setShowMetrics((current) => !current);
   };
 
@@ -54,8 +63,10 @@ export function KnowledgeGraphWorkspace({
         edges={controller.elements.edges.all}
         selectedNodeId={controller.selectedNode?.id ?? null}
         selectedEdgeId={selectedEdgeId}
-        showMemoryPreview={showMemory}
-        showMetricPreview={showMetrics}
+        showMemoryPreview={showMemoryPreview}
+        showMetricPreview={showMetricPreview}
+        showUtilityPreview={showUtilityPreview}
+        showGlobalDebugPreview={showGlobalDebugPreview}
         previewDataset={previewDataset ?? selectedDataset}
         topOverlay={(
           <KnowledgeDatasetSelector
@@ -79,10 +90,15 @@ export function KnowledgeGraphWorkspace({
         selectedEdge={selectedEdge}
         inferenceStage={controller.inferenceStage.value}
         maxInferenceStage={controller.inferenceStage.max}
-        showMemory={showMemory}
-        showMetrics={showMetrics}
+        enableMemoryAnalysis={enableMemoryAnalysis}
+        enableMasteryOverfitAnalysis={enableMasteryOverfitAnalysis}
+        enableUtilityAnalysis={enableUtilityAnalysis}
+        showMemory={showMemoryPreview}
+        showMetrics={showMetricPreview}
+        showUtility={showUtilityPreview}
         onShowMemoryChange={() => setShowMemory((current) => !current)}
         onShowMetricsChange={toggleMetrics}
+        onShowUtilityChange={() => setShowUtility((current) => !current)}
         onMemoryChange={controller.setNodeMemory}
         onEdgeMemoryChange={controller.setEdgeMemory}
         onInferenceStageChange={controller.inferenceStage.onChange}

@@ -1,0 +1,139 @@
+.knowledge-edge-dependency,
+.knowledge-edge-path.dependency,
+.knowledge-edge-preview.dependency {
+  --knowledge-edge-base: #2786af;
+  --knowledge-edge-hover: #38bdf8;
+  --knowledge-edge-selected: #4fb6dc;
+  --knowledge-edge-selected-glow: rgba(79, 182, 220, 0.34);
+}
+
+.knowledge-edge-substitute,
+.knowledge-edge-path.substitute,
+.knowledge-edge-preview.substitute {
+  --knowledge-edge-base: #22c55e;
+  --knowledge-edge-hover: #22c55e;
+  --knowledge-edge-selected: #4ade80;
+  --knowledge-edge-selected-glow: rgba(74, 222, 128, 0.28);
+}
+
+.knowledge-edge-interference,
+.knowledge-edge-path.interference,
+.knowledge-edge-preview.interference {
+  --knowledge-edge-base: #ef4444;
+  --knowledge-edge-hover: #ef4444;
+  --knowledge-edge-selected: #f87171;
+  --knowledge-edge-selected-glow: rgba(248, 113, 113, 0.28);
+}
+
+.knowledge-graph-canvas
+  .knowledge-edge
+  .react-flow__edge-path.knowledge-edge-path {
+  stroke: var(--knowledge-edge-base) !important;
+  color: var(--knowledge-edge-base);
+  stroke-width: 4 !important;
+  filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.14)) !important;
+}
+
+.knowledge-graph-canvas .knowledge-edge.selected,
+.knowledge-graph-canvas .knowledge-edge:hover,
+.knowledge-graph-canvas .knowledge-edge.selected:hover {
+  filter: none !important;
+}
+
+.knowledge-graph-canvas
+  :is(.knowledge-edge-substitute, .knowledge-edge-interference)
+  .react-flow__edge-path.knowledge-edge-path {
+  stroke-dasharray: 10 7;
+}
+
+.knowledge-graph-canvas
+  .knowledge-edge
+  .react-flow__edge-path.knowledge-edge-path.preview-hovered {
+  stroke: var(--knowledge-edge-hover) !important;
+  color: var(--knowledge-edge-hover);
+  stroke-width: 5 !important;
+  filter:
+    drop-shadow(0 0 3px currentColor)
+    drop-shadow(0 0 6px currentColor) !important;
+}
+
+.knowledge-graph-canvas
+  .knowledge-edge.selected
+  .react-flow__edge-path.knowledge-edge-path,
+.knowledge-graph-canvas
+  .knowledge-edge
+  .react-flow__edge-path.knowledge-edge-path.knowledge-edge-path-selected {
+  stroke: var(--knowledge-edge-selected) !important;
+  color: var(--knowledge-edge-selected);
+  stroke-width: 5 !important;
+  filter:
+    drop-shadow(0 0 3px currentColor)
+    drop-shadow(0 0 6px currentColor)
+    drop-shadow(0 0 4.5px var(--knowledge-edge-selected-glow))
+    drop-shadow(0 0 9px var(--knowledge-edge-selected-glow)) !important;
+}
+
+.knowledge-edge-preview {
+  position: absolute;
+  z-index: 4;
+  display: grid;
+  gap: 2px;
+  min-width: 58px;
+  padding: 4px 0px;
+  border: 2px solid color-mix(
+    in srgb,
+    var(--knowledge-edge-base) 72%,
+    #64748b
+  );
+  border-radius: 5px;
+  background: rgba(2, 6, 23, 0.52);
+  font-size: 8px;
+  font-weight: 960;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  pointer-events: all;
+  text-align: center;
+  white-space: nowrap;
+  box-shadow: 0 0 10px
+    color-mix(in srgb, var(--knowledge-edge-base) 16%, transparent);
+}
+
+.knowledge-edge-preview.hovered {
+  border-color: color-mix(
+    in srgb,
+    var(--knowledge-edge-hover) 72%,
+    #e0f2fe
+  );
+  background-color: rgba(8, 47, 73, 0.5);
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--knowledge-edge-hover) 26%, transparent),
+    rgba(2, 6, 23, 0.16)
+  );
+  box-shadow:
+    0 0 0 2px
+      color-mix(in srgb, var(--knowledge-edge-hover) 14%, transparent),
+    0 0 16px
+      color-mix(in srgb, var(--knowledge-edge-hover) 28%, transparent);
+}
+
+.knowledge-edge-preview.selected {
+  border-color: color-mix(
+    in srgb,
+    var(--knowledge-edge-selected) 68%,
+    #e0f2fe
+  );
+  background-color: rgba(8, 47, 73, 0.58);
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--knowledge-edge-selected) 30%, transparent),
+    rgba(2, 6, 23, 0.16)
+  );
+  box-shadow:
+    0 0 0 2px
+      color-mix(in srgb, var(--knowledge-edge-selected) 16%, transparent),
+    0 0 18px
+      color-mix(in srgb, var(--knowledge-edge-selected) 42%, transparent),
+    inset 0 0 12px rgba(255, 255, 255, 0.05);
+}
+

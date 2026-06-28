@@ -7,7 +7,7 @@ import {
   useMemo,
 } from 'react';
 import type { InferenceMemoryProfile } from '../InferenceMemoryProfileTypes';
-import type { BlueprintTaskFeatureConfig } from '../../taskData/blueprintFeatureConfig';
+import type { ResolvedBlueprintTaskFeatureConfig } from '../../taskData/blueprintFeatureConfig';
 import { NumberField } from '../../NumberField';
 import { buildInferenceMemoryProfile } from './analysis/inferenceMemoryProfile';
 import { updateState } from './analysis/updateState';
@@ -16,12 +16,13 @@ import { NeuralBlueprintModuleProperties } from './NeuralBlueprintModuleProperti
 import type {
   ModuleAnalysisDirection,
   ModuleBaseNode,
+  ModuleLockedProperty,
   ModuleNodeData,
 } from './ModuleBaseNodeTypes';
 
 interface NeuralBlueprintRightPanelProp {
   analysisDirection: ModuleAnalysisDirection;
-  features: BlueprintTaskFeatureConfig['neuralBlueprint'];
+  features: ResolvedBlueprintTaskFeatureConfig['neuralBlueprint'];
   selectedNode: ModuleNodeData | null;
   showRankAnalysis: boolean;
   showVarianceAnalysis: boolean;
@@ -58,6 +59,8 @@ export function NeuralBlueprintRightPanel({
     nodeData: TNode,
     patch: Partial<TNode>,
   ) => {
+    if (hasLockedPatch(nodeData, patch)) return;
+
     const nextNodes = updateState(getNodes().map((node) => (
       node.id === nodeData.id
         ? {
@@ -91,9 +94,23 @@ export function NeuralBlueprintRightPanel({
       outFeatures: rank,
     });
   };
+
+  const handleNeededOutputDimChange = (value: number) => {
+    if (!selectedNode || selectedNode.kind !== 'Output') return;
+
+    updateSelectedNode(selectedNode, {
+      neededOutputDim: Math.round(value),
+    });
+  };
   const selectedStats = analysisDirection === 'backward'
     ? selectedNode?.statsBackward
     : selectedNode?.stats;
+  const outputDimLocked = isPropertyLocked(selectedNode, 'outputDim');
+  const effectiveRankLocked = isPropertyLocked(selectedNode, 'effectiveRank');
+  const neededOutputDimLocked = isPropertyLocked(
+    selectedNode,
+    'neededOutputDim',
+  );
 
   return (
     <aside
@@ -160,9 +177,18 @@ export function NeuralBlueprintRightPanel({
           {selectedNode.kind === 'Input' || selectedNode.kind === 'Linear' ? (
             <NumberField
               label="Output Dim"
+              disabled={outputDimLocked}
               min={1}
               onChange={handleOutputDimChange}
               value={selectedNode.outFeatures}
+            />
+          ) : selectedNode.kind === 'Output' ? (
+            <NumberField
+              label="Needed Output Dim"
+              disabled={neededOutputDimLocked}
+              min={1}
+              onChange={handleNeededOutputDimChange}
+              value={selectedNode.neededOutputDim}
             />
           ) : (
             <div className="property-field">
@@ -185,6 +211,7 @@ export function NeuralBlueprintRightPanel({
           )}
 
           <NeuralBlueprintModuleProperties
+            effectiveRankDisabled={effectiveRankLocked}
             selectedNode={selectedNode}
             showRankAnalysis={
               showRankAnalysis && analysisDirection === 'forward'
@@ -235,4 +262,28 @@ function getStandardDeviation(variance: number | undefined) {
   return typeof variance === 'number' && !Number.isNaN(variance)
     ? Math.sqrt(Math.max(variance, 0))
     : undefined;
+}
+
+function hasLockedPatch<TNode extends ModuleNodeData>(
+  node: TNode,
+  patch: Partial<TNode>,
+) {
+  const locked = node.locked?.properties ?? [];
+  return Object.keys(patch).some((key) => (
+    locked.includes(dataFieldToLockedProperty(key))
+  ));
+}
+
+function dataFieldToLockedProperty(field: string): ModuleLockedProperty {
+  if (field === 'outFeatures') return 'outputDim';
+  if (field === 'inputEffectiveRank') return 'effectiveRank';
+  if (field === 'neededOutputDim') return 'neededOutputDim';
+  return field as ModuleLockedProperty;
+}
+
+function isPropertyLocked(
+  node: ModuleNodeData | null,
+  property: ModuleLockedProperty,
+) {
+  return Boolean(node?.locked?.properties?.includes(property));
 }

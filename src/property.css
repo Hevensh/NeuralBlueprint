@@ -10,7 +10,7 @@
   position: relative;
   z-index: 1;
   display: grid;
-  gap: 10px;
+  gap: 12px;
   margin-top: 16px;
 }
 
@@ -31,10 +31,6 @@
   height: 34px;
   padding: 0 10px;
   font-size: 13px;
-}
-
-.property-toggle-group .toggle-button {
-  margin: 0;
 }
 
 .property-field {
