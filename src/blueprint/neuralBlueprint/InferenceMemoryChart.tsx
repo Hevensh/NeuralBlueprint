@@ -3,6 +3,7 @@ import type {
   InferenceMemoryProfile,
   InferenceMemoryStageSegment,
 } from './analysis/inferenceMemoryProfile';
+import { PropertyDropdown } from '../../PropertyDropdown';
 import './InferenceMemoryChart.css';
 
 const GROUP_COLORS = [
@@ -15,10 +16,19 @@ const GROUP_COLORS = [
 ];
 
 interface InferenceMemoryChartProps {
+  modelOptions?: Array<{
+    id: string;
+    label: string;
+  }>;
+  selectedModelId?: string;
+  onModelChange?: (modelId: string) => void;
   profile: InferenceMemoryProfile;
 }
 
 export function InferenceMemoryChart({
+  modelOptions = [],
+  selectedModelId = '',
+  onModelChange,
   profile,
 }: InferenceMemoryChartProps) {
   const colorByGroupId = new Map(
@@ -38,6 +48,22 @@ export function InferenceMemoryChart({
         <span>Inference Memory</span>
         <strong>{formatMemoryPoint(profile.totalMemoryPoint)}</strong>
       </header>
+
+      {modelOptions.length > 1 && (
+        <div className="property-panel">
+          <label className="property-field">
+            <span className="property-label">Model</span>
+            <PropertyDropdown
+              onChange={(value) => onModelChange?.(value)}
+              options={modelOptions.map((model) => ({
+                label: model.label,
+                value: model.id,
+              }))}
+              value={selectedModelId}
+            />
+          </label>
+        </div>
+      )}
 
       {profile.stages.length > 0 ? (
         <>

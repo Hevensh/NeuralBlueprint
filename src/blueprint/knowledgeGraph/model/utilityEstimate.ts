@@ -33,7 +33,7 @@ type RawUtility = {
 };
 
 const EPS = 1e-9;
-const OVERFIT_WEIGHT = 0.001;
+const OVERFIT_WEIGHT = 0.1;
 
 export function estimateUtilityReport(
   graph: KnowledgeGraphDefinition,

@@ -20,8 +20,8 @@ export function forwardLinearStats(
   const fanIn = getFanIn(node, input);
   const fanOut = node.outFeatures;
   const inputEffectiveRank = input.effectiveRank || fanOut;
-  const saturation = 1 - Math.exp((-LINEAR_SATURATION_GAIN * inputEffectiveRank) / Math.max(fanOut, EPS));
-  const effectiveRank = fanOut * saturation;
+  const saturation = 1 - Math.exp((-LINEAR_SATURATION_GAIN * inputEffectiveRank) / Math.max(fanIn, EPS));
+  const effectiveRank = fanIn * saturation;
   const inputMinRank = input.minRank || input.rank || fanIn;
   const minRank = Math.min(inputMinRank, fanOut);
   const linearCorr = inputMinRank > 0

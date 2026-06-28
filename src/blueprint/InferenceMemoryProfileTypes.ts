@@ -25,6 +25,15 @@ export interface InferenceMemoryProfile {
   stages: InferenceMemoryStage[];
 }
 
+export interface InferenceMemoryModel {
+  id: string;
+  label: string;
+  nodeIds: string[];
+  sourceNodeIds: string[];
+  sinkNodeIds: string[];
+  profile: InferenceMemoryProfile;
+}
+
 export const EMPTY_INFERENCE_MEMORY_PROFILE: InferenceMemoryProfile = {
   totalMemoryPoint: 0,
   groups: [],

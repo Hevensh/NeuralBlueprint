@@ -21,6 +21,10 @@ import {
 } from '../../dataStorage/neuralBlueprintStorage';
 import { getTaskFileInitialState } from '../../taskData/fileInitialState';
 import { PageType } from '../PageTypes';
+import {
+  createNeuralBlueprintTaskSnapshot,
+  type NeuralBlueprintTaskSnapshot,
+} from '../taskGuide/taskGuideSnapshot';
 import { updateState } from './analysis/updateState';
 import {
   MODULE_BASE_NODE_DRAG_TYPE,
@@ -85,6 +89,7 @@ interface NeuralBlueprintCanvasInnerProp {
   showRankAnalysis: boolean;
   showVarianceAnalysis: boolean;
   setSelectedNode: Dispatch<SetStateAction<ModuleNodeData | null>>;
+  onTaskSnapshotChange?: (snapshot: NeuralBlueprintTaskSnapshot) => void;
 }
 
 export function NeuralBlueprintCanvasInner({
@@ -95,6 +100,7 @@ export function NeuralBlueprintCanvasInner({
   showRankAnalysis,
   showVarianceAnalysis,
   setSelectedNode,
+  onTaskSnapshotChange,
 }: NeuralBlueprintCanvasInnerProp) {
   const {
     fitBounds,
@@ -425,6 +431,10 @@ export function NeuralBlueprintCanvasInner({
       setHoveredCorrelationNodeKey(null);
     }
   }, [analysisDirection, hoveredCorrelationNodeKey]);
+
+  useEffect(() => {
+    onTaskSnapshotChange?.(createNeuralBlueprintTaskSnapshot(nodes, edges));
+  }, [edges, nodes, onTaskSnapshotChange]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {

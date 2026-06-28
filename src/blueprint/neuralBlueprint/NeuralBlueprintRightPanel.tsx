@@ -6,10 +6,13 @@ import {
   useEffect,
   useMemo,
 } from 'react';
-import type { InferenceMemoryProfile } from '../InferenceMemoryProfileTypes';
+import {
+  EMPTY_INFERENCE_MEMORY_PROFILE,
+  type InferenceMemoryProfile,
+} from '../InferenceMemoryProfileTypes';
 import type { ResolvedBlueprintTaskFeatureConfig } from '../../taskData/blueprintFeatureConfig';
 import { NumberField } from '../../NumberField';
-import { buildInferenceMemoryProfile } from './analysis/inferenceMemoryProfile';
+import { buildInferenceMemoryModels } from './analysis/inferenceMemoryProfile';
 import { updateState } from './analysis/updateState';
 import { InferenceMemoryChart } from './InferenceMemoryChart';
 import { NeuralBlueprintModuleProperties } from './NeuralBlueprintModuleProperties';
@@ -24,11 +27,13 @@ interface NeuralBlueprintRightPanelProp {
   analysisDirection: ModuleAnalysisDirection;
   features: ResolvedBlueprintTaskFeatureConfig['neuralBlueprint'];
   selectedNode: ModuleNodeData | null;
+  selectedInferenceModelId: string;
   showRankAnalysis: boolean;
   showVarianceAnalysis: boolean;
   setShowRankAnalysis: Dispatch<SetStateAction<boolean>>;
   setShowVarianceAnalysis: Dispatch<SetStateAction<boolean>>;
   setAnalysisDirection: Dispatch<SetStateAction<ModuleAnalysisDirection>>;
+  setSelectedInferenceModelId: (modelId: string) => void;
   setSelectedNode: Dispatch<SetStateAction<ModuleNodeData | null>>;
   onInferenceMemoryProfileChange: (profile: InferenceMemoryProfile) => void;
 }
@@ -37,20 +42,33 @@ export function NeuralBlueprintRightPanel({
   analysisDirection,
   features,
   selectedNode,
+  selectedInferenceModelId,
   showRankAnalysis,
   showVarianceAnalysis,
   setShowRankAnalysis,
   setShowVarianceAnalysis,
   setAnalysisDirection,
+  setSelectedInferenceModelId,
   setSelectedNode,
   onInferenceMemoryProfileChange,
 }: NeuralBlueprintRightPanelProp) {
   const { getNodes, setNodes } = useReactFlow<ModuleBaseNode, Edge>();
   const nodes = useNodes<ModuleBaseNode>();
-  const inferenceMemoryProfile = useMemo(
-    () => buildInferenceMemoryProfile(nodes),
+  const inferenceMemoryModels = useMemo(
+    () => buildInferenceMemoryModels(nodes),
     [nodes],
   );
+  const effectiveInferenceModelId = inferenceMemoryModels.some((model) => (
+    model.id === selectedInferenceModelId
+  ))
+    ? selectedInferenceModelId
+    : inferenceMemoryModels[0]?.id ?? '';
+  const selectedInferenceModel = inferenceMemoryModels.find((model) => (
+    model.id === effectiveInferenceModelId
+  )) ?? null;
+  const inferenceMemoryProfile = selectedInferenceModel?.profile
+    ?? EMPTY_INFERENCE_MEMORY_PROFILE;
+
   useEffect(() => {
     onInferenceMemoryProfileChange(inferenceMemoryProfile);
   }, [inferenceMemoryProfile, onInferenceMemoryProfileChange]);
@@ -249,7 +267,15 @@ export function NeuralBlueprintRightPanel({
       ) : (
         <div className="property-empty">No node selected</div>
       )}
-      <InferenceMemoryChart profile={inferenceMemoryProfile} />
+      <InferenceMemoryChart
+        modelOptions={inferenceMemoryModels.map((model) => ({
+          id: model.id,
+          label: model.label,
+        }))}
+        onModelChange={setSelectedInferenceModelId}
+        profile={inferenceMemoryProfile}
+        selectedModelId={effectiveInferenceModelId}
+      />
     </aside>
   );
 }

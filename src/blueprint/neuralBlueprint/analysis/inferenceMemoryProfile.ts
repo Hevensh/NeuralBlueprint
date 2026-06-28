@@ -1,28 +1,58 @@
-import type { ModuleBaseNode } from '../ModuleBaseNodeTypes';
+import type {
+  LinearNodeData,
+  ModuleBaseNode,
+} from '../ModuleBaseNodeTypes';
 import type {
   InferenceMemoryGroup,
+  InferenceMemoryModel,
   InferenceMemoryProfile,
   InferenceMemoryStageSegment,
 } from '../../InferenceMemoryProfileTypes';
+import { buildArrangeReachabilityMaps } from '../utils/arrangeNodesUtils';
 
 export type {
   InferenceMemoryGroup,
+  InferenceMemoryModel,
   InferenceMemoryProfile,
   InferenceMemoryStage,
   InferenceMemoryStageSegment,
 } from '../../InferenceMemoryProfileTypes';
 
+export function buildInferenceMemoryModels(
+  nodes: ModuleBaseNode[],
+): InferenceMemoryModel[] {
+  return collectInferenceModelIslands(nodes).map((island, index) => ({
+    id: `model_${index + 1}`,
+    label: `Model ${index + 1}`,
+    nodeIds: island.nodes.map((node) => node.id),
+    sourceNodeIds: island.sourceNodeIds,
+    sinkNodeIds: island.sinkNodeIds,
+    profile: buildInferenceMemoryProfile(island.nodes),
+  }));
+}
+
+export function collectInferenceModelIslands(
+  nodes: ModuleBaseNode[],
+): InferenceModelIsland[] {
+  return collectConnectedNodeIslands(nodes)
+    .map(collectSourceSinkIntersection)
+    .filter((island) => island.nodes.length > 0);
+}
+
 export function buildInferenceMemoryProfile(
   nodes: ModuleBaseNode[],
 ): InferenceMemoryProfile {
-  const groupById = new Map<string, Omit<InferenceMemoryGroup, 'ratio'>>();
+  const groupById = new Map<string, {
+    inferenceStages: number[];
+    nodes: LinearNodeData[];
+  }>();
 
   nodes.forEach(({ data }) => {
     if (
       data.kind !== 'Linear'
       || !data.inferenceTopologyOrder?.size
-      || !Number.isFinite(data.inferencePoint)
-      || (data.inferencePoint as number) <= 0
+      || !Number.isFinite(data.memoryPoint)
+      || (data.memoryPoint as number) <= 0
     ) return;
 
     const inferenceStages = [...data.inferenceTopologyOrder].sort(
@@ -32,19 +62,25 @@ export function buildInferenceMemoryProfile(
     const group = groupById.get(id);
 
     if (group) {
-      group.nodeIds.push(data.id);
+      group.nodes.push(data);
       return;
     }
 
     groupById.set(id, {
-      id,
-      nodeIds: [data.id],
       inferenceStages,
-      memoryPoint: data.inferencePoint as number,
+      nodes: [data],
     });
   });
 
-  const baseGroups = [...groupById.values()].sort(compareInferenceGroups);
+  const baseGroups = [...groupById.entries()]
+    .map(([id, group]) => ({
+      id,
+      nodeIds: group.nodes.map((node) => node.id),
+      inferenceStages: group.inferenceStages,
+      memoryPoint: Math.floor(averageNodeMemoryPoint(group.nodes)),
+    }))
+    .filter((group) => group.memoryPoint > 0)
+    .sort(compareInferenceGroups);
   const totalMemoryPoint = baseGroups.reduce(
     (sum, group) => sum + group.memoryPoint,
     0,
@@ -111,4 +147,114 @@ function compareInferenceGroups(
 
 function getRatio(value: number, total: number) {
   return total > 0 ? value / total : 0;
+}
+
+export function averageNodeMemoryPoint(nodes: LinearNodeData[]) {
+  const memoryPoints = nodes
+    .map((node) => node.memoryPoint)
+    .filter(isFiniteNumber);
+
+  if (memoryPoints.length === 0) return 0;
+
+  return memoryPoints.reduce((sum, memoryPoint) => (
+    sum + memoryPoint
+  ), 0) / memoryPoints.length;
+}
+
+function collectConnectedNodeIslands(nodes: ModuleBaseNode[]) {
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
+  const visitedNodeIds = new Set<string>();
+  const islands: ModuleBaseNode[][] = [];
+
+  nodes.forEach((node) => {
+    if (visitedNodeIds.has(node.id)) return;
+
+    const island: ModuleBaseNode[] = [];
+    const queue = [node];
+
+    for (let index = 0; index < queue.length; index += 1) {
+      const currentNode = queue[index];
+      if (visitedNodeIds.has(currentNode.id)) continue;
+
+      visitedNodeIds.add(currentNode.id);
+      island.push(currentNode);
+
+      [
+        ...currentNode.data.predecessors,
+        ...currentNode.data.successors,
+      ].forEach((linkedNode) => {
+        const nodeInGraph = nodeById.get(linkedNode.id);
+        if (nodeInGraph && !visitedNodeIds.has(nodeInGraph.id)) {
+          queue.push(nodeInGraph);
+        }
+      });
+    }
+
+    islands.push(island);
+  });
+
+  return islands.sort((left, right) => right.length - left.length);
+}
+
+interface InferenceModelIsland {
+  nodes: ModuleBaseNode[];
+  sourceNodeIds: string[];
+  sinkNodeIds: string[];
+}
+
+function collectSourceSinkIntersection(nodes: ModuleBaseNode[]): InferenceModelIsland {
+  const { sourceDescendantsMap, sinkAncestorsMap } =
+    buildArrangeReachabilityMaps(nodes);
+
+  if (sourceDescendantsMap.size === 0 || sinkAncestorsMap.size === 0) {
+    return {
+      nodes: [],
+      sourceNodeIds: [],
+      sinkNodeIds: [],
+    };
+  }
+
+  const participatingNodeIds = intersectSets(
+    unionSets(sourceDescendantsMap.values()),
+    unionSets(sinkAncestorsMap.values()),
+  );
+
+  return {
+    nodes: nodes.filter((node) => participatingNodeIds.has(node.id)),
+    sourceNodeIds: keysInSet(sourceDescendantsMap, participatingNodeIds),
+    sinkNodeIds: keysInSet(sinkAncestorsMap, participatingNodeIds),
+  };
+}
+
+function keysInSet(
+  map: ReadonlyMap<string, unknown>,
+  set: Set<string>,
+) {
+  return [...map.keys()].filter((key) => set.has(key));
+}
+
+function unionSets(sets: Iterable<Set<string>>) {
+  const result = new Set<string>();
+
+  for (const set of sets) {
+    set.forEach((value) => result.add(value));
+  }
+
+  return result;
+}
+
+function intersectSets(left: Set<string>, right: Set<string>) {
+  const result = new Set<string>();
+  const smallerSet = left.size <= right.size ? left : right;
+  const largerSet = left.size <= right.size ? right : left;
+
+  smallerSet.forEach((value) => {
+    if (largerSet.has(value)) result.add(value);
+  });
+
+  return result;
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return Number.isFinite(value);
 }

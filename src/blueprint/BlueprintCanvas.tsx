@@ -1,14 +1,21 @@
 import { ReactFlowProvider } from '@xyflow/react';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { CloseFileType } from '../dataStorage/systemType';
 import type { DesktopFile } from '../desktop/desktopTypes';
 import {
   resolveBlueprintTaskFeatureConfig,
   type ResolvedBlueprintTaskFeatureConfig,
 } from '../taskData/blueprintFeatureConfig';
+import { getTaskGuideConfig } from '../taskData/taskGuideRegistry';
 import { KnowledgeGraphWorkspace } from './knowledgeGraph/KnowledgeGraphWorkspace';
 import { NeuralBlueprintWorkspace } from './neuralBlueprint/NeuralBlueprintWorkspace';
 import { PageType, type PageType as BlueprintPageType } from './PageTypes';
+import { TaskProgressBar } from './TaskProgressBar';
+import { evaluateTaskGuide } from './taskGuide/evaluateTaskGuide';
+import type {
+  NeuralBlueprintTaskSnapshot,
+  TaskRuntimeSnapshot,
+} from './taskGuide/taskGuideSnapshot';
 import { BlueprintTopBarTabs } from './topBarTabs';
 import { TrainingProcessWorkspace } from './trainingProcess/TrainingProcessWorkspace';
 import { useBlueprintDataController } from './dataController/useBlueprintDataController';
@@ -25,9 +32,14 @@ interface BlueprintCanvasProp {
 export function BlueprintCanvas({ file, closeFile }: BlueprintCanvasProp) {
   const fileId = file.id;
   const features = resolveBlueprintTaskFeatureConfig(file.config);
+  const guideConfig = getTaskGuideConfig(fileId);
   const [activeWorkspace, setActiveWorkspace] = useState<BlueprintPageType>(
     () => getInitialWorkspace(features),
   );
+  const [neuralBlueprintSnapshot, setNeuralBlueprintSnapshot] =
+    useState<NeuralBlueprintTaskSnapshot>();
+  const [selectedInferenceModelId, setSelectedInferenceModelId] =
+    useState<string>('');
   const [inferenceMemoryProfile, setInferenceMemoryProfile] =
     useState<InferenceMemoryProfile>(EMPTY_INFERENCE_MEMORY_PROFILE);
   const updateInferenceMemoryProfile = useCallback(
@@ -44,6 +56,15 @@ export function BlueprintCanvas({ file, closeFile }: BlueprintCanvasProp) {
     fileId,
     inferenceMemoryProfile,
   });
+  const taskSnapshot = useMemo<TaskRuntimeSnapshot>(() => ({
+    activeWorkspace,
+    neuralBlueprint: neuralBlueprintSnapshot,
+  }), [activeWorkspace, neuralBlueprintSnapshot]);
+  const taskGuide = useMemo(() => (
+    guideConfig
+      ? evaluateTaskGuide(guideConfig, taskSnapshot)
+      : undefined
+  ), [guideConfig, taskSnapshot]);
   const title = {
     [PageType.NeuralBlueprint]: 'Neural BluePrint',
     [PageType.KnowledgeGraph]: 'Knowledge Graph',
@@ -70,6 +91,9 @@ export function BlueprintCanvas({ file, closeFile }: BlueprintCanvasProp) {
             fileId={fileId}
             features={features.neuralBlueprint}
             onInferenceMemoryProfileChange={updateInferenceMemoryProfile}
+            onTaskSnapshotChange={setNeuralBlueprintSnapshot}
+            selectedInferenceModelId={selectedInferenceModelId}
+            setSelectedInferenceModelId={setSelectedInferenceModelId}
           />
         )}
         {activeWorkspace === PageType.KnowledgeGraph
@@ -87,6 +111,8 @@ export function BlueprintCanvas({ file, closeFile }: BlueprintCanvasProp) {
           />
         )}
       </ReactFlowProvider>
+
+      {taskGuide && <TaskProgressBar guide={taskGuide} />}
     </div>
   );
 }
