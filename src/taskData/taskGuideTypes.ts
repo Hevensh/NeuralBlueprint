@@ -18,6 +18,10 @@ export interface TaskGuideStepConfig {
 
 export type TaskGuideCondition =
   | {
+    type: 'workspaceVisited';
+    workspace: PageType;
+  }
+  | {
     type: 'moduleNodeExists';
     selector: ModuleNodeSelector;
   }
@@ -26,8 +30,26 @@ export type TaskGuideCondition =
     chain: ModuleNodeSelector[];
   }
   | {
+    type: 'moduleReachabilityExists';
+    from: ModuleNodeSelector;
+    to: ModuleNodeSelector;
+    via?: ModuleNodeSelector;
+  }
+  | {
     type: 'blueprintStat';
     stat: BlueprintTaskStatName;
+    min?: number;
+    max?: number;
+    equals?: number;
+  }
+  | {
+    type: 'trainingFlag';
+    flag: TrainingTaskFlagName;
+    value?: boolean;
+  }
+  | {
+    type: 'trainingStat';
+    stat: TrainingTaskStatName;
     min?: number;
     max?: number;
     equals?: number;
@@ -38,6 +60,7 @@ export interface ModuleNodeSelector {
   kind?: ModuleBaseNodeKind;
   name?: string;
   props?: Record<string, string | number | boolean>;
+  stats?: Record<string, string | number | boolean>;
 }
 
 export type BlueprintTaskStatName =
@@ -46,3 +69,7 @@ export type BlueprintTaskStatName =
   | 'totalMemoryPoint'
   | 'totalInferencePoint'
   | 'maxInferenceStage';
+
+export type TrainingTaskFlagName = 'modelInitialized';
+
+export type TrainingTaskStatName = 'epoch';

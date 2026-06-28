@@ -10,6 +10,7 @@
 
 .training-loss-chart {
   position: relative;
+  transform: translateY(-48px);
   width: min(920px, 100%);
   box-sizing: border-box;
   padding: 18px 20px;
@@ -297,7 +298,14 @@
     0 10px 24px rgba(0, 0, 0, 0.28),
     inset 0 0 18px rgba(34, 211, 238, 0.04);
   color: #cbd5e1;
-  pointer-events: none;
+  cursor: grab;
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+}
+
+.training-loss-history:active {
+  cursor: grabbing;
 }
 
 .training-loss-history-header,

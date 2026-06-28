@@ -4,6 +4,10 @@
   gap: 10px;
 }
 
+.knowledge-control-grid-three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .knowledge-stage-control {
   display: grid;
   gap: 8px;

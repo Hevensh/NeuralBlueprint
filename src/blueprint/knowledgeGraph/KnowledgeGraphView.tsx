@@ -1,6 +1,5 @@
 ﻿import {
   Background,
-  Controls,
   ReactFlow,
   type Viewport,
 } from '@xyflow/react';
@@ -142,7 +141,6 @@ export function KnowledgeGraphView({
         proOptions={{ hideAttribution: true }}
       >
         <Background color="rgba(103, 232, 249, 0.18)" gap={22} />
-        <Controls />
       </ReactFlow>
       <LossHistoryMiniChart history={lossHistory} />
     </div>

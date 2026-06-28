@@ -10,7 +10,9 @@ import { createGraphSnapshot } from '../neuralBlueprint/utils/graphSnapshot';
 
 export interface TaskRuntimeSnapshot {
   activeWorkspace: PageType;
+  visitedWorkspaces: PageType[];
   neuralBlueprint?: NeuralBlueprintTaskSnapshot;
+  trainingProcess?: TrainingProcessTaskSnapshot;
 }
 
 export interface NeuralBlueprintTaskSnapshot {
@@ -23,6 +25,11 @@ export interface NeuralBlueprintTaskSnapshot {
   totalInferencePoint: number;
   maxInferenceStage: number;
   inferenceMemoryProfile: InferenceMemoryProfile;
+}
+
+export interface TrainingProcessTaskSnapshot {
+  modelInitialized: boolean;
+  epoch: number;
 }
 
 const MODULE_KINDS: ModuleBaseNodeKind[] = [

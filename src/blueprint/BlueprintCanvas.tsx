@@ -36,6 +36,9 @@ export function BlueprintCanvas({ file, closeFile }: BlueprintCanvasProp) {
   const [activeWorkspace, setActiveWorkspace] = useState<BlueprintPageType>(
     () => getInitialWorkspace(features),
   );
+  const [visitedWorkspaces, setVisitedWorkspaces] = useState<BlueprintPageType[]>(
+    () => [getInitialWorkspace(features)],
+  );
   const [neuralBlueprintSnapshot, setNeuralBlueprintSnapshot] =
     useState<NeuralBlueprintTaskSnapshot>();
   const [selectedInferenceModelId, setSelectedInferenceModelId] =
@@ -56,10 +59,27 @@ export function BlueprintCanvas({ file, closeFile }: BlueprintCanvasProp) {
     fileId,
     inferenceMemoryProfile,
   });
+  const changeWorkspace = useCallback((workspace: BlueprintPageType) => {
+    setActiveWorkspace(workspace);
+    setVisitedWorkspaces((current) => (
+      current.includes(workspace) ? current : [...current, workspace]
+    ));
+  }, []);
   const taskSnapshot = useMemo<TaskRuntimeSnapshot>(() => ({
     activeWorkspace,
+    visitedWorkspaces,
     neuralBlueprint: neuralBlueprintSnapshot,
-  }), [activeWorkspace, neuralBlueprintSnapshot]);
+    trainingProcess: {
+      modelInitialized: !dataController.trainingControls.trainDisabled,
+      epoch: dataController.statistics.epoch,
+    },
+  }), [
+    activeWorkspace,
+    dataController.statistics.epoch,
+    dataController.trainingControls.trainDisabled,
+    neuralBlueprintSnapshot,
+    visitedWorkspaces,
+  ]);
   const taskGuide = useMemo(() => (
     guideConfig
       ? evaluateTaskGuide(guideConfig, taskSnapshot)
@@ -79,7 +99,7 @@ export function BlueprintCanvas({ file, closeFile }: BlueprintCanvasProp) {
           activeWorkspace={activeWorkspace}
           showNeuralBlueprintTab={features.neuralBlueprint.canOpenTab}
           showKnowledgeGraphTab={features.knowledgeGraph.canOpenTab}
-          onWorkspaceChange={setActiveWorkspace}
+          onWorkspaceChange={changeWorkspace}
         />
         <div className="title">{title}</div>
       </header>

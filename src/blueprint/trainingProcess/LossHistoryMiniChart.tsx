@@ -1,3 +1,4 @@
+import { useRef, useState, type PointerEvent } from 'react';
 import './TrainingProcess.css';
 
 export type LossHistoryPoint = {
@@ -18,6 +19,15 @@ const PADDING_Y = 8;
 export function LossHistoryMiniChart({
   history,
 }: LossHistoryMiniChartProps) {
+  const chartRef = useRef<HTMLElement>(null);
+  const dragRef = useRef<{
+    offsetX: number;
+    offsetY: number;
+  } | null>(null);
+  const [position, setPosition] = useState<{
+    left: number;
+    top: number;
+  } | null>(null);
   const points = history.slice(-41);
   const train = points.filter((point) => Number.isFinite(point.trainLoss));
   const validation = points.filter(
@@ -53,11 +63,58 @@ export function LossHistoryMiniChart({
       / (maxLoss - minLoss)
       * (HEIGHT - PADDING_Y * 2)
   );
+  const startDrag = (event: PointerEvent<HTMLElement>) => {
+    const chart = chartRef.current;
+    const parent = chart?.parentElement;
+    if (!chart || !parent) return;
+
+    const chartRect = chart.getBoundingClientRect();
+    const parentRect = parent.getBoundingClientRect();
+
+    dragRef.current = {
+      offsetX: event.clientX - chartRect.left,
+      offsetY: event.clientY - chartRect.top,
+    };
+    setPosition({
+      left: chartRect.left - parentRect.left,
+      top: chartRect.top - parentRect.top,
+    });
+    chart.setPointerCapture(event.pointerId);
+  };
+  const drag = (event: PointerEvent<HTMLElement>) => {
+    const dragState = dragRef.current;
+    const chart = chartRef.current;
+    const parent = chart?.parentElement;
+    if (!dragState || !chart || !parent) return;
+
+    const parentRect = parent.getBoundingClientRect();
+    setPosition({
+      left: event.clientX - parentRect.left - dragState.offsetX,
+      top: event.clientY - parentRect.top - dragState.offsetY,
+    });
+  };
+  const endDrag = (event: PointerEvent<HTMLElement>) => {
+    dragRef.current = null;
+    event.currentTarget.releasePointerCapture(event.pointerId);
+  };
 
   return (
     <section
       aria-label="Loss history"
       className="training-loss-history nodrag nopan"
+      onPointerCancel={endDrag}
+      onPointerDown={startDrag}
+      onPointerMove={drag}
+      onPointerUp={endDrag}
+      ref={chartRef}
+      style={position
+        ? {
+            bottom: 'auto',
+            left: position.left,
+            right: 'auto',
+            top: position.top,
+          }
+        : undefined}
     >
       <div className="training-loss-history-header">
         <strong>Loss History</strong>
@@ -144,5 +201,5 @@ function trianglePath(x: number, y: number, radius: number) {
 function formatLoss(value: number | null | undefined) {
   return typeof value === 'number' && Number.isFinite(value)
     ? value.toFixed(3)
-    : '—';
+    : 'N/A';
 }

@@ -4,6 +4,7 @@ import type {
   TaskGuideCondition,
   TaskGuideConfig,
   TaskGuideStepConfig,
+  TrainingTaskStatName,
 } from '../../taskData/taskGuideTypes';
 import type { ModuleBaseNode } from '../neuralBlueprint/ModuleBaseNodeTypes';
 import type { NeuralBlueprintTaskSnapshot, TaskRuntimeSnapshot } from './taskGuideSnapshot';
@@ -56,6 +57,10 @@ function evaluateCondition(
   condition: TaskGuideCondition,
   snapshot: TaskRuntimeSnapshot,
 ): boolean {
+  if (condition.type === 'workspaceVisited') {
+    return snapshot.visitedWorkspaces.includes(condition.workspace);
+  }
+
   if (condition.type === 'moduleNodeExists') {
     return Boolean(
       snapshot.neuralBlueprint?.nodes.some((node) => (
@@ -68,10 +73,98 @@ function evaluateCondition(
     return hasModulePath(snapshot.neuralBlueprint, condition.chain);
   }
 
+  if (condition.type === 'moduleReachabilityExists') {
+    return hasModuleReachability(
+      snapshot.neuralBlueprint,
+      condition.from,
+      condition.to,
+      condition.via,
+    );
+  }
+
+  if (condition.type === 'trainingFlag') {
+    return (
+      snapshot.trainingProcess?.[condition.flag] === (condition.value ?? true)
+    );
+  }
+
+  if (condition.type === 'trainingStat') {
+    return compareStat(
+      getTrainingStat(snapshot, condition.stat),
+      condition,
+    );
+  }
+
   return compareStat(
     getBlueprintStat(snapshot.neuralBlueprint, condition.stat),
     condition,
   );
+}
+
+function getTrainingStat(
+  snapshot: TaskRuntimeSnapshot,
+  stat: TrainingTaskStatName,
+) {
+  return snapshot.trainingProcess?.[stat] ?? 0;
+}
+
+function hasModuleReachability(
+  snapshot: NeuralBlueprintTaskSnapshot | undefined,
+  from: ModuleNodeSelector,
+  to: ModuleNodeSelector,
+  via?: ModuleNodeSelector,
+) {
+  if (!snapshot) return false;
+
+  const nodeById = new Map(snapshot.nodes.map((node) => [node.id, node]));
+  const edgesBySourceId = new Map<string, string[]>();
+
+  snapshot.edges.forEach((edge) => {
+    edgesBySourceId.set(edge.source, [
+      ...(edgesBySourceId.get(edge.source) ?? []),
+      edge.target,
+    ]);
+  });
+
+  return snapshot.nodes.some((startNode) => {
+    if (!moduleNodeMatches(startNode, from)) return false;
+
+    const queue = [{
+      nodeId: startNode.id,
+      matchedVia: via ? moduleNodeMatches(startNode, via) : true,
+    }];
+    const visited = new Set<string>();
+
+    for (let index = 0; index < queue.length; index += 1) {
+      const current = queue[index];
+      const visitKey = `${current.nodeId}:${Number(current.matchedVia)}`;
+      if (visited.has(visitKey)) continue;
+      visited.add(visitKey);
+
+      const node = nodeById.get(current.nodeId);
+      if (!node) continue;
+
+      if (
+        current.nodeId !== startNode.id
+        && current.matchedVia
+        && moduleNodeMatches(node, to)
+      ) {
+        return true;
+      }
+
+      (edgesBySourceId.get(current.nodeId) ?? []).forEach((targetId) => {
+        const targetNode = nodeById.get(targetId);
+        if (!targetNode) return;
+        queue.push({
+          nodeId: targetId,
+          matchedVia: current.matchedVia
+            || Boolean(via && moduleNodeMatches(targetNode, via)),
+        });
+      });
+    }
+
+    return false;
+  });
 }
 
 function hasModulePath(
@@ -115,8 +208,17 @@ function moduleNodeMatches(
   if (selector.kind !== undefined && node.data.kind !== selector.kind) return false;
   if (selector.name !== undefined && node.data.name !== selector.name) return false;
 
-  return Object.entries(selector.props ?? {}).every(([key, value]) => (
-    node.data[key] === value
+  return matchesRecord(node.data, selector.props)
+    && matchesRecord(node.data.stats, selector.stats);
+}
+
+function matchesRecord(
+  target: object | undefined,
+  expected: Record<string, string | number | boolean> | undefined,
+) {
+  const indexedTarget = target as Record<string, unknown> | undefined;
+  return Object.entries(expected ?? {}).every(([key, value]) => (
+    indexedTarget?.[key] === value
   ));
 }
 
@@ -130,7 +232,11 @@ function getBlueprintStat(
 
 function compareStat(
   value: number,
-  condition: Extract<TaskGuideCondition, { type: 'blueprintStat' }>,
+  condition: {
+    min?: number;
+    max?: number;
+    equals?: number;
+  },
 ) {
   if (condition.equals !== undefined) return value === condition.equals;
   if (condition.min !== undefined && value < condition.min) return false;

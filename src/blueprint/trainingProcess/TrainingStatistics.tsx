@@ -1,4 +1,8 @@
-import { ControlSection, StatValue } from '../dataController/controls/ControlSection';
+import {
+  ControlGrid,
+  ControlSection,
+  StatValue,
+} from '../dataController/controls/ControlSection';
 import type { KnowledgeLossPoint } from '../knowledgeGraph/model/types';
 import type { KnowledgeLossReport } from '../knowledgeGraph/model/lossMetrics';
 
@@ -27,19 +31,23 @@ export function TrainingStatistics({
   return (
     <ControlSection title="Training Statistics">
       <StatValue label="Train Epochs" value={epoch} />
-      <StatValue
-        label="Train Loss"
-        value={formatLoss(latest?.trainLoss ?? loss.graphTrainLoss)}
-      />
-      <StatValue
-        label="Val Loss"
-        value={formatLoss(latestVal?.valLoss ?? loss.graphValLoss)}
-      />
-      <StatValue label="Best Epoch" value={bestVal?.epoch ?? 'N/A'} />
-      <StatValue
-        label="Best Val Loss"
-        value={formatLoss(bestVal?.valLoss)}
-      />
+      <ControlGrid>
+        <StatValue
+          label="Train Loss"
+          value={formatLoss(latest?.trainLoss ?? loss.graphTrainLoss)}
+        />
+        <StatValue
+          label="Val Loss"
+          value={formatLoss(latestVal?.valLoss ?? loss.graphValLoss)}
+        />
+      </ControlGrid>
+      <ControlGrid>
+        <StatValue label="Best Epoch" value={bestVal?.epoch ?? 'N/A'} />
+        <StatValue
+          label="Best Val Loss"
+          value={formatLoss(bestVal?.valLoss)}
+        />
+      </ControlGrid>
     </ControlSection>
   );
 }

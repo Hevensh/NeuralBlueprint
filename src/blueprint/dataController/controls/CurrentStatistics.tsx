@@ -1,7 +1,7 @@
 import type { DatasetSplitResult } from '../../knowledgeGraph/model/datasetSplit';
 import type { KnowledgeLossReport } from '../../knowledgeGraph/model/lossMetrics';
 import type { KnowledgeGraphStats } from '../../knowledgeGraph/model/types';
-import { ControlSection, StatValue } from './ControlSection';
+import { ControlGrid, ControlSection, StatValue } from './ControlSection';
 
 export interface CurrentStatisticsProps {
   stats: KnowledgeGraphStats;
@@ -18,17 +18,29 @@ export function CurrentStatistics({
 }: CurrentStatisticsProps) {
   return (
     <ControlSection title="Current Statistics">
-      <StatValue label="Nodes" value={stats.nodeCount} />
-      <StatValue label="Dependency Edges" value={stats.dependencyEdgeCount} />
-      <StatValue label="Substitute Edges" value={stats.substituteEdgeCount} />
-      <StatValue
-        label="Interference Edges"
-        value={stats.interferenceEdgeCount}
-      />
-      <StatValue label="Epoch" value={epoch} />
-      <StatValue label="Data Split" value={`${dataset.totals.train}/${dataset.totals.val}/${dataset.totals.test}`} />
-      <StatValue label="Train Loss" value={format(loss.graphTrainLoss)} />
-      <StatValue label="Val Loss" value={format(loss.graphValLoss)} />
+      <ControlGrid>
+        <StatValue label="Nodes" value={stats.nodeCount} />
+        <StatValue
+          label="Max Depth"
+          value={stats.maxDependencyDepth}
+        />
+      </ControlGrid>
+      <div className="knowledge-control-grid knowledge-control-grid-three">
+        <StatValue label="Dependency" value={stats.dependencyEdgeCount} />
+        <StatValue label="Substitute" value={stats.substituteEdgeCount} />
+        <StatValue
+          label="Interference"
+          value={stats.interferenceEdgeCount}
+        />
+      </div>
+      <ControlGrid>
+        <StatValue label="Epoch" value={epoch} />
+        <StatValue label="Data Split" value={`${dataset.totals.train}/${dataset.totals.val}/${dataset.totals.test}`} />
+      </ControlGrid>
+      <ControlGrid>
+        <StatValue label="Train Loss" value={format(loss.graphTrainLoss)} />
+        <StatValue label="Val Loss" value={format(loss.graphValLoss)} />
+      </ControlGrid>
     </ControlSection>
   );
 }
