@@ -20,7 +20,14 @@ export function NeuralBlueprintNode({
   ].filter(Boolean).join(' ');
 
   return (
-    <div className={className}>
+    <div
+      className={className}
+      data-guide-node-id={data.id}
+      data-guide-node-kind={data.kind}
+      data-guide-predecessor-ids={data.predecessors.map((node) => node.id).join(' ')}
+      data-guide-successor-ids={data.successors.map((node) => node.id).join(' ')}
+      data-guide-target={`module-node-${data.id}`}
+    >
       <Handle
         className="module-base-node-handle input-handle"
         position={Position.Left}

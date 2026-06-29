@@ -9,7 +9,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { loadDesktopFiles, loadDesktopView, saveDesktopFiles, saveDesktopView } from '../dataStorage/desktopStorage';
+import { loadDesktopFiles, loadDesktopView, saveDesktopFiles, saveDesktopView, updateDesktopFile } from '../dataStorage/desktopStorage';
 import { clearKnowledgeGraphSession } from '../dataStorage/knowledgeGraphStorage';
 import { clearNeuralBlueprintGraph } from '../dataStorage/neuralBlueprintStorage';
 import type { FileWorkspaceType, OpenFileType } from '../dataStorage/systemType';
@@ -90,12 +90,27 @@ export function DesktopCanvas({ openFile }: DesktopCanvasProp) {
       clearNeuralBlueprintGraph(file.id);
       clearKnowledgeGraphSession(file.id);
       clearTrainingCurves(file.id);
+      updateDesktopFile(file.id, (desktopFile) => ({
+        ...desktopFile,
+        guideCompletedStepCount: 0,
+      }));
+      setSelectedFile((current) => (
+        current?.id === file.id
+          ? { ...current, guideCompletedStepCount: 0 }
+          : current
+      ));
+      canvas?.updateNodeData(file.id, (node) => ({
+        file: {
+          ...node.data.file,
+          guideCompletedStepCount: 0,
+        },
+      }));
       showSaveNotice('File storage reset');
       return;
     }
 
     showSaveNotice('No stored data for this file type');
-  }, [showSaveNotice]);
+  }, [canvas, showSaveNotice]);
 
   const undo = useCallback(() => {
     const previousNodes = historyRef.current.at(-1);

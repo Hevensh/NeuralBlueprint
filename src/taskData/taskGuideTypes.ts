@@ -13,10 +13,47 @@ export interface TaskGuideStepConfig {
   title: string;
   description?: string;
   hint: string;
+  animation?: TaskGuideStepAnimation | TaskGuideStepAnimation[];
   completeWhen: TaskGuideCondition;
 }
 
+export interface TaskGuideStepAnimation {
+  title?: string;
+  hint?: string;
+  target?: string;
+  selector?: string;
+  placement?: 'top' | 'right' | 'bottom' | 'left';
+  demo?: TaskGuideAnimationDemo;
+  completeWhen?: TaskGuideCondition;
+}
+
+export type TaskGuideAnimationDemo =
+  | {
+    type: 'drag';
+    fromTarget?: string;
+    fromSelector?: string;
+    toTarget?: string;
+    toSelector?: string;
+    label?: string;
+    path?: 'straight' | 'curve';
+  }
+  | {
+    type: 'connect';
+    segments: TaskGuideConnectionSegment[];
+  };
+
+export interface TaskGuideConnectionSegment {
+  fromTarget?: string;
+  fromSelector?: string;
+  toTarget?: string;
+  toSelector?: string;
+}
+
 export type TaskGuideCondition =
+  | {
+    type: 'activeWorkspace';
+    workspace: PageType;
+  }
   | {
     type: 'workspaceVisited';
     workspace: PageType;
@@ -34,6 +71,10 @@ export type TaskGuideCondition =
     from: ModuleNodeSelector;
     to: ModuleNodeSelector;
     via?: ModuleNodeSelector;
+  }
+  | {
+    type: 'selectedModuleNode';
+    selector: ModuleNodeSelector;
   }
   | {
     type: 'blueprintStat';
@@ -59,6 +100,8 @@ export interface ModuleNodeSelector {
   id?: string;
   kind?: ModuleBaseNodeKind;
   name?: string;
+  predecessorId?: string;
+  successorId?: string;
   props?: Record<string, string | number | boolean>;
   stats?: Record<string, string | number | boolean>;
 }
@@ -72,4 +115,4 @@ export type BlueprintTaskStatName =
 
 export type TrainingTaskFlagName = 'modelInitialized';
 
-export type TrainingTaskStatName = 'epoch';
+export type TrainingTaskStatName = 'epoch' | 'trainSteps';

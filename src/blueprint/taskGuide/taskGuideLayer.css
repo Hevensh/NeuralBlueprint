@@ -1,0 +1,246 @@
+.task-guide-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+}
+
+.task-guide-spotlight {
+  position: fixed;
+  box-sizing: border-box;
+  border: 1px solid rgba(103, 232, 249, 0.78);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(34, 211, 238, 0.12), transparent 68%),
+    rgba(8, 47, 73, 0.08);
+  box-shadow:
+    0 0 0 1px rgba(14, 165, 233, 0.18),
+    0 0 24px rgba(34, 211, 238, 0.22),
+    inset 0 0 18px rgba(103, 232, 249, 0.12);
+  animation: task-guide-spotlight-pulse 1.55s ease-in-out infinite;
+}
+
+.task-guide-bubble {
+  position: fixed;
+  box-sizing: border-box;
+  width: 220px;
+  padding: 10px 12px;
+  border: 1px solid rgba(125, 211, 252, 0.42);
+  border-radius: 16px;
+  background:
+    linear-gradient(135deg, rgba(14, 165, 233, 0.16), rgba(2, 6, 23, 0.76)),
+    rgba(2, 6, 23, 0.82);
+  box-shadow:
+    0 14px 34px rgba(0, 0, 0, 0.34),
+    0 0 18px rgba(34, 211, 238, 0.16),
+    inset 0 0 14px rgba(34, 211, 238, 0.08);
+  color: #dff6ff;
+  backdrop-filter: blur(8px);
+  animation: task-guide-bubble-enter 0.18s ease-out both;
+}
+
+.task-guide-bubble-title {
+  color: #67e8f9;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.task-guide-bubble-hint {
+  margin-top: 5px;
+  color: #bae6fd;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.task-guide-demo-svg {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: visible;
+}
+
+.task-guide-demo-svg marker path {
+  fill: rgba(103, 232, 249, 0.92);
+}
+
+.task-guide-demo-path {
+  fill: none;
+  stroke: rgba(103, 232, 249, 0.82);
+  stroke-linecap: round;
+  stroke-width: 3;
+  filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.38));
+}
+
+.task-guide-demo-path.drag {
+  stroke-dasharray: 8 12;
+  animation: task-guide-path-flow 1.15s linear infinite;
+  opacity: 0.72;
+}
+
+.task-guide-demo-path.connect {
+  stroke-dasharray: 14 10;
+  animation: task-guide-connect-flow 1.45s linear infinite;
+}
+
+.task-guide-handle-ring {
+  fill: rgba(2, 6, 23, 0.74);
+  stroke: rgba(103, 232, 249, 0.88);
+  stroke-width: 2;
+  filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.45));
+  animation: task-guide-handle-ring-pulse 1.2s ease-in-out infinite;
+}
+
+.task-guide-handle-ring.end {
+  animation-delay: 0.28s;
+}
+
+.task-guide-drag-ghost {
+  position: fixed;
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 38px;
+  border: 1px solid rgba(125, 211, 252, 0.72);
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, rgba(14, 165, 233, 0.34), rgba(2, 6, 23, 0.74)),
+    rgba(2, 6, 23, 0.84);
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.32),
+    0 0 18px rgba(34, 211, 238, 0.28),
+    inset 0 0 14px rgba(125, 211, 252, 0.12);
+  color: #e0faff;
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  transform: translate(-50%, -50%);
+  animation: task-guide-drag-ghost 2.1s ease-in-out infinite;
+}
+
+.guide-target-active {
+  animation: task-guide-target-pulse 1.55s ease-in-out infinite;
+}
+
+.neural-blueprint-node.guide-target-active {
+  box-shadow:
+    0 0 0 1px rgba(125, 211, 252, 0.72),
+    0 0 24px rgba(34, 211, 238, 0.24),
+    inset 0 0 18px rgba(125, 211, 252, 0.08);
+}
+
+@keyframes task-guide-spotlight-pulse {
+  0%,
+  100% {
+    opacity: 0.74;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.025);
+  }
+}
+
+@keyframes task-guide-target-pulse {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+
+  50% {
+    filter: brightness(1.16);
+  }
+}
+
+@keyframes task-guide-bubble-enter {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes task-guide-path-flow {
+  from {
+    stroke-dashoffset: 0;
+  }
+
+  to {
+    stroke-dashoffset: -40;
+  }
+}
+
+@keyframes task-guide-connect-flow {
+  from {
+    stroke-dashoffset: 0;
+  }
+
+  to {
+    stroke-dashoffset: -48;
+  }
+}
+
+@keyframes task-guide-handle-ring-pulse {
+  0%,
+  100% {
+    opacity: 0.68;
+    r: 5;
+  }
+
+  50% {
+    opacity: 1;
+    r: 7;
+  }
+}
+
+@keyframes task-guide-drag-ghost {
+  0%,
+  12% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.92);
+  }
+
+  22% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  68%,
+  82% {
+    opacity: 1;
+    transform:
+      translate(
+        calc(-50% + var(--guide-drag-x)),
+        calc(-50% + var(--guide-drag-y))
+      )
+      scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform:
+      translate(
+        calc(-50% + var(--guide-drag-x)),
+        calc(-50% + var(--guide-drag-y))
+      )
+      scale(0.96);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .guide-target-active,
+  .task-guide-bubble,
+  .task-guide-demo-path,
+  .task-guide-drag-ghost,
+  .task-guide-handle-ring,
+  .task-guide-spotlight {
+    animation: none;
+  }
+}

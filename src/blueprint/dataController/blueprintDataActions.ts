@@ -1,5 +1,8 @@
 import type { Dispatch, SetStateAction } from 'react';
-import type { InferenceMemoryProfile } from '../InferenceMemoryProfileTypes';
+import {
+  getInferenceMemoryProfileSignature,
+  type InferenceMemoryProfile,
+} from '../InferenceMemoryProfileTypes';
 import type {
   DatasetSplitResult,
   DatasetSplitRatio,
@@ -53,6 +56,17 @@ type BlueprintDataActionsOptions = {
   inferenceMemoryProfile: InferenceMemoryProfile;
 };
 
+function requireNetworkReinitialize(
+  state: KnowledgeGraphSessionState,
+): KnowledgeGraphSessionState {
+  return {
+    ...state,
+    epoch: 0,
+    lossHistory: [],
+    modelInitialized: false,
+  };
+}
+
 export function createBlueprintDataActions({
   controls,
   datasetSplit,
@@ -63,16 +77,18 @@ export function createBlueprintDataActions({
   const updateTrainingControls = (
     patch: Partial<NonNullable<KnowledgeGraphSessionState['trainingControls']>>,
   ) => {
-    setState((current) => ({
-      ...current,
-      modelInitialized: patch.initializationSeed === undefined
-        ? current.modelInitialized
-        : false,
-      trainingControls: mergeTrainingControls(
-        current.trainingControls,
-        patch,
-      ),
-    }));
+    setState((current) => {
+      const next = {
+        ...current,
+        trainingControls: mergeTrainingControls(
+          current.trainingControls,
+          patch,
+        ),
+      };
+      return patch.initializationSeed === undefined
+        ? next
+        : requireNetworkReinitialize(next);
+    });
   };
 
   const updateGraphControls = (
@@ -97,7 +113,7 @@ export function createBlueprintDataActions({
 
   const resetNetworkCapability = () => {
     const defaults = DEFAULT_NETWORK_CAPABILITY;
-    setState((current) => ({
+    setState((current) => requireNetworkReinitialize({
       ...current,
       memory: setMemoryProfileSource(
         current.graphDefinition,
@@ -114,7 +130,6 @@ export function createBlueprintDataActions({
         ...current.trainingControls,
         initializationSeed: defaults.initializationSeed,
       },
-      modelInitialized: false,
     }));
   };
 
@@ -160,7 +175,7 @@ export function createBlueprintDataActions({
   };
 
   const setAvailableMemoryPoints = (availableMemoryPoints: number) => {
-    setState((current) => ({
+    setState((current) => requireNetworkReinitialize({
       ...current,
       memory: configurePresetMemoryProfile(
         current.graphDefinition,
@@ -168,12 +183,11 @@ export function createBlueprintDataActions({
         availableMemoryPoints,
         current.memory.presetReasoningPoints,
       ),
-      modelInitialized: false,
     }));
   };
 
   const setAvailableReasoningPoints = (availableReasoningPoints: number) => {
-    setState((current) => ({
+    setState((current) => requireNetworkReinitialize({
       ...current,
       memory: configurePresetMemoryProfile(
         current.graphDefinition,
@@ -181,7 +195,6 @@ export function createBlueprintDataActions({
         current.memory.presetMemoryPoints,
         availableReasoningPoints,
       ),
-      modelInitialized: false,
     }));
   };
 
@@ -195,7 +208,7 @@ export function createBlueprintDataActions({
   const selectMemoryProfileSource = (
     source: KnowledgeGraphSessionState['memory']['memoryProfileSource'],
   ) => {
-    setState((current) => ({
+    setState((current) => requireNetworkReinitialize({
       ...current,
       memory: setMemoryProfileSource(
         current.graphDefinition,
@@ -203,9 +216,6 @@ export function createBlueprintDataActions({
         source,
         inferenceMemoryProfile,
       ),
-      epoch: 0,
-      lossHistory: [],
-      modelInitialized: false,
     }));
   };
 
@@ -314,6 +324,9 @@ export function createBlueprintDataActions({
           valLoss: loss.graphValLoss,
         }],
         modelInitialized: true,
+        networkProfileSignature: getInferenceMemoryProfileSignature(
+          inferenceMemoryProfile,
+        ),
       };
     });
   };

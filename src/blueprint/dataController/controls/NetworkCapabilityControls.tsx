@@ -10,6 +10,7 @@ import type { MemoryProfileSource } from '../../knowledgeGraph/model/types';
 
 export interface NetworkCapabilityControlsProps {
   mode?: NetworkCapabilityMode;
+  showMemoryReasoningControls?: boolean;
   memory: number;
   reasoning: number;
   memoryProfileSource: MemoryProfileSource;
@@ -26,6 +27,7 @@ export interface NetworkCapabilityControlsProps {
 export function NetworkCapabilityControls(props: NetworkCapabilityControlsProps) {
   const {
     mode: configuredMode = 'select',
+    showMemoryReasoningControls = true,
     memory,
     reasoning,
     memoryProfileSource,
@@ -76,28 +78,35 @@ export function NetworkCapabilityControls(props: NetworkCapabilityControlsProps)
           </button>
         </div>
       )}
-      <ControlGrid>
-        <NumberField
-          disabled={source === 'blueprint'}
-          label="Memory"
-          min={0}
-          value={memory}
-          onChange={(value) => onMemoryChange(Math.max(0, Math.floor(value)))}
-        />
-        <NumberField
-          disabled={source === 'blueprint'}
-          label="Reasoning"
-          min={0}
-          value={reasoning}
-          onChange={(value) => onReasoningChange(Math.max(0, Math.floor(value)))}
-        />
-      </ControlGrid>
+      {showMemoryReasoningControls && (
+        <ControlGrid>
+          <NumberField
+            disabled={source === 'blueprint'}
+            label="Memory"
+            min={0}
+            value={memory}
+            onChange={(value) => onMemoryChange(Math.max(0, Math.floor(value)))}
+          />
+          <NumberField
+            disabled={source === 'blueprint'}
+            label="Reasoning"
+            min={0}
+            value={reasoning}
+            onChange={(value) => onReasoningChange(Math.max(0, Math.floor(value)))}
+          />
+        </ControlGrid>
+      )}
       <TextField
         label="Initialization Seed"
         value={initializationSeed}
         onChange={onInitializationSeedChange}
       />
-      <button className="action-button" onClick={onInitialize} type="button">
+      <button
+        className="action-button"
+        data-guide-target="training-initialize-model"
+        onClick={onInitialize}
+        type="button"
+      >
         Initialize Model
       </button>
     </ControlSection>

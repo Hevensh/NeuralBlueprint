@@ -37,6 +37,7 @@ export function BlueprintTopBarTabs({
       {visibleTabs.map((tab) => (
         <button
           className={`top-bar-tab ${tab.workspace === activeWorkspace ? 'active' : ''}`}
+          data-guide-target={`workspace-tab-${tab.workspace}`}
           key={tab.label}
           onClick={() => onWorkspaceChange(tab.workspace)}
           type="button"

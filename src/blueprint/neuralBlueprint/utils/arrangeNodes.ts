@@ -112,7 +112,7 @@ function layoutIsland(
   const visitedNodeIds = new Set<string>();
   const initialHorizon = isFirstIsland
     ? 0
-    : getMaxRidgeHeightInRange(layout.ridgeHeights, 0, maxForwardOrder) + 2;
+    : getMaxRidgeHeightInRange(layout.ridgeHeights, 0, maxForwardOrder) + 1;
 
   addHeightResult(
     layout,

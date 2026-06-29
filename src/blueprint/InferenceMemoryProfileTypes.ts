@@ -20,6 +20,7 @@ export interface InferenceMemoryStage {
 }
 
 export interface InferenceMemoryProfile {
+  networkSignature: string;
   totalMemoryPoint: number;
   groups: InferenceMemoryGroup[];
   stages: InferenceMemoryStage[];
@@ -35,7 +36,21 @@ export interface InferenceMemoryModel {
 }
 
 export const EMPTY_INFERENCE_MEMORY_PROFILE: InferenceMemoryProfile = {
+  networkSignature: '',
   totalMemoryPoint: 0,
   groups: [],
   stages: [],
 };
+
+export function getInferenceMemoryProfileSignature(
+  profile: InferenceMemoryProfile,
+) {
+  if (!profile.networkSignature) return '';
+
+  return [
+    profile.networkSignature,
+    profile.groups.map((group) => (
+      `${group.id}:${group.memoryPoint}:${group.inferenceStages.join(',')}`
+    )).join('|'),
+  ].join('::');
+}

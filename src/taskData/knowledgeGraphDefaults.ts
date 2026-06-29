@@ -75,5 +75,6 @@ export function createKnowledgeGraphSession(
       DEFAULT_NETWORK_CAPABILITY.initializationSeed,
     ),
     modelInitialized: false,
+    networkProfileSignature: '',
   };
 }

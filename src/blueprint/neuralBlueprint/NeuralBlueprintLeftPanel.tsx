@@ -89,6 +89,7 @@ export function NeuralBlueprintLeftPanel({
         {availableModules.map((module) => (
           <div
             className="module-card"
+            data-guide-target={`module-card-${module.kind}`}
             draggable
             key={module.kind}
             onDragStart={(event) => handleDragStart(event, module.kind)}

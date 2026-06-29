@@ -18,6 +18,7 @@ export interface TaskRuntimeSnapshot {
 export interface NeuralBlueprintTaskSnapshot {
   nodes: ModuleBaseNode[];
   edges: Edge[];
+  selectedNodeId?: string | null;
   nodeCount: number;
   edgeCount: number;
   moduleCounts: Record<ModuleBaseNodeKind, number>;
@@ -30,6 +31,7 @@ export interface NeuralBlueprintTaskSnapshot {
 export interface TrainingProcessTaskSnapshot {
   modelInitialized: boolean;
   epoch: number;
+  trainSteps: number;
 }
 
 const MODULE_KINDS: ModuleBaseNodeKind[] = [
@@ -44,11 +46,13 @@ const MODULE_KINDS: ModuleBaseNodeKind[] = [
 export function createNeuralBlueprintTaskSnapshot(
   nodes: ModuleBaseNode[],
   edges: Edge[],
+  selectedNodeId?: string | null,
 ): NeuralBlueprintTaskSnapshot {
   const graph = createGraphSnapshot(nodes, edges);
 
   return {
     ...graph,
+    selectedNodeId,
     nodeCount: graph.nodes.length,
     edgeCount: graph.edges.length,
     moduleCounts: countModuleKinds(graph.nodes),

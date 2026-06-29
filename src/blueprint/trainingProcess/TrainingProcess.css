@@ -285,9 +285,9 @@
 
 .training-loss-history {
   position: absolute;
-  right: 14px;
-  bottom: 14px;
   z-index: 8;
+  top: 320px;
+  left: 320px;
   width: 224px;
   box-sizing: border-box;
   padding: 9px 10px 7px;

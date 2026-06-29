@@ -1,5 +1,9 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
-import type { InferenceMemoryProfile } from '../InferenceMemoryProfileTypes';
+import {
+  getInferenceMemoryProfileSignature,
+  type InferenceMemoryProfile,
+} from '../InferenceMemoryProfileTypes';
+import { useRef } from 'react';
 import { splitEnabledKnowledgeDatasets } from '../knowledgeGraph/model/datasetSplit';
 import {
   loadKnowledgeGraphSession,
@@ -38,6 +42,7 @@ export function useBlueprintDataController({
   inferenceMemoryProfile: InferenceMemoryProfile;
 }) {
   const [state, setState] = useState(() => createInitialState(fileId));
+  const stateRef = useRef(state);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const controls = getControllerControls(state);
   const stats = useMemo(
@@ -128,22 +133,37 @@ export function useBlueprintDataController({
   });
 
   useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
+  useEffect(() => {
     const timer = window.setTimeout(() => {
+      const signature = getInferenceMemoryProfileSignature(
+        inferenceMemoryProfile,
+      );
+      const hasResolvedProfile = signature.length > 0;
+
       setState((current) => {
         const memory = syncBlueprintMemoryProfile(
           current.graphDefinition,
           current.memory,
           inferenceMemoryProfile,
         );
-        return memory === current.memory
-          ? current
-          : {
-              ...current,
-              memory,
-              epoch: 0,
-              lossHistory: [],
-              modelInitialized: false,
-            };
+        const networkChanged = hasResolvedProfile
+          && current.networkProfileSignature !== signature;
+
+        if (memory === current.memory && !networkChanged) return current;
+
+        return {
+          ...current,
+          memory,
+          epoch: 0,
+          lossHistory: [],
+          modelInitialized: false,
+          networkProfileSignature: hasResolvedProfile
+            ? signature
+            : current.networkProfileSignature,
+        };
       });
     }, 0);
     return () => window.clearTimeout(timer);
@@ -156,6 +176,18 @@ export function useBlueprintDataController({
     );
     return () => window.clearTimeout(timer);
   }, [fileId, state]);
+
+  useEffect(() => {
+    const saveLatestState = () => {
+      saveKnowledgeGraphSession(fileId, stateRef.current);
+    };
+
+    window.addEventListener('pagehide', saveLatestState);
+    return () => {
+      window.removeEventListener('pagehide', saveLatestState);
+      saveLatestState();
+    };
+  }, [fileId]);
 
   return {
     elements,

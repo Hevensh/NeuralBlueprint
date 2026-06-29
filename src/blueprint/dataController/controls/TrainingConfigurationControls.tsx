@@ -36,12 +36,13 @@ export function TrainingConfigurationControls(
           onChange={(value) => props.onLearningRateChange(Math.round(value))}
         />
         <NumberField
-          label="Regularization (10^)"
+          label="Reg Rate (10^)"
           value={props.regularizationRate}
           onChange={(value) => props.onRegularizationRateChange(Math.round(value))}
         />
       </ControlGrid>
       <NumberField
+        guideTarget="training-train-steps"
         label="Train Steps"
         min={1}
         value={props.trainSteps}
@@ -49,6 +50,7 @@ export function TrainingConfigurationControls(
       />
       <button
         className="action-button"
+        data-guide-target="training-train-button"
         disabled={props.disabled || props.trainDisabled}
         onClick={props.onTrain}
         title={props.trainDisabled ? 'Initialize model before training' : undefined}

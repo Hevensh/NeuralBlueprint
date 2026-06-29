@@ -8,6 +8,7 @@ interface NumberFieldProps {
   step?: number;
   className?: string;
   disabled?: boolean;
+  guideTarget?: string;
   onClear?: () => void;
   onChange: (value: number) => void;
 }
@@ -20,6 +21,7 @@ export function NumberField({
   step = 1,
   className,
   disabled,
+  guideTarget,
   onClear,
   onChange,
 }: NumberFieldProps) {
@@ -38,7 +40,10 @@ export function NumberField({
   };
 
   return (
-    <label className={['property-field', className].filter(Boolean).join(' ')}>
+    <label
+      className={['property-field', className].filter(Boolean).join(' ')}
+      data-guide-target={guideTarget}
+    >
       <span className="property-label">{label}</span>
       <span className="number-field-input">
         <input

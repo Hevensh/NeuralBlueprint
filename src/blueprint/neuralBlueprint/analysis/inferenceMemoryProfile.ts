@@ -1,6 +1,7 @@
 import type {
   LinearNodeData,
   ModuleBaseNode,
+  ModuleNodeData,
 } from '../ModuleBaseNodeTypes';
 import type {
   InferenceMemoryGroup,
@@ -122,10 +123,55 @@ export function buildInferenceMemoryProfile(
     });
 
   return {
+    networkSignature: createNetworkSignature(nodes),
     totalMemoryPoint,
     groups,
     stages,
   };
+}
+
+function createNetworkSignature(nodes: ModuleBaseNode[]) {
+  return nodes
+    .map(({ data }) => nodeSignature(data))
+    .sort()
+    .join('|');
+}
+
+function nodeSignature(data: ModuleNodeData) {
+  return [
+    data.id,
+    data.kind,
+    linkedNodeIds(data.predecessors),
+    linkedNodeIds(data.successors),
+    data.memoryPoint ?? '',
+    data.inferencePoint ?? '',
+    ...nodeConfigSignature(data),
+  ].join(':');
+}
+
+function linkedNodeIds(nodes: ModuleNodeData[]) {
+  return nodes.map((node) => node.id).sort().join(',');
+}
+
+function nodeConfigSignature(data: ModuleNodeData) {
+  switch (data.kind) {
+    case 'Input':
+      return [data.outFeatures, data.inputEffectiveRank, data.normalizationMode];
+    case 'Linear':
+      return [
+        data.inFeatures ?? '',
+        data.outFeatures,
+        data.useBias ? 1 : 0,
+        data.initializationMode,
+        data.biasInitializationMode,
+      ];
+    case 'Dropout':
+      return [data.dropoutRate];
+    case 'Output':
+      return [data.neededOutputDim];
+    default:
+      return [];
+  }
 }
 
 function compareInferenceGroups(

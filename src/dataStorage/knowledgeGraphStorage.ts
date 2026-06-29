@@ -19,6 +19,7 @@ export type KnowledgeGraphSessionState = {
   datasetCollection: KnowledgeDatasetCollection;
   trainingRandomState: number;
   modelInitialized: boolean;
+  networkProfileSignature: string;
 };
 
 export type KnowledgeGraphViewport = {

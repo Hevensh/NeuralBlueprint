@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ResolvedBlueprintTaskFeatureConfig } from '../../taskData/blueprintFeatureConfig';
 import { NetworkCapabilityControls } from '../dataController/controls/NetworkCapabilityControls';
 import { TrainingConfigurationControls } from '../dataController/controls/TrainingConfigurationControls';
@@ -16,30 +16,19 @@ export function TrainingProcessWorkspace({
   controller,
   features,
   fileId,
+  showMemoryReasoningControls = true,
 }: {
   controller: BlueprintDataController;
   features: ResolvedBlueprintTaskFeatureConfig['knowledgeGraph'];
   fileId: string;
+  showMemoryReasoningControls?: boolean;
 }) {
   const [snapshots, setSnapshots] = useState(
     () => loadTrainingCurves(fileId),
   );
   const [selectedSnapshotId, setSelectedSnapshotId] =
     useState<string | null>(null);
-  const liveHistory = useMemo(() => (
-    controller.lossHistory.length > 0
-      ? controller.lossHistory
-      : [{
-          epoch: controller.statistics.epoch,
-          trainLoss: controller.statistics.loss.graphTrainLoss,
-          valLoss: controller.statistics.loss.graphValLoss,
-        }]
-  ), [
-    controller.lossHistory,
-    controller.statistics.epoch,
-    controller.statistics.loss.graphTrainLoss,
-    controller.statistics.loss.graphValLoss,
-  ]);
+  const liveHistory = controller.lossHistory;
   const selectedSnapshot = snapshots.find(
     (snapshot) => snapshot.id === selectedSnapshotId,
   );
@@ -51,7 +40,24 @@ export function TrainingProcessWorkspace({
     saveTrainingCurves(fileId, snapshots);
   }, [fileId, snapshots]);
 
+  useEffect(() => {
+    if (
+      !controller.trainingControls.trainDisabled
+      || liveHistory.length > 0
+      || selectedSnapshotId === null
+    ) return;
+
+    const timer = window.setTimeout(() => setSelectedSnapshotId(null), 0);
+    return () => window.clearTimeout(timer);
+  }, [
+    controller.trainingControls.trainDisabled,
+    liveHistory.length,
+    selectedSnapshotId,
+  ]);
+
   const saveCurve = () => {
+    if (liveHistory.length === 0) return;
+
     const snapshot: TrainingCurveSnapshot = {
       id: `curve-${Date.now()}`,
       createdAt: new Date().toISOString(),
@@ -87,6 +93,11 @@ export function TrainingProcessWorkspace({
         <NetworkCapabilityControls
           {...controller.networkControls}
           mode={features.networkCapabilityMode}
+          onInitialize={() => {
+            setSelectedSnapshotId(null);
+            controller.networkControls.onInitialize();
+          }}
+          showMemoryReasoningControls={showMemoryReasoningControls}
         />
         <TrainingConfigurationControls
           {...controller.trainingControls}
@@ -103,6 +114,7 @@ export function TrainingProcessWorkspace({
       <TrainingProcessView history={visibleHistory} />
 
       <TrainingCurveStoragePanel
+        canSave={liveHistory.length > 0}
         snapshots={snapshots}
         selectedSnapshotId={selectedSnapshotId}
         onSave={saveCurve}

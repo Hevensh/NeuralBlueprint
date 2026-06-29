@@ -3,6 +3,7 @@ import type { TrainingCurveSnapshot } from '../../dataStorage/trainingCurveStora
 export function TrainingCurveStoragePanel({
   snapshots,
   selectedSnapshotId,
+  canSave,
   onSave,
   onSelect,
   onDelete,
@@ -10,6 +11,7 @@ export function TrainingCurveStoragePanel({
 }: {
   snapshots: TrainingCurveSnapshot[];
   selectedSnapshotId: string | null;
+  canSave: boolean;
   onSave: () => void;
   onSelect: (snapshotId: string | null) => void;
   onDelete: (snapshotId: string) => void;
@@ -29,7 +31,12 @@ export function TrainingCurveStoragePanel({
         </button>
       </div>
 
-      <button className="action-button" onClick={onSave} type="button">
+      <button
+        className="action-button"
+        disabled={!canSave}
+        onClick={onSave}
+        type="button"
+      >
         Record Loss History
       </button>
       <button

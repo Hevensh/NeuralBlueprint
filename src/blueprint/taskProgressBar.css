@@ -4,7 +4,8 @@
   align-self: end;
   justify-self: center;
   z-index: 6;
-  width: min(720px, calc(100% - 40px));
+  width: fit-content;
+  max-width: calc(100% + 280px);
   margin-bottom: 18px;
   pointer-events: none;
 }
@@ -12,6 +13,9 @@
 .task-progress-panel {
   position: relative;
   pointer-events: auto;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: 100%;
   padding: 12px 18px 14px;
   border: 1px solid rgba(34, 211, 238, 0.28);
   border-radius: 22px;
@@ -49,8 +53,8 @@
   z-index: 1;
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: 1fr;
-  gap: 20px;
+  grid-auto-columns: minmax(96px, 122px);
+  gap: 14px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -80,22 +84,37 @@
 .task-progress-text {
   display: grid;
   gap: 2px;
-  min-width: 92px;
+  width: 100%;
+  min-width: 0;
 }
 
 .task-progress-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
+  overflow: hidden;
   color: #94a3b8;
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.05em;
+  line-height: 15px;
+  text-align: center;
   text-transform: uppercase;
 }
 
 .task-progress-description {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  overflow: hidden;
   color: #64748b;
   font-size: 11px;
   font-weight: 650;
   letter-spacing: 0.02em;
+  line-height: 14px;
+  text-align: center;
 }
 
 .task-progress-step.complete .task-progress-dot,

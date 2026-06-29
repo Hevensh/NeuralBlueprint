@@ -136,46 +136,44 @@ export function NeuralBlueprintRightPanel({
       data-analysis-direction={analysisDirection}
     >
       <div className="title">Properties</div>
-      {features.showBackwardAnalysisControl && (
-        <div className="top-bar-tabs property-direction-tabs">
-          <button
-            className={`top-bar-tab ${analysisDirection === 'forward' ? 'active' : ''}`}
-            onClick={() => setAnalysisDirection('forward')}
-            type="button"
-          >
-            Forward
-          </button>
-          <button
-            className={`top-bar-tab ${analysisDirection === 'backward' ? 'active' : ''}`}
-            onClick={() => setAnalysisDirection('backward')}
-            type="button"
-          >
-            Backward
-          </button>
-        </div>
-      )}
-      {(features.showVarianceAnalysisToggle || features.showRankAnalysisToggle) && (
-        <div className="property-toggle-group">
-          {features.showVarianceAnalysisToggle && (
+      <div className="property-toggle-group">
+        {features.showBackwardAnalysisControl && (
+          <div className="top-bar-tabs property-direction-tabs">
             <button
-              className={`toggle-button ${showVarianceAnalysis ? 'active' : ''}`}
-              onClick={() => setShowVarianceAnalysis((current) => !current)}
+              className={`top-bar-tab ${analysisDirection === 'forward' ? 'active' : ''}`}
+              onClick={() => setAnalysisDirection('forward')}
               type="button"
             >
-              Variance Analysis
+              Forward
             </button>
-          )}
-          {features.showRankAnalysisToggle && (
             <button
-              className={`toggle-button ${showRankAnalysis ? 'active' : ''}`}
-              onClick={() => setShowRankAnalysis((current) => !current)}
+              className={`top-bar-tab ${analysisDirection === 'backward' ? 'active' : ''}`}
+              onClick={() => setAnalysisDirection('backward')}
               type="button"
             >
-              Rank Analysis
+              Backward
             </button>
-          )}
-        </div>
-      )}
+          </div>
+        )}
+        {features.showRankAnalysisToggle && (
+          <button
+            className={`toggle-button ${showRankAnalysis ? 'active' : ''}`}
+            onClick={() => setShowRankAnalysis((current) => !current)}
+            type="button"
+          >
+            Rank Analysis
+          </button>
+        )}
+        {features.showVarianceAnalysisToggle && (
+          <button
+            className={`toggle-button ${showVarianceAnalysis ? 'active' : ''}`}
+            onClick={() => setShowVarianceAnalysis((current) => !current)}
+            type="button"
+          >
+            Variance Analysis
+          </button>
+        )}
+      </div>
       {selectedNode ? (
         <div className="property-panel">
           <label className="property-field">
@@ -196,6 +194,7 @@ export function NeuralBlueprintRightPanel({
             <NumberField
               label="Output Dim"
               disabled={outputDimLocked}
+              guideTarget="property-output-dim"
               min={1}
               onChange={handleOutputDimChange}
               value={selectedNode.outFeatures}
@@ -220,13 +219,13 @@ export function NeuralBlueprintRightPanel({
           {showRankAnalysis && (
             analysisDirection === 'backward' || selectedNode.kind !== 'Input'
           ) && (
-            <label className="property-field">
-              <span className="property-label">Effective Rank</span>
-              <div className="property-value">
-                {formatDecimalPropertyNumber(selectedStats?.effectiveRank, 3)}
-              </div>
-            </label>
-          )}
+              <label className="property-field">
+                <span className="property-label">Effective Rank</span>
+                <div className="property-value">
+                  {formatDecimalPropertyNumber(selectedStats?.effectiveRank, 3)}
+                </div>
+              </label>
+            )}
 
           <NeuralBlueprintModuleProperties
             effectiveRankDisabled={effectiveRankLocked}
@@ -267,15 +266,16 @@ export function NeuralBlueprintRightPanel({
       ) : (
         <div className="property-empty">No node selected</div>
       )}
-      <InferenceMemoryChart
-        modelOptions={inferenceMemoryModels.map((model) => ({
-          id: model.id,
-          label: model.label,
-        }))}
-        onModelChange={setSelectedInferenceModelId}
-        profile={inferenceMemoryProfile}
-        selectedModelId={effectiveInferenceModelId}
-      />
+      {showRankAnalysis && features.showBackwardAnalysisControl && (
+        <InferenceMemoryChart
+          modelOptions={inferenceMemoryModels.map((model) => ({
+            id: model.id,
+            label: model.label,
+          }))}
+          onModelChange={setSelectedInferenceModelId}
+          profile={inferenceMemoryProfile}
+          selectedModelId={effectiveInferenceModelId}
+        />)}
     </aside>
   );
 }

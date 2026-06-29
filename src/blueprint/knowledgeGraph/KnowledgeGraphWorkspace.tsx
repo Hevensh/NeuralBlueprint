@@ -14,9 +14,11 @@ import './knowledgeGraph.css';
 export function KnowledgeGraphWorkspace({
   controller,
   features,
+  showMemoryReasoningControls = true,
 }: {
   controller: BlueprintDataController;
   features: ResolvedBlueprintTaskFeatureConfig['knowledgeGraph'];
+  showMemoryReasoningControls?: boolean;
 }) {
   const [showMemory, setShowMemory] = useState(true);
   const [showMetrics, setShowMetrics] = useState(true);
@@ -50,6 +52,7 @@ export function KnowledgeGraphWorkspace({
         <NetworkCapabilityControls
           {...controller.networkControls}
           mode={features.networkCapabilityMode}
+          showMemoryReasoningControls={showMemoryReasoningControls}
         />
         <TrainingConfigurationControls
           {...controller.trainingControls}

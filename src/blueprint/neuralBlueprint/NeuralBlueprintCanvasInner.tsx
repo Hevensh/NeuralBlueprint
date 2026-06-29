@@ -42,9 +42,7 @@ import {
 } from './moduleNodeFactory';
 import {
   animateNodePositions,
-  easeArrangeAnimation,
   getArrangeAnimationDuration,
-  getTargetNodeBounds,
   type CancelNodePositionAnimation,
 } from './utils/animateNodePositions';
 import { arrangeModuleNodes } from './utils/arrangeNodes';
@@ -103,10 +101,7 @@ export function NeuralBlueprintCanvasInner({
   onTaskSnapshotChange,
 }: NeuralBlueprintCanvasInnerProp) {
   const {
-    fitBounds,
-    getViewport,
     screenToFlowPosition,
-    setViewport,
   } = useReactFlow<ModuleBaseNode, Edge>();
   const viewport = useViewport();
   const [initialGraph] = useState(() => {
@@ -129,6 +124,11 @@ export function NeuralBlueprintCanvasInner({
   const clipboardRef = useRef<NeuralBlueprintClipboard | null>(null);
   const pasteIndexRef = useRef(0);
   const selectedNodeIdRef = useRef<string | null>(null);
+  const [selectedNodeId, setSelectedNodeIdState] = useState<string | null>(null);
+  const setSelectedNodeId = useCallback((nodeId: string | null) => {
+    selectedNodeIdRef.current = nodeId;
+    setSelectedNodeIdState(nodeId);
+  }, []);
   const selectedCorrelationNode = useMemo(() => (
     nodes.find((node) => (
       node.selected && hasCorrelationPairs(node, analysisDirection)
@@ -205,25 +205,15 @@ export function NeuralBlueprintCanvasInner({
       duration,
     );
 
-    void fitBounds(getTargetNodeBounds(nextNodes), {
-      duration,
-      ease: easeArrangeAnimation,
-      interpolate: 'linear',
-      padding: 0.12,
-    });
     cancelNodeAnimationRef.current = () => {
       cancelNodeAnimation();
-      void setViewport(getViewport());
     };
     syncSelectedNode(nextNodes, selectedNodeIdRef, setSelectedNode);
   }, [
-    fitBounds,
-    getViewport,
     nodes,
     pushHistory,
     setNodes,
     setSelectedNode,
-    setViewport,
   ]);
 
   const undo = useCallback(() => {
@@ -235,11 +225,11 @@ export function NeuralBlueprintCanvasInner({
     const previousNodes = updateState(previousGraph.nodes);
     const selectedNode = previousNodes.find((node) => node.selected);
 
-    selectedNodeIdRef.current = selectedNode?.id ?? null;
+    setSelectedNodeId(selectedNode?.id ?? null);
     setNodes(previousNodes);
     setEdges(previousGraph.edges);
     setSelectedNode(selectedNode?.data ?? null);
-  }, [setEdges, setNodes, setSelectedNode]);
+  }, [setEdges, setNodes, setSelectedNode, setSelectedNodeId]);
 
   const copySelectedNodes = useCallback(() => {
     const clipboard = createNodeClipboard(nodes, edges);
@@ -268,7 +258,7 @@ export function NeuralBlueprintCanvasInner({
     const selectedNodeId = pasted.pastedNodeIds[0] ?? null;
     const selectedNode = nextNodes.find((node) => node.id === selectedNodeId);
 
-    selectedNodeIdRef.current = selectedNodeId;
+    setSelectedNodeId(selectedNodeId);
     setEdges(pasted.edges);
     setNodes(nextNodes);
     setSelectedNode(selectedNode?.data ?? null);
@@ -279,6 +269,7 @@ export function NeuralBlueprintCanvasInner({
     setEdges,
     setNodes,
     setSelectedNode,
+    setSelectedNodeId,
   ]);
 
   const createModuleBaseNode = useCallback((kind: ModuleBaseNodeKind, position: { x: number; y: number }) => {
@@ -311,10 +302,10 @@ export function NeuralBlueprintCanvasInner({
     ]);
     const nextSelectedNode = nextNodes.find((currentNode) => currentNode.id === id)?.data ?? data;
 
-    selectedNodeIdRef.current = id;
+    setSelectedNodeId(id);
     setSelectedNode(nextSelectedNode);
     setNodes(nextNodes);
-  }, [nodes, pushHistory, setNodes, setSelectedNode]);
+  }, [nodes, pushHistory, setNodes, setSelectedNode, setSelectedNodeId]);
 
   const handleNodesChange = useCallback((changes: NodeChange<ModuleBaseNode>[]) => {
     const unlockedChanges = changes.filter((change) => (
@@ -327,7 +318,7 @@ export function NeuralBlueprintCanvasInner({
 
     if (removedNodeIds.length > 0) {
       pushHistory();
-      selectedNodeIdRef.current = null;
+      setSelectedNodeId(null);
       setSelectedNode(null);
     }
 
@@ -348,7 +339,7 @@ export function NeuralBlueprintCanvasInner({
     setEdges(nextEdges);
     setNodes(nextNodes);
     syncSelectedNode(nextNodes, selectedNodeIdRef, setSelectedNode);
-  }, [edges, nodes, onNodesChange, pushHistory, setEdges, setNodes, setSelectedNode]);
+  }, [edges, nodes, onNodesChange, pushHistory, setEdges, setNodes, setSelectedNode, setSelectedNodeId]);
 
   const handleEdgesChange = useCallback((changes: EdgeChange<Edge>[]) => {
     const removedEdgeIds = changes
@@ -370,9 +361,9 @@ export function NeuralBlueprintCanvasInner({
   }, [edges, nodes, pushHistory, setEdges, setNodes, setSelectedNode]);
 
   const selectNode = useCallback((node: ModuleBaseNode) => {
-    selectedNodeIdRef.current = node.id;
+    setSelectedNodeId(node.id);
     setSelectedNode(node.data);
-  }, [setSelectedNode]);
+  }, [setSelectedNode, setSelectedNodeId]);
 
   const connectNodes = useCallback((connection: Connection) => {
     if (!connection.source || !connection.target) return;
@@ -433,8 +424,12 @@ export function NeuralBlueprintCanvasInner({
   }, [analysisDirection, hoveredCorrelationNodeKey]);
 
   useEffect(() => {
-    onTaskSnapshotChange?.(createNeuralBlueprintTaskSnapshot(nodes, edges));
-  }, [edges, nodes, onTaskSnapshotChange]);
+    onTaskSnapshotChange?.(createNeuralBlueprintTaskSnapshot(
+      nodes,
+      edges,
+      selectedNodeId,
+    ));
+  }, [edges, nodes, onTaskSnapshotChange, selectedNodeId]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -515,6 +510,7 @@ export function NeuralBlueprintCanvasInner({
       className="canvas-wrap"
       data-file-id={fileId}
       data-analysis-direction={analysisDirection}
+      data-guide-target="neural-blueprint-canvas"
       data-rank-analysis={showRankAnalysis}
       data-variance-analysis={showVarianceAnalysis}
       onDragOver={handleDragOver}
@@ -538,7 +534,7 @@ export function NeuralBlueprintCanvasInner({
         onNodeMouseEnter={(_, node) => startNodeHover(node)}
         onNodeMouseLeave={(_, node) => endNodeHover(node)}
         onPaneClick={() => {
-          selectedNodeIdRef.current = null;
+          setSelectedNodeId(null);
           setSelectedNode(null);
         }}
         nodesDraggable

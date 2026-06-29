@@ -13,6 +13,7 @@ export interface DesktopFile {
     y: number;
   };
   config?: BlueprintTaskFeatureConfig;
+  guideCompletedStepCount?: number;
 }
 
 export interface DesktopIconData extends Record<string, unknown> {

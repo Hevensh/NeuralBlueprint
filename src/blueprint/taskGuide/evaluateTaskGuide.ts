@@ -3,6 +3,7 @@ import type {
   ModuleNodeSelector,
   TaskGuideCondition,
   TaskGuideConfig,
+  TaskGuideStepAnimation,
   TaskGuideStepConfig,
   TrainingTaskStatName,
 } from '../../taskData/taskGuideTypes';
@@ -18,7 +19,8 @@ export interface EvaluatedTaskGuide {
   progressRatio: number;
 }
 
-export interface EvaluatedTaskGuideStep extends TaskGuideStepConfig {
+export interface EvaluatedTaskGuideStep extends Omit<TaskGuideStepConfig, 'animation'> {
+  animation?: TaskGuideStepAnimation;
   completed: boolean;
   active: boolean;
 }
@@ -26,20 +28,30 @@ export interface EvaluatedTaskGuideStep extends TaskGuideStepConfig {
 export function evaluateTaskGuide(
   guide: TaskGuideConfig,
   snapshot: TaskRuntimeSnapshot,
+  persistedCompletedStepCount = 0,
 ): EvaluatedTaskGuide {
-  const completedSteps = guide.steps.map((step) => (
-    evaluateCondition(step.completeWhen, snapshot)
+  const completedStepCount = nextCompletedStepCount(
+    guide,
+    snapshot,
+    persistedCompletedStepCount,
+  );
+  const completedSteps = guide.steps.map((_, index) => (
+    index < completedStepCount
   ));
-  const firstIncompleteIndex = completedSteps.findIndex((completed) => !completed);
-  const activeIndex = firstIncompleteIndex === -1
+  const activeIndex = completedStepCount >= guide.steps.length
     ? guide.steps.length - 1
-    : firstIncompleteIndex;
-  const steps = guide.steps.map((step, index) => ({
-    ...step,
-    completed: completedSteps[index],
-    active: index === activeIndex,
-  }));
-  const completedStepCount = completedSteps.filter(Boolean).length;
+    : completedStepCount;
+  const steps = guide.steps.map((step, index) => {
+    const active = index === activeIndex;
+    return {
+      ...step,
+      animation: active
+        ? activeAnimation(step.animation, snapshot)
+        : firstAnimation(step.animation),
+      completed: completedSteps[index],
+      active,
+    };
+  });
 
   return {
     id: guide.id,
@@ -53,10 +65,59 @@ export function evaluateTaskGuide(
   };
 }
 
+function nextCompletedStepCount(
+  guide: TaskGuideConfig,
+  snapshot: TaskRuntimeSnapshot,
+  persistedCompletedStepCount: number,
+) {
+  const completedStepCount = Math.max(
+    0,
+    Math.min(guide.steps.length, Math.floor(persistedCompletedStepCount)),
+  );
+
+  if (
+    completedStepCount < guide.steps.length
+    && evaluateCondition(
+      guide.steps[completedStepCount].completeWhen,
+      snapshot,
+    )
+  ) {
+    return completedStepCount + 1;
+  }
+
+  return completedStepCount;
+}
+
+function activeAnimation(
+  animation: TaskGuideStepConfig['animation'],
+  snapshot: TaskRuntimeSnapshot,
+) {
+  const animations = toAnimationList(animation);
+  return animations.find((item) => (
+    !item.completeWhen || !evaluateCondition(item.completeWhen, snapshot)
+  )) ?? animations.at(-1);
+}
+
+function firstAnimation(animation: TaskGuideStepConfig['animation']) {
+  return toAnimationList(animation)[0];
+}
+
+function toAnimationList(animation: TaskGuideStepConfig['animation']) {
+  return Array.isArray(animation)
+    ? animation
+    : animation
+      ? [animation]
+      : [];
+}
+
 function evaluateCondition(
   condition: TaskGuideCondition,
   snapshot: TaskRuntimeSnapshot,
 ): boolean {
+  if (condition.type === 'activeWorkspace') {
+    return snapshot.activeWorkspace === condition.workspace;
+  }
+
   if (condition.type === 'workspaceVisited') {
     return snapshot.visitedWorkspaces.includes(condition.workspace);
   }
@@ -79,6 +140,15 @@ function evaluateCondition(
       condition.from,
       condition.to,
       condition.via,
+    );
+  }
+
+  if (condition.type === 'selectedModuleNode') {
+    const selectedNode = snapshot.neuralBlueprint?.nodes.find((node) => (
+      node.id === snapshot.neuralBlueprint?.selectedNodeId
+    ));
+    return Boolean(
+      selectedNode && moduleNodeMatches(selectedNode, condition.selector),
     );
   }
 
@@ -207,6 +277,18 @@ function moduleNodeMatches(
   if (selector.id !== undefined && node.id !== selector.id) return false;
   if (selector.kind !== undefined && node.data.kind !== selector.kind) return false;
   if (selector.name !== undefined && node.data.name !== selector.name) return false;
+  if (
+    selector.predecessorId !== undefined
+    && !node.data.predecessors.some((predecessor) => (
+      predecessor.id === selector.predecessorId
+    ))
+  ) return false;
+  if (
+    selector.successorId !== undefined
+    && !node.data.successors.some((successor) => (
+      successor.id === selector.successorId
+    ))
+  ) return false;
 
   return matchesRecord(node.data, selector.props)
     && matchesRecord(node.data.stats, selector.stats);
