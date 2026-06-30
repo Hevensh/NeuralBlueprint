@@ -12,8 +12,10 @@ import type {
 import { buildArrangeReachabilityMaps } from '../utils/arrangeNodesUtils';
 
 export type {
+  InferenceMemoryAggregationPair,
   InferenceMemoryGroup,
   InferenceMemoryModel,
+  InferenceMemoryNodeWeight,
   InferenceMemoryProfile,
   InferenceMemoryStage,
   InferenceMemoryStageSegment,
@@ -43,6 +45,7 @@ export function collectInferenceModelIslands(
 export function buildInferenceMemoryProfile(
   nodes: ModuleBaseNode[],
 ): InferenceMemoryProfile {
+  const nodeData = nodes.map((node) => node.data);
   const groupById = new Map<string, {
     inferenceStages: number[];
     nodes: LinearNodeData[];
@@ -74,12 +77,18 @@ export function buildInferenceMemoryProfile(
   });
 
   const baseGroups = [...groupById.entries()]
-    .map(([id, group]) => ({
-      id,
-      nodeIds: group.nodes.map((node) => node.id),
-      inferenceStages: group.inferenceStages,
-      memoryPoint: Math.floor(averageNodeMemoryPoint(group.nodes)),
-    }))
+    .map(([id, group]) => {
+      const stats = computeInferenceGroupProfile(group.nodes, nodeData);
+      return {
+        id,
+        nodeIds: group.nodes.map((node) => node.id),
+        inferenceStages: group.inferenceStages,
+        memoryPoint: Math.floor(stats.memoryPoint),
+        varianceRatio: stats.varianceRatio,
+        nodeWeights: stats.nodeWeights,
+        aggregationPairs: stats.aggregationPairs,
+      };
+    })
     .filter((group) => group.memoryPoint > 0)
     .sort(compareInferenceGroups);
   const totalMemoryPoint = baseGroups.reduce(
@@ -195,16 +204,40 @@ function getRatio(value: number, total: number) {
   return total > 0 ? value / total : 0;
 }
 
-export function averageNodeMemoryPoint(nodes: LinearNodeData[]) {
-  const memoryPoints = nodes
-    .map((node) => node.memoryPoint)
-    .filter(isFiniteNumber);
-
-  if (memoryPoints.length === 0) return 0;
-
-  return memoryPoints.reduce((sum, memoryPoint) => (
-    sum + memoryPoint
-  ), 0) / memoryPoints.length;
+export function computeInferenceGroupProfile(
+  nodes: LinearNodeData[],
+  allNodes: ModuleNodeData[],
+) {
+  const aggregation = computeGroupAggregation(nodes, allNodes);
+  const weighted = nodes.reduce(
+    (state, node) => {
+      const memoryPoint = isFiniteNumber(node.memoryPoint)
+        ? node.memoryPoint
+        : 0;
+      const weight = aggregation.weights.get(node.id)?.weight ?? 1;
+      return {
+        memoryPoint: state.memoryPoint + memoryPoint * weight,
+        forwardVariance: state.forwardVariance
+          + finitePositive(node.stats?.variance) * weight,
+        backwardVariance: state.backwardVariance
+          + finitePositive(node.statsBackward?.variance) * weight,
+      };
+    },
+    {
+      memoryPoint: 0,
+      forwardVariance: 0,
+      backwardVariance: 0,
+    },
+  );
+  const varianceRatio = weighted.backwardVariance > 0
+    ? weighted.forwardVariance / weighted.backwardVariance
+    : 1;
+  return {
+    memoryPoint: weighted.memoryPoint,
+    varianceRatio,
+    nodeWeights: [...aggregation.weights.values()],
+    aggregationPairs: aggregation.pairs,
+  };
 }
 
 function collectConnectedNodeIslands(nodes: ModuleBaseNode[]) {
@@ -302,5 +335,117 @@ function intersectSets(left: Set<string>, right: Set<string>) {
 }
 
 function isFiniteNumber(value: unknown): value is number {
-  return Number.isFinite(value);
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function finitePositive(value: unknown) {
+  return isFiniteNumber(value) ? Math.max(0, value) : 0;
+}
+
+function computeGroupAggregation(
+  nodes: LinearNodeData[],
+  allNodes: ModuleNodeData[],
+) {
+  const groupNodeIds = new Set(nodes.map((node) => node.id));
+  const linkedNodeIds = new Map(
+    nodes.map((node) => [node.id, new Set<string>()]),
+  );
+
+  const link = (leftId: string, rightId: string) => {
+    if (leftId === rightId) return;
+    linkedNodeIds.get(leftId)?.add(rightId);
+    linkedNodeIds.get(rightId)?.add(leftId);
+  };
+
+  nodes.forEach((node) => {
+    [...node.predecessors, ...node.successors].forEach((linkedNode) => {
+      if (groupNodeIds.has(linkedNode.id)) {
+        link(node.id, linkedNode.id);
+      }
+    });
+  });
+
+  allNodes.forEach((node) => {
+    const directGroupInputs = node.predecessors
+      .map((predecessor) => predecessor.id)
+      .filter((nodeId) => groupNodeIds.has(nodeId));
+
+    for (let left = 0; left < directGroupInputs.length; left += 1) {
+      for (
+        let right = left + 1;
+        right < directGroupInputs.length;
+        right += 1
+      ) {
+        link(directGroupInputs[left], directGroupInputs[right]);
+      }
+    }
+  });
+
+  const componentByNodeId = new Map<string, Set<string>>();
+
+  nodes.forEach((node) => {
+    componentByNodeId.set(
+      node.id,
+      collectConnectedGroup(node.id, linkedNodeIds),
+    );
+  });
+
+  const weights = new Map(
+    nodes.map((node) => {
+      const rhoCount = (componentByNodeId.get(node.id)?.size ?? 1) - 1;
+      return [
+        node.id,
+        {
+          nodeId: node.id,
+          rhoCount,
+          weight: 1 / (1 + rhoCount),
+        },
+      ];
+    }),
+  );
+  const pairs = [];
+
+  for (let left = 0; left < nodes.length; left += 1) {
+    for (let right = left + 1; right < nodes.length; right += 1) {
+      const leftNode = nodes[left];
+      const rightNode = nodes[right];
+      const rho = componentByNodeId.get(leftNode.id)?.has(rightNode.id)
+        ? 1
+        : 0;
+      pairs.push({
+        leftNodeId: leftNode.id,
+        rightNodeId: rightNode.id,
+        rho,
+        leftWeight: weights.get(leftNode.id)?.weight ?? 1,
+        rightWeight: weights.get(rightNode.id)?.weight ?? 1,
+      });
+    }
+  }
+
+  return {
+    pairs,
+    weights,
+  };
+}
+
+function collectConnectedGroup(
+  startId: string,
+  linkedNodeIds: Map<string, Set<string>>,
+) {
+  const visited = new Set<string>();
+  const queue = [startId];
+
+  for (let index = 0; index < queue.length; index += 1) {
+    const nodeId = queue[index];
+    if (visited.has(nodeId)) continue;
+
+    visited.add(nodeId);
+    linkedNodeIds.get(nodeId)?.forEach((linkedNodeId) => {
+      if (!visited.has(linkedNodeId)) {
+        queue.push(linkedNodeId);
+      }
+    });
+  }
+
+  return visited;
 }

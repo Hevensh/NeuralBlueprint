@@ -1,4 +1,5 @@
 import { useRef, useState, type PointerEvent } from 'react';
+import { useLabels } from '../../i18n/LanguageContext';
 import './TrainingProcess.css';
 
 export type LossHistoryPoint = {
@@ -19,6 +20,7 @@ const PADDING_Y = 8;
 export function LossHistoryMiniChart({
   history,
 }: LossHistoryMiniChartProps) {
+  const chartLabels = useLabels().trainingProcess.lossChart;
   const chartRef = useRef<HTMLElement>(null);
   const dragRef = useRef<{
     offsetX: number;
@@ -100,7 +102,7 @@ export function LossHistoryMiniChart({
 
   return (
     <section
-      aria-label="Loss history"
+      aria-label={chartLabels.ariaHistory}
       className="training-loss-history nodrag nopan"
       onPointerCancel={endDrag}
       onPointerDown={startDrag}
@@ -117,11 +119,15 @@ export function LossHistoryMiniChart({
         : undefined}
     >
       <div className="training-loss-history-header">
-        <strong>Loss History</strong>
-        <span>{latest ? `Epoch ${latest.epoch}` : 'No training yet'}</span>
+        <strong>{chartLabels.title}</strong>
+        <span>
+          {latest
+            ? `${chartLabels.epoch} ${latest.epoch}`
+            : chartLabels.empty}
+        </span>
       </div>
       <svg
-        aria-label="Train and validation loss"
+        aria-label={chartLabels.ariaTrainValidation}
         role="img"
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
       >
@@ -167,10 +173,13 @@ export function LossHistoryMiniChart({
       </svg>
       <div className="training-loss-history-footer">
         <span className="train">
-          Train {formatLoss(latest?.trainLoss)}
+          {chartLabels.train} {formatLoss(latest?.trainLoss, chartLabels.notAvailable)}
         </span>
         <span className="validation">
-          Val {formatLoss(latestValidation?.valLoss)}
+          {chartLabels.validation} {formatLoss(
+            latestValidation?.valLoss,
+            chartLabels.notAvailable,
+          )}
         </span>
       </div>
     </section>
@@ -198,8 +207,8 @@ function trianglePath(x: number, y: number, radius: number) {
   ].join(' ');
 }
 
-function formatLoss(value: number | null | undefined) {
+function formatLoss(value: number | null | undefined, emptyLabel: string) {
   return typeof value === 'number' && Number.isFinite(value)
     ? value.toFixed(3)
-    : 'N/A';
+    : emptyLabel;
 }

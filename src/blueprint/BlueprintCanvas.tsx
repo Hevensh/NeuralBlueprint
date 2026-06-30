@@ -1,5 +1,5 @@
 import { ReactFlowProvider } from '@xyflow/react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { updateDesktopFile } from '../dataStorage/desktopStorage';
 import type { CloseFileType } from '../dataStorage/systemType';
 import type { DesktopFile } from '../desktop/desktopTypes';
@@ -13,9 +13,14 @@ import { NeuralBlueprintWorkspace } from './neuralBlueprint/NeuralBlueprintWorks
 import { PageType, type PageType as BlueprintPageType } from './PageTypes';
 import { TaskProgressBar } from './TaskProgressBar';
 import { evaluateTaskGuide } from './taskGuide/evaluateTaskGuide';
+import {
+  TaskGuideInfoDialog,
+  type TaskGuideInfoSource,
+} from './taskGuide/TaskGuideInfoDialog';
 import { TaskGuideLayer } from './taskGuide/TaskGuideLayer';
 import type {
   NeuralBlueprintTaskSnapshot,
+  TrainingProcessTaskSnapshot,
   TaskRuntimeSnapshot,
 } from './taskGuide/taskGuideSnapshot';
 import { BlueprintTopBarTabs } from './topBarTabs';
@@ -26,6 +31,7 @@ import {
   getInferenceMemoryProfileSignature,
   type InferenceMemoryProfile,
 } from './InferenceMemoryProfileTypes';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface BlueprintCanvasProp {
   file: DesktopFile;
@@ -33,9 +39,13 @@ interface BlueprintCanvasProp {
 }
 
 export function BlueprintCanvas({ file, closeFile }: BlueprintCanvasProp) {
+  const { labels, language } = useLanguage();
   const fileId = file.id;
   const features = resolveBlueprintTaskFeatureConfig(file.config);
-  const guideConfig = getTaskGuideConfig(fileId);
+  const guideConfig = useMemo(
+    () => getTaskGuideConfig(fileId, language),
+    [fileId, language],
+  );
   const [activeWorkspace, setActiveWorkspace] = useState<BlueprintPageType>(
     () => getInitialWorkspace(features),
   );
@@ -45,8 +55,26 @@ export function BlueprintCanvas({ file, closeFile }: BlueprintCanvasProp) {
   const [guideCompletedStepCount, setGuideCompletedStepCount] = useState(
     () => Math.max(0, Math.floor(file.guideCompletedStepCount ?? 0)),
   );
+  const [guideInfo, setGuideInfo] = useState<{
+    source?: TaskGuideInfoSource;
+    stepId: string;
+  } | null>(null);
+  const seenGuideInfoStepIdsRef = useRef<Set<string>>(new Set());
   const [neuralBlueprintSnapshot, setNeuralBlueprintSnapshot] =
     useState<NeuralBlueprintTaskSnapshot>();
+  const [trainingProcessSnapshot, setTrainingProcessSnapshot] =
+    useState<Partial<TrainingProcessTaskSnapshot>>({});
+  const updateTrainingProcessSnapshot = useCallback((
+    snapshot: Partial<TrainingProcessTaskSnapshot>,
+  ) => {
+    setTrainingProcessSnapshot((current) => (
+      current.savedCurveCount === snapshot.savedCurveCount
+      && current.bestValLoss === snapshot.bestValLoss
+      && current.savedBestValLoss === snapshot.savedBestValLoss
+        ? current
+        : snapshot
+    ));
+  }, []);
   const [selectedInferenceModelId, setSelectedInferenceModelId] =
     useState<string>('');
   const [inferenceMemoryProfile, setInferenceMemoryProfile] =
@@ -77,6 +105,7 @@ export function BlueprintCanvas({ file, closeFile }: BlueprintCanvasProp) {
     visitedWorkspaces,
     neuralBlueprint: neuralBlueprintSnapshot,
     trainingProcess: {
+      ...trainingProcessSnapshot,
       modelInitialized: !dataController.trainingControls.trainDisabled,
       epoch: dataController.statistics.epoch,
       trainSteps: dataController.trainingControls.trainSteps,
@@ -87,6 +116,7 @@ export function BlueprintCanvas({ file, closeFile }: BlueprintCanvasProp) {
     dataController.trainingControls.trainSteps,
     dataController.trainingControls.trainDisabled,
     neuralBlueprintSnapshot,
+    trainingProcessSnapshot,
     visitedWorkspaces,
   ]);
   const taskGuide = useMemo(() => (
@@ -94,23 +124,49 @@ export function BlueprintCanvas({ file, closeFile }: BlueprintCanvasProp) {
       ? evaluateTaskGuide(guideConfig, taskSnapshot, guideCompletedStepCount)
       : undefined
   ), [guideCompletedStepCount, guideConfig, taskSnapshot]);
+  const guideInfoStep = useMemo(() => (
+    guideInfo
+      ? taskGuide?.steps.find((step) => step.id === guideInfo.stepId) ?? null
+      : null
+  ), [guideInfo, taskGuide]);
+  const openGuideInfo = useCallback((
+    stepId: string,
+    source?: TaskGuideInfoSource,
+  ) => {
+    setGuideInfo({ source, stepId });
+  }, []);
+  useEffect(() => {
+    const activeStep = taskGuide?.activeStep;
+    if (!activeStep || activeStep.completed) return;
+    if (seenGuideInfoStepIdsRef.current.has(activeStep.id)) return;
+
+    seenGuideInfoStepIdsRef.current.add(activeStep.id);
+    openGuideInfo(activeStep.id, getTaskProgressDotSource(activeStep.id));
+  }, [openGuideInfo, taskGuide?.activeStep]);
   useEffect(() => {
     const completedStepCount = taskGuide?.completedStepCount ?? 0;
     if (completedStepCount <= guideCompletedStepCount) return;
+    const completed = completedStepCount >= (taskGuide?.steps.length ?? 0);
 
     updateDesktopFile(fileId, (desktopFile) => ({
       ...desktopFile,
+      completed,
       guideCompletedStepCount: completedStepCount,
     }));
     const timer = window.setTimeout(() => {
       setGuideCompletedStepCount(completedStepCount);
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [fileId, guideCompletedStepCount, taskGuide?.completedStepCount]);
+  }, [
+    fileId,
+    guideCompletedStepCount,
+    taskGuide?.completedStepCount,
+    taskGuide?.steps.length,
+  ]);
   const title = {
-    [PageType.NeuralBlueprint]: 'Neural BluePrint',
-    [PageType.KnowledgeGraph]: 'Knowledge Graph',
-    [PageType.TrainingProcess]: 'Training Process',
+    [PageType.NeuralBlueprint]: labels.workspaceTabs.neuralBlueprint,
+    [PageType.KnowledgeGraph]: labels.workspaceTabs.knowledgeGraph,
+    [PageType.TrainingProcess]: labels.workspaceTabs.trainingProcess,
   }[activeWorkspace];
 
   return (
@@ -153,6 +209,7 @@ export function BlueprintCanvas({ file, closeFile }: BlueprintCanvasProp) {
             controller={dataController}
             features={features.knowledgeGraph}
             fileId={fileId}
+            onTaskSnapshotChange={updateTrainingProcessSnapshot}
             showMemoryReasoningControls={
               features.neuralBlueprint.showBackwardAnalysisControl
             }
@@ -160,10 +217,39 @@ export function BlueprintCanvas({ file, closeFile }: BlueprintCanvasProp) {
         )}
       </ReactFlowProvider>
 
-      {taskGuide && <TaskProgressBar guide={taskGuide} />}
+      {taskGuide && (
+        <TaskProgressBar
+          guide={taskGuide}
+          onStepInfoRequest={openGuideInfo}
+        />
+      )}
       {taskGuide && <TaskGuideLayer guide={taskGuide} />}
+      {taskGuide && guideInfoStep && (
+        <TaskGuideInfoDialog
+          guideTitle={taskGuide.title}
+          key={guideInfoStep.id}
+          source={guideInfo?.source}
+          step={guideInfoStep}
+          onClose={() => setGuideInfo(null)}
+        />
+      )}
     </div>
   );
+}
+
+function getTaskProgressDotSource(
+  stepId: string,
+): TaskGuideInfoSource | undefined {
+  const dot = document.querySelector<HTMLButtonElement>(
+    `[data-task-progress-step-id="${stepId}"]`,
+  );
+  const rect = dot?.getBoundingClientRect();
+  if (!rect) return undefined;
+
+  return {
+    x: rect.left + rect.width / 2,
+    y: rect.top + rect.height / 2,
+  };
 }
 
 function getInitialWorkspace(

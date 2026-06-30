@@ -31,6 +31,9 @@ import {
 } from './NeuralBlueprintLeftPanel';
 import { NeuralBlueprintNode } from './NeuralBlueprintNode';
 import type {
+  InferenceMemoryAggregationPair,
+} from '../InferenceMemoryProfileTypes';
+import type {
   ModuleAnalysisDirection,
   ModuleBaseNode,
   ModuleBaseNodeKind,
@@ -46,7 +49,10 @@ import {
   type CancelNodePositionAnimation,
 } from './utils/animateNodePositions';
 import { arrangeModuleNodes } from './utils/arrangeNodes';
-import { createCorrelationLines } from './utils/correlationLines';
+import {
+  createCorrelationLines,
+  createInferenceMemoryAggregationLines,
+} from './utils/correlationLines';
 import { CorrelationOverlay } from './utils/correlationOverlay';
 import {
   createGraphSnapshot,
@@ -80,6 +86,8 @@ const nodeTypes = {
 };
 
 interface NeuralBlueprintCanvasInnerProp {
+  activeInferenceAggregationPairs: InferenceMemoryAggregationPair[];
+  activeInferenceNodeIds: string[];
   arrangeRequest: number;
   analysisDirection: ModuleAnalysisDirection;
   availableModuleKinds: ModuleBaseNodeKind[];
@@ -91,6 +99,8 @@ interface NeuralBlueprintCanvasInnerProp {
 }
 
 export function NeuralBlueprintCanvasInner({
+  activeInferenceAggregationPairs,
+  activeInferenceNodeIds,
   arrangeRequest,
   analysisDirection,
   availableModuleKinds,
@@ -141,15 +151,20 @@ export function NeuralBlueprintCanvasInner({
       && hasCorrelationPairs(node, analysisDirection)
     ))
     ?? null;
+  const activeInferenceNodeIdSet = useMemo(
+    () => new Set(activeInferenceNodeIds),
+    [activeInferenceNodeIds],
+  );
   const displayNodes = useMemo(() => (
     nodes.map((node) => ({
       ...node,
       data: {
         ...node.data,
         analysisDirection,
+        inInferenceMemoryFocus: activeInferenceNodeIdSet.has(node.id),
       },
     }))
-  ), [analysisDirection, nodes]);
+  ), [activeInferenceNodeIdSet, analysisDirection, nodes]);
   const edgeOptions = useMemo(() => {
     const isBackward = analysisDirection === 'backward';
     const color = isBackward ? '#50d88b' : '#38bdf8';
@@ -185,6 +200,13 @@ export function NeuralBlueprintCanvasInner({
     viewport,
     visibleCorrelationNode,
   ]);
+  const inferenceMemoryAggregationLines = useMemo(() => (
+    createInferenceMemoryAggregationLines(
+      activeInferenceAggregationPairs,
+      nodes,
+      viewport,
+    )
+  ), [activeInferenceAggregationPairs, nodes, viewport]);
 
   const pushHistory = useCallback(() => {
     historyRef.current = [
@@ -550,7 +572,9 @@ export function NeuralBlueprintCanvasInner({
       >
         <Background />
       </ReactFlow>
-      <CorrelationOverlay lines={correlationLines} />
+      <CorrelationOverlay
+        lines={[...correlationLines, ...inferenceMemoryAggregationLines]}
+      />
     </div>
   );
 }

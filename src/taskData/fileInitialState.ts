@@ -5,16 +5,10 @@ import type {
 import type {
   DependencyEdge,
   InterferenceEdge,
-  KnowledgeEdgeKind,
   KnowledgeGraphDefinition,
   KnowledgeNode,
   SubstituteEdge,
 } from '../blueprint/knowledgeGraph/model/types';
-import type {
-  InputNormalizationMode,
-  ModuleBaseNodeKind,
-  ModuleLockedProperty,
-} from '../blueprint/neuralBlueprint/ModuleBaseNodeTypes';
 import {
   createSeededRandom,
   randomInt,
@@ -31,86 +25,20 @@ import {
   MODULE_LAYOUT_START_Y,
   getNodeHeight,
 } from '../blueprint/neuralBlueprint/utils/arrangeNodes';
+import { TASK_FILE_CONFIGS } from './configs';
 import { DEFAULT_DATASET_SPLIT_RATIO } from './knowledgeGraphDefaults';
-import { configTask1 } from './configs/task1';
-
-export interface TaskFileInitialState {
-  neuralBlueprint?: {
-    graph: StoredNeuralBlueprintGraph;
-  };
-  knowledgeGraph?: {
-    graphDefinition: KnowledgeGraphDefinition;
-    datasetCollection?: KnowledgeDatasetCollection;
-  };
-}
-
-export interface TaskFileConfig {
-  seed: string;
-  neuralBlueprint?: TaskNeuralBlueprintConfig;
-  knowledgeGraph?: TaskKnowledgeGraphConfig;
-}
-
-export interface TaskNeuralBlueprintConfig {
-  nodes: TaskModuleNodeConfig[];
-  edges?: TaskModuleEdgeConfig[];
-  layout?: TaskLayoutConfig;
-}
-
-export type TaskModuleNodeConfig = {
-  id: string;
-  kind: ModuleBaseNodeKind;
-  position: TaskGridPosition;
-  outputDim?: number;
-  effectiveRank?: number;
-  neededOutputDim?: number;
-  normalizationMode?: InputNormalizationMode;
-  lockedProperties?: ModuleLockedProperty[];
-  deletable?: boolean;
-};
-
-export interface TaskModuleEdgeConfig {
-  source: string;
-  target: string;
-  id?: string;
-}
-
-export interface TaskKnowledgeGraphConfig {
-  nodes: TaskKnowledgeNodeConfig[];
-  edges?: TaskKnowledgeEdgeConfig[];
-  datasets?: TaskKnowledgeDatasetConfig[];
-  layout?: TaskLayoutConfig;
-}
-
-export interface TaskKnowledgeNodeConfig {
-  id: string;
-  position?: TaskGridPosition;
-}
-
-export interface TaskKnowledgeEdgeConfig {
-  kind: KnowledgeEdgeKind;
-  source: string;
-  target: string;
-  id?: string;
-}
-
-export interface TaskKnowledgeDatasetConfig {
-  id?: string;
-  nodeDataAmounts?: Record<string, number>;
-}
-
-export interface TaskLayoutConfig {
-  origin?: TaskGridPosition;
-  gap?: TaskGridPosition;
-}
-
-export interface TaskGridPosition {
-  x: number;
-  y: number;
-}
-
-const TASK_FILE_CONFIGS: Record<string, TaskFileConfig> = {
-  'task1:welcome to neural blueprint': configTask1,
-};
+import type {
+  TaskFileConfig,
+  TaskFileInitialState,
+  TaskGridPosition,
+  TaskKnowledgeDatasetConfig,
+  TaskKnowledgeEdgeConfig,
+  TaskKnowledgeGraphConfig,
+  TaskKnowledgeNodeConfig,
+  TaskLayoutConfig,
+  TaskModuleNodeConfig,
+  TaskNeuralBlueprintConfig,
+} from './taskFileTypes';
 
 const DEFAULT_BLUEPRINT_LAYOUT: ResolvedTaskLayout = {
   origin: {

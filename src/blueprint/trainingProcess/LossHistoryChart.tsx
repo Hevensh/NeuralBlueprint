@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLabels } from '../../i18n/LanguageContext';
 import type { KnowledgeLossPoint } from '../knowledgeGraph/model/types';
 import './TrainingProcess.css';
 
@@ -17,6 +18,7 @@ export function LossHistoryChart({
 }: {
   history: KnowledgeLossPoint[];
 }) {
+  const chartLabels = useLabels().trainingProcess.lossChart;
   const [hovered, setHovered] = useState<ChartPoint | null>(null);
   const train = history
     .filter((point) => Number.isFinite(point.trainLoss))
@@ -56,18 +58,23 @@ export function LossHistoryChart({
   const bestVal = validation.reduce<ChartPoint | null>((best, point) => (
     !best || point.loss < best.loss ? point : best
   ), null);
+  const seriesLabel = (series: ChartPoint['series']) => (
+    series === 'train' ? chartLabels.train : chartLabels.validation
+  );
 
   return (
     <section className="training-loss-chart">
       <div className="training-loss-chart-header">
-        <strong>Loss History</strong>
+        <strong>{chartLabels.title}</strong>
         <span>
-          {history.length > 0 ? `Epoch ${lastEpoch}` : 'No training yet'}
+          {history.length > 0
+            ? `${chartLabels.epoch} ${lastEpoch}`
+            : chartLabels.empty}
         </span>
       </div>
 
       <svg
-        aria-label="Train and validation loss history"
+        aria-label={chartLabels.ariaTrainValidationHistory}
         role="img"
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
       >
@@ -124,7 +131,7 @@ export function LossHistoryChart({
               x={x(bestVal.epoch)}
               y={HEIGHT - PADDING + 38}
             >
-              Best {bestVal.epoch}
+              {chartLabels.best} {bestVal.epoch}
             </text>
           </g>
         )}
@@ -182,15 +189,15 @@ export function LossHistoryChart({
             top: `${y(hovered.loss) / HEIGHT * 100}%`,
           }}
         >
-          <strong>{hovered.series}</strong>
-          <span>Epoch {hovered.epoch}</span>
+          <strong>{seriesLabel(hovered.series)}</strong>
+          <span>{chartLabels.epoch} {hovered.epoch}</span>
           <span>{hovered.loss.toFixed(4)}</span>
         </div>
       )}
 
       <div className="training-loss-chart-legend">
-        <span className="train">Train</span>
-        <span className="validation">Validation</span>
+        <span className="train">{chartLabels.train}</span>
+        <span className="validation">{chartLabels.validation}</span>
       </div>
     </section>
   );

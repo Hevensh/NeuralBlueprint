@@ -1,45 +1,20 @@
 import type { DragEvent } from 'react';
+import { useLabels } from '../../i18n/LanguageContext';
 import type { ModuleBaseNodeKind } from './ModuleBaseNodeTypes';
 
 export const MODULE_BASE_NODE_DRAG_TYPE = 'application/neural-blueprint-module-node';
 
 interface ModuleBaseNodeTemplate {
   kind: ModuleBaseNodeKind;
-  title: string;
-  description: string;
 }
 
 const moduleBaseNodeTemplates: ModuleBaseNodeTemplate[] = [
-  {
-    kind: 'Input',
-    title: 'Input',
-    description: 'Network input tensor',
-  },
-  {
-    kind: 'Linear',
-    title: 'Linear',
-    description: 'Affine feature transform',
-  },
-  {
-    kind: 'ReLU',
-    title: 'ReLU',
-    description: 'Activation and sparsity',
-  },
-  {
-    kind: 'Dropout',
-    title: 'Dropout',
-    description: 'Random feature deletion',
-  },
-  {
-    kind: 'Sum',
-    title: 'Sum',
-    description: 'Merge multiple inputs',
-  },
-  {
-    kind: 'Output',
-    title: 'Output',
-    description: 'Network output tensor',
-  },
+  { kind: 'Input' },
+  { kind: 'Linear' },
+  { kind: 'ReLU' },
+  { kind: 'Dropout' },
+  { kind: 'Sum' },
+  { kind: 'Output' },
 ];
 
 function getModuleBaseNodeIcon(kind: ModuleBaseNodeKind) {
@@ -73,6 +48,7 @@ export function NeuralBlueprintLeftPanel({
   availableModuleKinds,
   onArrangeNodes,
 }: NeuralBlueprintLeftPanelProp) {
+  const labels = useLabels().neuralBlueprint.leftPanel;
   const availableModules = moduleBaseNodeTemplates.filter((module) => (
     availableModuleKinds.includes(module.kind)
   ));
@@ -81,10 +57,10 @@ export function NeuralBlueprintLeftPanel({
     <aside className="left-panel">
       <div className="panel-section-spacer" />
       <button className="action-button" onClick={onArrangeNodes} type="button">
-        Arrange Nodes
+        {labels.arrangeNodes}
       </button>
       <div className="panel-section-spacer" />
-      <div className="title">Neural Modules</div>
+      <div className="title">{labels.neuralModules}</div>
       <div className="module-list">
         {availableModules.map((module) => (
           <div
@@ -98,8 +74,10 @@ export function NeuralBlueprintLeftPanel({
               {getModuleBaseNodeIcon(module.kind)}
             </div>
             <div className="module-card-copy">
-              <div className="module-card-title">{module.title}</div>
-              <div className="module-card-description">{module.description}</div>
+              <div className="module-card-title">{module.kind}</div>
+              <div className="module-card-description">
+                {labels.moduleDescriptions[module.kind]}
+              </div>
             </div>
           </div>
         ))}

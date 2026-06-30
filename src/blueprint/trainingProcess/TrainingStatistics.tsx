@@ -5,6 +5,7 @@ import {
 } from '../dataController/controls/ControlSection';
 import type { KnowledgeLossPoint } from '../knowledgeGraph/model/types';
 import type { KnowledgeLossReport } from '../knowledgeGraph/model/lossMetrics';
+import { useLabels } from '../../i18n/LanguageContext';
 
 export function TrainingStatistics({
   epoch,
@@ -15,6 +16,7 @@ export function TrainingStatistics({
   history: KnowledgeLossPoint[];
   loss: KnowledgeLossReport;
 }) {
+  const labels = useLabels().trainingProcess.statistics;
   const latest = history.at(-1);
   const latestVal = history.findLast(
     (point) => typeof point.valLoss === 'number'
@@ -29,22 +31,22 @@ export function TrainingStatistics({
   ), null);
 
   return (
-    <ControlSection title="Training Statistics">
-      <StatValue label="Train Epochs" value={epoch} />
+    <ControlSection title={labels.title}>
+      <StatValue label={labels.trainEpochs} value={epoch} />
       <ControlGrid>
         <StatValue
-          label="Train Loss"
+          label={labels.trainLoss}
           value={formatLoss(latest?.trainLoss ?? loss.graphTrainLoss)}
         />
         <StatValue
-          label="Val Loss"
+          label={labels.valLoss}
           value={formatLoss(latestVal?.valLoss ?? loss.graphValLoss)}
         />
       </ControlGrid>
       <ControlGrid>
-        <StatValue label="Best Epoch" value={bestVal?.epoch ?? 'N/A'} />
+        <StatValue label={labels.bestEpoch} value={bestVal?.epoch ?? 'N/A'} />
         <StatValue
-          label="Best Val Loss"
+          label={labels.bestValLoss}
           value={formatLoss(bestVal?.valLoss)}
         />
       </ControlGrid>

@@ -4,11 +4,13 @@ export function ControlSection({
   title,
   onReset,
   resetDisabled,
+  resetLabel = 'Reset',
   children,
 }: {
   title: string;
   onReset?: () => void;
   resetDisabled?: boolean;
+  resetLabel?: string;
   children: ReactNode;
 }) {
   return (
@@ -20,9 +22,9 @@ export function ControlSection({
           className="action-button danger"
           disabled={resetDisabled}
           onClick={onReset}
-          type="button"
-        >
-          Reset
+        type="button"
+      >
+          {resetLabel}
         </button>
       )}
     </section>

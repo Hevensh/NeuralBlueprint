@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { PageType } from '../blueprint/PageTypes';
 import type { ModuleBaseNodeKind } from '../blueprint/neuralBlueprint/ModuleBaseNodeTypes';
 
@@ -13,8 +14,15 @@ export interface TaskGuideStepConfig {
   title: string;
   description?: string;
   hint: string;
+  info?: TaskGuideStepInfo;
   animation?: TaskGuideStepAnimation | TaskGuideStepAnimation[];
   completeWhen: TaskGuideCondition;
+}
+
+export interface TaskGuideStepInfo {
+  title: string;
+  body: string;
+  illustration?: () => ReactNode;
 }
 
 export interface TaskGuideStepAnimation {
@@ -73,6 +81,13 @@ export type TaskGuideCondition =
     via?: ModuleNodeSelector;
   }
   | {
+    type: 'moduleCount';
+    kind: ModuleBaseNodeKind;
+    min?: number;
+    max?: number;
+    equals?: number;
+  }
+  | {
     type: 'selectedModuleNode';
     selector: ModuleNodeSelector;
   }
@@ -102,7 +117,10 @@ export interface ModuleNodeSelector {
   name?: string;
   predecessorId?: string;
   successorId?: string;
+  predecessorKind?: ModuleBaseNodeKind;
+  successorKind?: ModuleBaseNodeKind;
   props?: Record<string, string | number | boolean>;
+  minProps?: Record<string, number>;
   stats?: Record<string, string | number | boolean>;
 }
 
@@ -115,4 +133,9 @@ export type BlueprintTaskStatName =
 
 export type TrainingTaskFlagName = 'modelInitialized';
 
-export type TrainingTaskStatName = 'epoch' | 'trainSteps';
+export type TrainingTaskStatName =
+  | 'epoch'
+  | 'trainSteps'
+  | 'savedCurveCount'
+  | 'bestValLoss'
+  | 'savedBestValLoss';

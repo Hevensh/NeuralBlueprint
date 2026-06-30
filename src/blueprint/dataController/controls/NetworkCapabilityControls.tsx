@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { NumberField } from '../../../NumberField';
+import { useLabels } from '../../../i18n/LanguageContext';
 import type { NetworkCapabilityMode } from '../../../taskData/blueprintFeatureConfig';
 import {
   ControlGrid,
@@ -40,6 +41,7 @@ export function NetworkCapabilityControls(props: NetworkCapabilityControlsProps)
     onInitialize,
     onReset,
   } = props;
+  const labels = useLabels().knowledgeGraph.controls.networkCapability;
   const source = configuredMode === 'select'
     ? memoryProfileSource
     : configuredMode;
@@ -54,7 +56,11 @@ export function NetworkCapabilityControls(props: NetworkCapabilityControlsProps)
   }, [configuredMode, memoryProfileSource, onMemoryProfileSourceChange]);
 
   return (
-    <ControlSection title="Network Capability" onReset={onReset}>
+    <ControlSection
+      title={labels.title}
+      onReset={onReset}
+      resetLabel={labels.reset}
+    >
       {configuredMode === 'select' && (
         <div className="top-bar-tabs property-direction-tabs">
           <button
@@ -64,7 +70,7 @@ export function NetworkCapabilityControls(props: NetworkCapabilityControlsProps)
             onClick={() => onMemoryProfileSourceChange('preset')}
             type="button"
           >
-            Preset
+            {labels.preset}
           </button>
           <button
             className={`top-bar-tab ${
@@ -74,7 +80,7 @@ export function NetworkCapabilityControls(props: NetworkCapabilityControlsProps)
             onClick={() => onMemoryProfileSourceChange('blueprint')}
             type="button"
           >
-            Blueprint
+            {labels.blueprint}
           </button>
         </div>
       )}
@@ -82,14 +88,14 @@ export function NetworkCapabilityControls(props: NetworkCapabilityControlsProps)
         <ControlGrid>
           <NumberField
             disabled={source === 'blueprint'}
-            label="Memory"
+            label={labels.memory}
             min={0}
             value={memory}
             onChange={(value) => onMemoryChange(Math.max(0, Math.floor(value)))}
           />
           <NumberField
             disabled={source === 'blueprint'}
-            label="Reasoning"
+            label={labels.reasoning}
             min={0}
             value={reasoning}
             onChange={(value) => onReasoningChange(Math.max(0, Math.floor(value)))}
@@ -97,7 +103,7 @@ export function NetworkCapabilityControls(props: NetworkCapabilityControlsProps)
         </ControlGrid>
       )}
       <TextField
-        label="Initialization Seed"
+        label={labels.initializationSeed}
         value={initializationSeed}
         onChange={onInitializationSeedChange}
       />
@@ -107,7 +113,7 @@ export function NetworkCapabilityControls(props: NetworkCapabilityControlsProps)
         onClick={onInitialize}
         type="button"
       >
-        Initialize Model
+        {labels.initialize}
       </button>
     </ControlSection>
   );

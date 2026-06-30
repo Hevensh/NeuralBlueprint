@@ -1,4 +1,5 @@
 import type { TrainingCurveSnapshot } from '../../dataStorage/trainingCurveStorage';
+import { useLabels } from '../../i18n/LanguageContext';
 
 export function TrainingCurveStoragePanel({
   snapshots,
@@ -17,17 +18,19 @@ export function TrainingCurveStoragePanel({
   onDelete: (snapshotId: string) => void;
   onClear: () => void;
 }) {
+  const labels = useLabels().trainingProcess.curveStorage;
+
   return (
     <aside className="right-panel training-curve-storage">
       <div className="training-curve-storage-header">
-        <strong>Saved Curves</strong>
+        <strong>{labels.title}</strong>
         <button
           className="training-curve-clear"
           disabled={snapshots.length === 0}
           onClick={onClear}
           type="button"
         >
-          Clear
+          {labels.clear}
         </button>
       </div>
 
@@ -37,7 +40,7 @@ export function TrainingCurveStoragePanel({
         onClick={onSave}
         type="button"
       >
-        Record Loss History
+        {labels.recordLossHistory}
       </button>
       <button
         className={`action-button ${selectedSnapshotId === null ? 'primary' : ''
@@ -45,12 +48,12 @@ export function TrainingCurveStoragePanel({
         onClick={() => onSelect(null)}
         type="button"
       >
-        View Current Training
+        {labels.viewCurrentTraining}
       </button>
 
       <div className="training-curve-list">
         {snapshots.length === 0 && (
-          <p className="property-empty">No saved curves.</p>
+          <p className="property-empty">{labels.noSavedCurves}</p>
         )}
         {snapshots.map((snapshot) => {
           const bestVal = snapshot.history.reduce<
@@ -76,17 +79,17 @@ export function TrainingCurveStoragePanel({
                 <strong>
                   {new Date(snapshot.createdAt).toLocaleString()}
                 </strong>
-                <span>Epoch {snapshot.epoch}</span>
-                <span>Best Epoch {bestVal?.epoch ?? 'N/A'}</span>
-                <span>Best Val Loss {formatLoss(bestVal?.valLoss)}</span>
+                <span>{labels.epoch} {snapshot.epoch}</span>
+                <span>{labels.bestEpoch} {bestVal?.epoch ?? 'N/A'}</span>
+                <span>{labels.bestValLoss} {formatLoss(bestVal?.valLoss)}</span>
               </button>
               <button
-                aria-label={`Delete curve at epoch ${snapshot.epoch}`}
+                aria-label={`${labels.deleteCurveAtEpoch} ${snapshot.epoch}`}
                 className="training-curve-delete"
                 onClick={() => onDelete(snapshot.id)}
                 type="button"
               >
-                Delete
+                {labels.delete}
               </button>
             </article>
           );

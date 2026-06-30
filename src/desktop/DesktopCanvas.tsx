@@ -9,15 +9,29 @@ import {
 import '@xyflow/react/dist/style.css';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { loadDesktopFiles, loadDesktopView, saveDesktopFiles, saveDesktopView, updateDesktopFile } from '../dataStorage/desktopStorage';
+import {
+  clearWorkspace as clearDesktopWorkspace,
+  INITIAL_DESKTOP_VIEWPORT,
+  loadDesktopFiles,
+  loadDesktopView,
+  saveDesktopFiles,
+  saveDesktopView,
+  updateDesktopFile,
+} from '../dataStorage/desktopStorage';
 import { clearKnowledgeGraphSession } from '../dataStorage/knowledgeGraphStorage';
 import { clearNeuralBlueprintGraph } from '../dataStorage/neuralBlueprintStorage';
 import type { FileWorkspaceType, OpenFileType } from '../dataStorage/systemType';
 import { clearTrainingCurves } from '../dataStorage/trainingCurveStorage';
 import { INITIAL_DESKTOP_FILES } from '../taskData/desktopDefaults';
+import {
+  isDesktopFileVisible,
+  toDesktopFlowPosition,
+  toDesktopNodes,
+} from './desktopFileLayout';
 import { DesktopCanvasInner } from './DesktopCanvasInner';
 import { DesktopLeftPanel } from './leftPanel';
 import { DesktopRightPanel } from './rightPanel';
+import { DesktopSettingsDialog } from './DesktopSettingsDialog';
 import type { DesktopFile, DesktopIconNodeType } from './desktopTypes';
 
 interface DesktopCanvasProp {
@@ -27,6 +41,7 @@ interface DesktopCanvasProp {
 export function DesktopCanvas({ openFile }: DesktopCanvasProp) {
   const [selectedFile, setSelectedFile] = useState<DesktopFile | null>(null);
   const [saveNotice, setSaveNotice] = useState('');
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [initFiles] = useState<DesktopFile[]>(loadDesktopFiles);
   
   const [initViewport] = useState<Viewport>(loadDesktopView);
@@ -51,6 +66,23 @@ export function DesktopCanvas({ openFile }: DesktopCanvasProp) {
     historyRef.current = [...historyRef.current, canvas?.getNodes() ?? []];
   }, [canvas]);
 
+  const exitApp = useCallback(() => {
+    const closePage = () => {
+      window.close();
+      window.setTimeout(() => {
+        if (!window.closed) window.location.href = 'about:blank';
+      }, 120);
+    };
+
+    if (window.neuralBlueprintApp) {
+      void window.neuralBlueprintApp.quit().finally(closePage);
+      return;
+    }
+
+    void fetch('/__neural-blueprint-exit', { method: 'POST' })
+      .finally(closePage);
+  }, []);
+
   const handleOpenFile = useCallback((file: DesktopFile) => {
     saveDesktopFiles(canvas?.getNodes() ?? []);
     const viewport = canvas?.getViewport();
@@ -65,7 +97,7 @@ export function DesktopCanvas({ openFile }: DesktopCanvasProp) {
   const renameDesktopFile = useCallback((fileId: string, name: string) => {
     pushHistory();
     const renamedFile = selectedFile?.id === fileId
-      ? { ...selectedFile, name }
+      ? { ...selectedFile, name, localizedNames: undefined }
       : null;
     if (renamedFile) {
       setSelectedFile(renamedFile);
@@ -74,6 +106,7 @@ export function DesktopCanvas({ openFile }: DesktopCanvasProp) {
       file: {
         ...node.data.file,
         name,
+        localizedNames: undefined,
       },
     }));
   }, [canvas, pushHistory, selectedFile]);
@@ -85,32 +118,67 @@ export function DesktopCanvas({ openFile }: DesktopCanvasProp) {
     canvas?.deleteElements({ nodes: [{ id: fileId }] });
   }, [canvas, pushHistory, selectedFile?.deletable]);
 
+  const clearDesktopFileRuntime = useCallback((file: DesktopFile) => {
+    if (file.type !== 'nbp') return false;
+
+    clearNeuralBlueprintGraph(file.id);
+    clearKnowledgeGraphSession(file.id);
+    clearTrainingCurves(file.id);
+    return true;
+  }, []);
+
   const resetDesktopFileStorage = useCallback((file: DesktopFile) => {
-    if (file.type === 'nbp') {
-      clearNeuralBlueprintGraph(file.id);
-      clearKnowledgeGraphSession(file.id);
-      clearTrainingCurves(file.id);
+    if (clearDesktopFileRuntime(file)) {
       updateDesktopFile(file.id, (desktopFile) => ({
         ...desktopFile,
+        completed: false,
         guideCompletedStepCount: 0,
       }));
       setSelectedFile((current) => (
         current?.id === file.id
-          ? { ...current, guideCompletedStepCount: 0 }
+          ? { ...current, completed: false, guideCompletedStepCount: 0 }
           : current
       ));
-      canvas?.updateNodeData(file.id, (node) => ({
-        file: {
-          ...node.data.file,
-          guideCompletedStepCount: 0,
+      const currentNodes = canvas?.getNodes() ?? [];
+      const nextFiles = currentNodes.map((node) => (
+        node.id === file.id
+          ? {
+            ...node.data.file,
+            completed: false,
+            guideCompletedStepCount: 0,
+          }
+          : node.data.file
+      ));
+      canvas?.setNodes(currentNodes.map((node, index) => ({
+        ...node,
+        hidden: !isDesktopFileVisible(nextFiles[index], nextFiles),
+        data: {
+          ...node.data,
+          file: nextFiles[index],
         },
-      }));
+      })));
       showSaveNotice('File storage reset');
       return;
     }
 
     showSaveNotice('No stored data for this file type');
-  }, [canvas, showSaveNotice]);
+  }, [canvas, clearDesktopFileRuntime, showSaveNotice]);
+
+  const resetAllFiles = useCallback(() => {
+    const files = new Map<string, DesktopFile>();
+    loadDesktopFiles().forEach((file) => files.set(file.id, file));
+    canvas?.getNodes().forEach((node) => files.set(node.data.file.id, node.data.file));
+    INITIAL_DESKTOP_FILES.forEach((file) => files.set(file.id, file));
+    files.forEach(clearDesktopFileRuntime);
+
+    pushHistory();
+    clearDesktopWorkspace();
+    const initialNodes = toDesktopNodes(INITIAL_DESKTOP_FILES);
+    canvas?.setNodes(initialNodes);
+    void canvas?.setViewport(INITIAL_DESKTOP_VIEWPORT, { duration: 300 });
+    setSelectedFile(null);
+    showSaveNotice('All files reset');
+  }, [canvas, clearDesktopFileRuntime, pushHistory, showSaveNotice]);
 
   const undo = useCallback(() => {
     const previousNodes = historyRef.current.at(-1);
@@ -125,13 +193,20 @@ export function DesktopCanvas({ openFile }: DesktopCanvasProp) {
     if (!canvas) return;
 
     const initialPositions = new Map(
-      INITIAL_DESKTOP_FILES.map((file) => [file.id, file.position]),
+      INITIAL_DESKTOP_FILES.map((file) => [
+        file.id,
+        toDesktopFlowPosition(file.position),
+      ]),
+    );
+    const initialFiles = new Map(
+      INITIAL_DESKTOP_FILES.map((file) => [file.id, file]),
     );
 
     const startNodes = canvas.getNodes();
     const targetNodes = startNodes.map((node) => {
       const position = initialPositions.get(node.id);
       if (!position) return node;
+      const file = initialFiles.get(node.id);
 
       const nextPosition = { ...position };
       return {
@@ -141,12 +216,14 @@ export function DesktopCanvas({ openFile }: DesktopCanvasProp) {
           ...node.data,
           file: {
             ...node.data.file,
-            position: nextPosition,
+            position: file?.position ?? node.data.file.position,
           },
         },
       };
     });
-    const targetResetNodes = targetNodes.filter((node) => initialPositions.has(node.id));
+    const targetResetNodes = targetNodes.filter((node) => (
+      initialPositions.has(node.id) && !node.hidden
+    ));
     if (targetResetNodes.length === 0) return;
 
     if (resetAnimationFrameRef.current !== null) {
@@ -170,6 +247,7 @@ export function DesktopCanvas({ openFile }: DesktopCanvasProp) {
       const nextNodes = startNodes.map((node) => {
         const targetPosition = initialPositions.get(node.id);
         if (!targetPosition) return node;
+        const initialFile = initialFiles.get(node.id);
 
         const nextPosition = {
           x: node.position.x + (targetPosition.x - node.position.x) * easedProgress,
@@ -183,7 +261,7 @@ export function DesktopCanvas({ openFile }: DesktopCanvasProp) {
             ...node.data,
             file: {
               ...node.data.file,
-              position: nextPosition,
+              position: initialFile?.position ?? node.data.file.position,
             },
           },
         };
@@ -242,7 +320,10 @@ export function DesktopCanvas({ openFile }: DesktopCanvasProp) {
           <div className="desktop-title">Neural BluePrint</div>
         </header>
 
-        <DesktopLeftPanel onResetPositions={resetDesktopFilePositions} />
+        <DesktopLeftPanel
+          onOpenSettings={() => setSettingsOpen(true)}
+          onResetPositions={resetDesktopFilePositions}
+        />
 
         <DesktopCanvasInner
           initFiles={initFiles}
@@ -264,6 +345,14 @@ export function DesktopCanvas({ openFile }: DesktopCanvasProp) {
         <div className={`desktop-save-toast ${saveNotice ? 'visible' : ''}`}>
           {saveNotice}
         </div>
+
+        {settingsOpen && (
+          <DesktopSettingsDialog
+            onClose={() => setSettingsOpen(false)}
+            onExit={exitApp}
+            onResetAllFiles={resetAllFiles}
+          />
+        )}
       </div>
     </ReactFlowProvider>
   );

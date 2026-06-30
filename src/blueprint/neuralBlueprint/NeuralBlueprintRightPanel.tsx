@@ -8,10 +8,12 @@ import {
 } from 'react';
 import {
   EMPTY_INFERENCE_MEMORY_PROFILE,
+  type InferenceMemoryAggregationPair,
   type InferenceMemoryProfile,
 } from '../InferenceMemoryProfileTypes';
 import type { ResolvedBlueprintTaskFeatureConfig } from '../../taskData/blueprintFeatureConfig';
 import { NumberField } from '../../NumberField';
+import { useLabels } from '../../i18n/LanguageContext';
 import { buildInferenceMemoryModels } from './analysis/inferenceMemoryProfile';
 import { updateState } from './analysis/updateState';
 import { InferenceMemoryChart } from './InferenceMemoryChart';
@@ -35,6 +37,12 @@ interface NeuralBlueprintRightPanelProp {
   setAnalysisDirection: Dispatch<SetStateAction<ModuleAnalysisDirection>>;
   setSelectedInferenceModelId: (modelId: string) => void;
   setSelectedNode: Dispatch<SetStateAction<ModuleNodeData | null>>;
+  onActiveInferenceFocusChange: (
+    focus: {
+      nodeIds: string[];
+      aggregationPairs: InferenceMemoryAggregationPair[];
+    } | null
+  ) => void;
   onInferenceMemoryProfileChange: (profile: InferenceMemoryProfile) => void;
 }
 
@@ -50,8 +58,12 @@ export function NeuralBlueprintRightPanel({
   setAnalysisDirection,
   setSelectedInferenceModelId,
   setSelectedNode,
+  onActiveInferenceFocusChange,
   onInferenceMemoryProfileChange,
 }: NeuralBlueprintRightPanelProp) {
+  const labels = useLabels().neuralBlueprint;
+  const propertyLabels = labels.propertiesPanel;
+  const analysisLabels = labels.analysisControls;
   const { getNodes, setNodes } = useReactFlow<ModuleBaseNode, Edge>();
   const nodes = useNodes<ModuleBaseNode>();
   const inferenceMemoryModels = useMemo(
@@ -135,7 +147,7 @@ export function NeuralBlueprintRightPanel({
       className="right-panel"
       data-analysis-direction={analysisDirection}
     >
-      <div className="title">Properties</div>
+      <div className="title">{propertyLabels.title}</div>
       <div className="property-toggle-group">
         {features.showBackwardAnalysisControl && (
           <div className="top-bar-tabs property-direction-tabs">
@@ -144,14 +156,14 @@ export function NeuralBlueprintRightPanel({
               onClick={() => setAnalysisDirection('forward')}
               type="button"
             >
-              Forward
+              {analysisLabels.forward}
             </button>
             <button
               className={`top-bar-tab ${analysisDirection === 'backward' ? 'active' : ''}`}
               onClick={() => setAnalysisDirection('backward')}
               type="button"
             >
-              Backward
+              {analysisLabels.backward}
             </button>
           </div>
         )}
@@ -161,7 +173,7 @@ export function NeuralBlueprintRightPanel({
             onClick={() => setShowRankAnalysis((current) => !current)}
             type="button"
           >
-            Rank Analysis
+            {analysisLabels.rankAnalysis}
           </button>
         )}
         {features.showVarianceAnalysisToggle && (
@@ -170,14 +182,14 @@ export function NeuralBlueprintRightPanel({
             onClick={() => setShowVarianceAnalysis((current) => !current)}
             type="button"
           >
-            Variance Analysis
+            {analysisLabels.varianceAnalysis}
           </button>
         )}
       </div>
       {selectedNode ? (
         <div className="property-panel">
           <label className="property-field">
-            <span className="property-label">Name</span>
+            <span className="property-label">{propertyLabels.name}</span>
             <input
               className="property-input"
               value={selectedNode.name}
@@ -186,13 +198,13 @@ export function NeuralBlueprintRightPanel({
           </label>
 
           <div className="property-field">
-            <span className="property-label">Type</span>
+            <span className="property-label">{propertyLabels.type}</span>
             <div className="property-value">{selectedNode.kind}</div>
           </div>
 
           {selectedNode.kind === 'Input' || selectedNode.kind === 'Linear' ? (
             <NumberField
-              label="Output Dim"
+              label={propertyLabels.outputDim}
               disabled={outputDimLocked}
               guideTarget="property-output-dim"
               min={1}
@@ -201,7 +213,7 @@ export function NeuralBlueprintRightPanel({
             />
           ) : selectedNode.kind === 'Output' ? (
             <NumberField
-              label="Needed Output Dim"
+              label={propertyLabels.neededOutputDim}
               disabled={neededOutputDimLocked}
               min={1}
               onChange={handleNeededOutputDimChange}
@@ -209,7 +221,7 @@ export function NeuralBlueprintRightPanel({
             />
           ) : (
             <div className="property-field">
-              <span className="property-label">Output Dim</span>
+              <span className="property-label">{propertyLabels.outputDim}</span>
               <div className="property-value">
                 {formatDecimalPropertyNumber(selectedNode.stats?.rank, 0)}
               </div>
@@ -220,7 +232,9 @@ export function NeuralBlueprintRightPanel({
             analysisDirection === 'backward' || selectedNode.kind !== 'Input'
           ) && (
               <label className="property-field">
-                <span className="property-label">Effective Rank</span>
+                <span className="property-label">
+                  {propertyLabels.effectiveRank}
+                </span>
                 <div className="property-value">
                   {formatDecimalPropertyNumber(selectedStats?.effectiveRank, 3)}
                 </div>
@@ -240,7 +254,9 @@ export function NeuralBlueprintRightPanel({
             <>
               <div className="property-field">
                 <span className="property-label">
-                  {analysisDirection === 'forward' ? 'Output Mean' : 'Gradient Mean'}
+                  {analysisDirection === 'forward'
+                    ? propertyLabels.outputMean
+                    : propertyLabels.gradientMean}
                 </span>
                 <div className="property-value">
                   {formatDecimalPropertyNumber(selectedStats?.mean, 3)}
@@ -250,8 +266,8 @@ export function NeuralBlueprintRightPanel({
               <div className="property-field">
                 <span className="property-label">
                   {analysisDirection === 'forward'
-                    ? 'Output Standard Error'
-                    : 'Gradient Standard Error'}
+                    ? propertyLabels.outputStandardError
+                    : propertyLabels.gradientStandardError}
                 </span>
                 <div className="property-value">
                   {formatDecimalPropertyNumber(
@@ -264,7 +280,7 @@ export function NeuralBlueprintRightPanel({
           )}
         </div>
       ) : (
-        <div className="property-empty">No node selected</div>
+        <div className="property-empty">{propertyLabels.noNodeSelected}</div>
       )}
       {showRankAnalysis && features.showBackwardAnalysisControl && (
         <InferenceMemoryChart
@@ -273,6 +289,7 @@ export function NeuralBlueprintRightPanel({
             label: model.label,
           }))}
           onModelChange={setSelectedInferenceModelId}
+          onActiveGroupFocusChange={onActiveInferenceFocusChange}
           profile={inferenceMemoryProfile}
           selectedModelId={effectiveInferenceModelId}
         />)}

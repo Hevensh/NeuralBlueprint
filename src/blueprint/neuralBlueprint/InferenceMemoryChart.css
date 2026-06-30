@@ -22,6 +22,7 @@
 }
 
 .inference-memory-chart {
+  position: relative;
   display: grid;
   grid-auto-columns: minmax(42px, 1fr);
   grid-auto-flow: column;
@@ -35,6 +36,8 @@
 }
 
 .inference-memory-stage {
+  position: relative;
+  z-index: 1;
   display: grid;
   grid-template-rows: 20px 142px 26px;
   align-items: end;
@@ -79,13 +82,17 @@
 
 .inference-memory-segment {
   position: relative;
+  display: block;
+  width: 100%;
   min-height: 1px;
   box-sizing: border-box;
+  padding: 0;
   border: 1px solid color-mix(
     in srgb,
     var(--inference-memory-color) 82%,
     transparent
   );
+  appearance: none;
   background:
     linear-gradient(
       180deg,
@@ -103,24 +110,36 @@
       var(--inference-memory-color) 42%,
       transparent
     );
+  cursor: pointer;
   transition:
+    opacity 0.14s ease,
     filter 0.14s ease,
     box-shadow 0.14s ease;
 }
 
-.inference-memory-segment:hover {
-  filter: brightness(1.22);
+.inference-memory-segment.selected {
+  z-index: 3;
+  border-color: color-mix(
+    in srgb,
+    var(--inference-memory-color) 96%,
+    white
+  );
+  filter: brightness(1.25);
   box-shadow:
-    inset 0 0 10px color-mix(
+    inset 0 0 12px color-mix(
       in srgb,
-      var(--inference-memory-color) 28%,
+      var(--inference-memory-color) 32%,
       transparent
     ),
-    0 0 11px color-mix(
+    0 0 14px color-mix(
       in srgb,
-      var(--inference-memory-color) 62%,
+      var(--inference-memory-color) 68%,
       transparent
     );
+}
+
+.inference-memory-segment.dimmed {
+  opacity: 0.32;
 }
 
 .inference-memory-stage-label {
@@ -148,13 +167,34 @@
   grid-template-columns: 10px minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  appearance: none;
+  background: transparent;
   color: #94a3b8;
+  cursor: pointer;
   font-size: 11px;
+  text-align: left;
+  transition:
+    color 0.14s ease,
+    opacity 0.14s ease,
+    filter 0.14s ease;
 }
 
 .inference-memory-legend-item strong {
   color: #cbd5e1;
   font-size: 11px;
+}
+
+.inference-memory-legend-item.active,
+.inference-memory-legend-item.selected {
+  color: #dbeafe;
+  filter: brightness(1.14);
+}
+
+.inference-memory-legend-item.dimmed {
+  opacity: 0.42;
 }
 
 .inference-memory-swatch {

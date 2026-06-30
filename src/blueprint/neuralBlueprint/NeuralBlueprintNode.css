@@ -145,6 +145,24 @@
     0 14px 30px rgba(0, 0, 0, 0.28);
 }
 
+.neural-blueprint-node.in-inference-memory-focus {
+  border-color: rgba(103, 232, 249, 0.9);
+  box-shadow:
+    0 0 0 2px rgba(34, 211, 238, 0.24),
+    0 0 24px rgba(34, 211, 238, 0.44),
+    0 14px 30px rgba(0, 0, 0, 0.28);
+  filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.28));
+}
+
+.react-flow__node:hover .neural-blueprint-node.in-inference-memory-focus,
+.react-flow__node.selected .neural-blueprint-node.in-inference-memory-focus {
+  border-color: rgba(165, 243, 252, 0.96);
+  box-shadow:
+    0 0 0 2px rgba(34, 211, 238, 0.3),
+    0 0 28px rgba(34, 211, 238, 0.52),
+    0 14px 30px rgba(0, 0, 0, 0.32);
+}
+
 .module-base-node-icon {
   border: 1px solid rgba(103, 232, 249, 0.34);
   border-radius: 8px;
@@ -273,12 +291,36 @@
     filter 0.16s ease;
 }
 
+.correlation-overlay-line-group.tone-safe .correlation-overlay-line {
+  stroke: #34d399;
+  opacity: 0.48;
+}
+
+.correlation-overlay-line-group.tone-danger .correlation-overlay-line {
+  stroke: #fb7185;
+  opacity: 0.58;
+}
+
 .correlation-overlay-line-group:hover .correlation-overlay-line {
   stroke: #7dd3fc;
   opacity: 0.96;
   filter:
     drop-shadow(0 0 6px rgba(125, 211, 252, 0.72))
     drop-shadow(0 0 14px rgba(56, 189, 248, 0.42));
+}
+
+.correlation-overlay-line-group.tone-safe:hover .correlation-overlay-line {
+  stroke: #86efac;
+  filter:
+    drop-shadow(0 0 6px rgba(134, 239, 172, 0.7))
+    drop-shadow(0 0 14px rgba(52, 211, 153, 0.38));
+}
+
+.correlation-overlay-line-group.tone-danger:hover .correlation-overlay-line {
+  stroke: #fda4af;
+  filter:
+    drop-shadow(0 0 6px rgba(253, 164, 175, 0.74))
+    drop-shadow(0 0 14px rgba(251, 113, 133, 0.44));
 }
 
 .correlation-overlay-label {
@@ -292,10 +334,18 @@
   paint-order: stroke;
   stroke: rgba(7, 35, 52, 0.9);
   stroke-width: 5;
-  stroke-linejoin: round;
+    stroke-linejoin: round;
   text-anchor: middle;
   dominant-baseline: middle;
   font-weight: 720;
+}
+
+.correlation-overlay-line-group.tone-safe .correlation-overlay-label {
+  fill: #bbf7d0;
+}
+
+.correlation-overlay-line-group.tone-danger .correlation-overlay-label {
+  fill: #fecdd3;
 }
 
 .correlation-overlay-line-group:hover .correlation-overlay-label {
@@ -304,4 +354,18 @@
   filter:
     drop-shadow(0 0 6px rgba(125, 211, 252, 0.64))
     drop-shadow(0 0 12px rgba(56, 189, 248, 0.34));
+}
+
+.correlation-overlay-line-group.tone-safe:hover .correlation-overlay-label {
+  fill: #dcfce7;
+  filter:
+    drop-shadow(0 0 6px rgba(134, 239, 172, 0.62))
+    drop-shadow(0 0 12px rgba(52, 211, 153, 0.34));
+}
+
+.correlation-overlay-line-group.tone-danger:hover .correlation-overlay-label {
+  fill: #ffe4e6;
+  filter:
+    drop-shadow(0 0 6px rgba(253, 164, 175, 0.64))
+    drop-shadow(0 0 12px rgba(251, 113, 133, 0.36));
 }

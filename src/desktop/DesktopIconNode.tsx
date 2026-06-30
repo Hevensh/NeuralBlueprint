@@ -1,8 +1,11 @@
 import type { NodeProps } from '@xyflow/react';
 import type { DesktopIconNodeType } from './desktopTypes';
+import { useLanguage } from '../i18n/LanguageContext';
+import { getDesktopFileDisplayName } from './desktopFileNames';
 import { getFileIcon } from './fileIcons';
 
 export function DesktopIconNode({ data, selected }: NodeProps<DesktopIconNodeType>) {
+  const { language } = useLanguage();
   const { file } = data;
 
   return (
@@ -13,7 +16,7 @@ export function DesktopIconNode({ data, selected }: NodeProps<DesktopIconNodeTyp
         {getFileIcon(file.type)}
       </div>
       <div className="desktop-icon-name">
-        {file.name}
+        {getDesktopFileDisplayName(file, language)}
       </div>
     </div>
   );

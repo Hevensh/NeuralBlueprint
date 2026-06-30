@@ -3,7 +3,7 @@ import { DesktopCanvas } from './desktop/DesktopCanvas';
 import { BlueprintCanvas } from './blueprint/BlueprintCanvas';
 import type { ActiveFileState, FileWorkspaceType } from './dataStorage/systemType';
 import type { DesktopFile } from './desktop/desktopTypes';
-
+import { LanguageProvider } from './i18n/LanguageContext';
 
 
 export default function App() {
@@ -19,17 +19,19 @@ export default function App() {
 
   return (
     <StrictMode>
-      {activeFile === null ? (
-        <DesktopCanvas openFile={openFile} />
-      ) : activeFile.workspace === 'blueprint' ? (
-        <BlueprintCanvas
-          key={activeFile.file.id}
-          file={activeFile.file}
-          closeFile={closeFile}
-        />
-      ) : (
-        <DesktopCanvas openFile={openFile} />
-      )}
+      <LanguageProvider>
+        {activeFile === null ? (
+          <DesktopCanvas openFile={openFile} />
+        ) : activeFile.workspace === 'blueprint' ? (
+          <BlueprintCanvas
+            key={activeFile.file.id}
+            file={activeFile.file}
+            closeFile={closeFile}
+          />
+        ) : (
+          <DesktopCanvas openFile={openFile} />
+        )}
+      </LanguageProvider>
     </StrictMode>
   );
 }

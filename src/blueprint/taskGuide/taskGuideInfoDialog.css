@@ -1,0 +1,341 @@
+.task-guide-info-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 14;
+  background: rgba(2, 6, 23, 0.34);
+  backdrop-filter: blur(2px);
+  animation: task-guide-info-backdrop-in 0.18s ease-out both;
+}
+
+.task-guide-info-backdrop.closing {
+  animation: task-guide-info-backdrop-out 0.18s ease-in both;
+}
+
+.task-guide-info-dialog {
+  --task-guide-info-radius: 24px;
+  --task-guide-info-target-width: min(720px, calc(100vw - 64px));
+  --task-guide-info-target-height: 320px;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  box-sizing: border-box;
+  width: min(720px, calc(100vw - 64px));
+  min-height: 320px;
+  padding: 34px 38px 32px;
+  overflow: hidden;
+  border: 1px solid rgba(103, 232, 249, 0.38);
+  border-radius: var(--task-guide-info-radius);
+  background:
+    radial-gradient(circle at 20% 0%, rgba(34, 211, 238, 0.18), transparent 38%),
+    radial-gradient(circle at 90% 15%, rgba(59, 130, 246, 0.16), transparent 42%),
+    rgba(2, 6, 23, 0.9);
+  box-shadow:
+    0 28px 72px rgba(0, 0, 0, 0.48),
+    0 0 30px rgba(34, 211, 238, 0.18),
+    inset 0 0 24px rgba(34, 211, 238, 0.06);
+  color: #dff7ff;
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  contain: layout paint;
+}
+
+.task-guide-info-dialog.with-illustration {
+  width: min(860px, calc(100vw - 64px));
+  min-height: 360px;
+}
+
+.task-guide-info-dialog.motion-ready {
+  top: var(--task-guide-info-target-top);
+  left: var(--task-guide-info-target-left);
+  width: var(--task-guide-info-target-width);
+  height: var(--task-guide-info-target-height);
+  min-height: 0;
+  opacity: 1;
+  transform: none;
+  animation: task-guide-info-dialog-in 0.36s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: top, left, width, height, opacity;
+}
+
+.task-guide-info-backdrop.closing .task-guide-info-dialog.motion-ready {
+  animation: task-guide-info-dialog-out 0.24s cubic-bezier(0.7, 0, 0.84, 0) both;
+}
+
+.task-guide-info-content {
+  opacity: 0;
+}
+
+.task-guide-info-dialog.motion-ready .task-guide-info-content {
+  animation: task-guide-info-content-in 0.18s ease-out 0.12s both;
+}
+
+.task-guide-info-backdrop.closing .task-guide-info-content {
+  animation: task-guide-info-content-out 0.1s ease-in both;
+}
+
+.task-guide-info-eyebrow {
+  margin-bottom: 16px;
+  color: #38bdf8;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.task-guide-info-illustrated {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 30px;
+  align-items: center;
+}
+
+.task-guide-info-copy {
+  min-width: 0;
+}
+
+.task-guide-info-dialog h2 {
+  max-width: 580px;
+  margin: 0;
+  color: #f0fdff;
+  font-size: 28px;
+  line-height: 1.16;
+}
+
+.task-guide-info-dialog > .task-guide-info-content > p {
+  max-width: 620px;
+  margin: 18px 0 0;
+  color: #bae6fd;
+  font-size: 15px;
+  font-weight: 560;
+  line-height: 1.7;
+}
+
+.task-guide-info-copy > p {
+  max-width: 420px;
+  margin: 18px 0 0;
+  color: #bae6fd;
+  font-size: 15px;
+  font-weight: 560;
+  line-height: 1.7;
+}
+
+.task-guide-info-diagram {
+  position: relative;
+  display: grid;
+  min-height: 240px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(56, 189, 248, 0.24);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 28% 18%, rgba(34, 211, 238, 0.18), transparent 34%),
+    radial-gradient(circle at 86% 72%, rgba(34, 197, 94, 0.14), transparent 36%),
+    rgba(15, 23, 42, 0.7);
+  box-shadow:
+    0 0 24px rgba(56, 189, 248, 0.12),
+    inset 0 0 22px rgba(148, 163, 184, 0.05);
+}
+
+.task-guide-info-diagram svg {
+  width: 100%;
+  height: auto;
+}
+
+.diagram-frame {
+  fill: rgba(2, 6, 23, 0.48);
+  stroke: rgba(148, 163, 184, 0.2);
+}
+
+.diagram-axis {
+  fill: none;
+  stroke: rgba(226, 232, 240, 0.68);
+  stroke-linecap: round;
+  stroke-width: 2;
+}
+
+.diagram-grid {
+  fill: none;
+  stroke: rgba(148, 163, 184, 0.12);
+  stroke-width: 1;
+}
+
+.diagram-line {
+  fill: none;
+  filter: url("#task-guide-regression-glow");
+  stroke: url("#task-guide-regression-line");
+  stroke-linecap: round;
+  stroke-width: 4;
+}
+
+.diagram-curve {
+  fill: none;
+  stroke: rgba(125, 211, 252, 0.34);
+  stroke-dasharray: 5 6;
+  stroke-linecap: round;
+  stroke-width: 3;
+}
+
+.diagram-fit-line {
+  fill: none;
+  stroke: rgba(248, 113, 113, 0.9);
+  stroke-linecap: round;
+  stroke-width: 4;
+}
+
+.diagram-piecewise-line {
+  fill: none;
+  stroke: rgba(34, 197, 94, 0.94);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 4;
+}
+
+.diagram-point {
+  fill: rgba(125, 211, 252, 0.94);
+  stroke: rgba(236, 254, 255, 0.92);
+  stroke-width: 1.5;
+}
+
+.diagram-label {
+  fill: rgba(186, 230, 253, 0.86);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.diagram-label.warning {
+  fill: rgba(252, 165, 165, 0.92);
+}
+
+.diagram-label.success {
+  fill: rgba(134, 239, 172, 0.92);
+}
+
+.task-guide-info-action {
+  margin-top: 28px;
+  padding: 16px 18px;
+  border: 1px solid rgba(34, 211, 238, 0.18);
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.64);
+}
+
+.task-guide-info-action span {
+  display: block;
+  color: #67e8f9;
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.task-guide-info-action p {
+  margin: 7px 0 0;
+  color: #dbeafe;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+@keyframes task-guide-info-backdrop-in {
+  from {
+    background: rgba(2, 6, 23, 0);
+  }
+
+  to {
+    background: rgba(2, 6, 23, 0.34);
+  }
+}
+
+@keyframes task-guide-info-backdrop-out {
+  from {
+    background: rgba(2, 6, 23, 0.34);
+  }
+
+  to {
+    background: rgba(2, 6, 23, 0);
+  }
+}
+
+@keyframes task-guide-info-dialog-in {
+  from {
+    top: var(--task-guide-info-start-top);
+    left: var(--task-guide-info-start-left);
+    width: var(--task-guide-info-start-width);
+    height: var(--task-guide-info-start-height);
+    opacity: 0.86;
+  }
+
+  to {
+    top: var(--task-guide-info-target-top);
+    left: var(--task-guide-info-target-left);
+    width: var(--task-guide-info-target-width);
+    height: var(--task-guide-info-target-height);
+    opacity: 1;
+  }
+}
+
+@keyframes task-guide-info-dialog-out {
+  from {
+    top: var(--task-guide-info-target-top);
+    left: var(--task-guide-info-target-left);
+    width: var(--task-guide-info-target-width);
+    height: var(--task-guide-info-target-height);
+    opacity: 1;
+  }
+
+  to {
+    top: var(--task-guide-info-start-top);
+    left: var(--task-guide-info-start-left);
+    width: var(--task-guide-info-start-width);
+    height: var(--task-guide-info-start-height);
+    opacity: 0;
+  }
+}
+
+@keyframes task-guide-info-content-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes task-guide-info-content-out {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .task-guide-info-backdrop,
+  .task-guide-info-backdrop.closing,
+  .task-guide-info-dialog.motion-ready,
+  .task-guide-info-backdrop.closing .task-guide-info-dialog.motion-ready,
+  .task-guide-info-dialog.motion-ready .task-guide-info-content,
+  .task-guide-info-backdrop.closing .task-guide-info-content {
+    animation-duration: 0.01ms;
+  }
+}
+
+@media (max-width: 760px) {
+  .task-guide-info-dialog.with-illustration {
+    min-height: 520px;
+  }
+
+  .task-guide-info-illustrated {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .task-guide-info-diagram {
+    min-height: 200px;
+  }
+}

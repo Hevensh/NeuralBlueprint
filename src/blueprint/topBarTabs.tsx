@@ -1,12 +1,13 @@
 import { PageType, type PageType as BlueprintPageType } from './PageTypes';
+import { useLabels } from '../i18n/LanguageContext';
 
 const blueprintTabs: Array<{
-  label: string;
+  labelKey: 'neuralBlueprint' | 'knowledgeGraph' | 'trainingProcess';
   workspace: BlueprintPageType;
 }> = [
-  { label: 'Neural Blueprint', workspace: PageType.NeuralBlueprint },
-  { label: 'Knowledge Graph', workspace: PageType.KnowledgeGraph },
-  { label: 'Training Process', workspace: PageType.TrainingProcess },
+  { labelKey: 'neuralBlueprint', workspace: PageType.NeuralBlueprint },
+  { labelKey: 'knowledgeGraph', workspace: PageType.KnowledgeGraph },
+  { labelKey: 'trainingProcess', workspace: PageType.TrainingProcess },
 ];
 
 interface BlueprintTopBarTabsProps {
@@ -22,6 +23,7 @@ export function BlueprintTopBarTabs({
   showKnowledgeGraphTab = true,
   onWorkspaceChange,
 }: BlueprintTopBarTabsProps) {
+  const labels = useLabels();
   const visibleTabs = blueprintTabs.filter((tab) => {
     if (tab.workspace === PageType.NeuralBlueprint) {
       return showNeuralBlueprintTab;
@@ -38,11 +40,11 @@ export function BlueprintTopBarTabs({
         <button
           className={`top-bar-tab ${tab.workspace === activeWorkspace ? 'active' : ''}`}
           data-guide-target={`workspace-tab-${tab.workspace}`}
-          key={tab.label}
+          key={tab.workspace}
           onClick={() => onWorkspaceChange(tab.workspace)}
           type="button"
         >
-          {tab.label}
+          {labels.workspaceTabs[tab.labelKey]}
         </button>
       ))}
     </div>

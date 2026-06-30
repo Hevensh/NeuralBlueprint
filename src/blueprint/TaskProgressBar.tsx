@@ -1,4 +1,5 @@
 import type { EvaluatedTaskGuide } from './taskGuide/evaluateTaskGuide';
+import type { TaskGuideInfoSource } from './taskGuide/TaskGuideInfoDialog';
 
 type TaskProgressStep = {
   key: string;
@@ -9,9 +10,16 @@ type TaskProgressStep = {
 
 interface TaskProgressBarProps {
   guide: EvaluatedTaskGuide;
+  onStepInfoRequest?: (
+    stepId: string,
+    source?: TaskGuideInfoSource,
+  ) => void;
 }
 
-export function TaskProgressBar({ guide }: TaskProgressBarProps) {
+export function TaskProgressBar({
+  guide,
+  onStepInfoRequest,
+}: TaskProgressBarProps) {
   const steps: TaskProgressStep[] = guide.steps.map((step) => ({
     key: step.id,
     title: step.title,
@@ -48,7 +56,19 @@ export function TaskProgressBar({ guide }: TaskProgressBarProps) {
               className={`task-progress-step ${step.state}`}
               key={step.key}
             >
-              <span className="task-progress-dot" />
+              <button
+                aria-label={step.title}
+                className="task-progress-dot"
+                data-task-progress-step-id={step.key}
+                onClick={(event) => {
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  onStepInfoRequest?.(step.key, {
+                    x: rect.left + rect.width / 2,
+                    y: rect.top + rect.height / 2,
+                  });
+                }}
+                type="button"
+              />
               <span className="task-progress-text">
                 <span className="task-progress-title">{step.title}</span>
                 <span className="task-progress-description">

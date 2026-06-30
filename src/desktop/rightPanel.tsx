@@ -1,6 +1,8 @@
 import type { ChangeEvent } from 'react';
 import type { DesktopFile } from './desktopTypes';
-import { getFileTypeLabel } from './fileNames';
+import { useLanguage } from '../i18n/LanguageContext';
+import { getDesktopFileTypeLabels } from '../i18n/labels';
+import { getDesktopFileDisplayName } from './desktopFileNames';
 
 interface DesktopRightPanelProp {
   selectedFile: DesktopFile | null;
@@ -15,6 +17,8 @@ export function DesktopRightPanel({
   onDeleteFile,
   onResetFile,
 }: DesktopRightPanelProp) {
+  const { language, labels } = useLanguage();
+  const panelLabels = labels.desktop.rightPanel;
   const handleNameChange = (event: ChangeEvent<HTMLInputElement>) => {
     if (!selectedFile) return;
     onRenameFile(selectedFile.id, event.target.value);
@@ -22,22 +26,22 @@ export function DesktopRightPanel({
 
   return (
     <aside className="right-panel">
-      <div className="title">Properties</div>
+      <div className="title">{panelLabels.title}</div>
       {selectedFile ? (
         <div className="property-panel">
           <label className="property-field">
-            <span className="property-label">Name</span>
+            <span className="property-label">{panelLabels.name}</span>
             <input
               className="property-input"
-              value={selectedFile.name}
+              value={getDesktopFileDisplayName(selectedFile, language)}
               onChange={handleNameChange}
             />
           </label>
 
           <div className="property-field">
-            <span className="property-label">Type</span>
+            <span className="property-label">{panelLabels.type}</span>
             <div className="property-value">
-              {getFileTypeLabel(selectedFile.type)}
+              {getDesktopFileTypeLabels(language, selectedFile.type).label}
             </div>
           </div>
 
@@ -47,18 +51,18 @@ export function DesktopRightPanel({
             onClick={() => onDeleteFile(selectedFile.id)}
             type="button"
           >
-            Delete
+            {panelLabels.delete}
           </button>
           <button
             className="action-button"
             onClick={() => onResetFile(selectedFile)}
             type="button"
           >
-            Reset
+            {panelLabels.reset}
           </button>
         </div>
       ) : (
-        <div className="property-empty">No file selected</div>
+        <div className="property-empty">{panelLabels.noFileSelected}</div>
       )}
     </aside>
   );

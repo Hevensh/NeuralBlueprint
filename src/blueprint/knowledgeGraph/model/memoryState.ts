@@ -187,6 +187,7 @@ function createBlueprintPools(profile: InferenceMemoryProfile) {
       id: `blueprint:${group.id}`,
       inferenceStages: normalizeStages(group.inferenceStages),
       memoryPoint: normalizeMemoryPoint(group.memoryPoint),
+      varianceRatio: normalizeFactor(group.varianceRatio),
     }));
 }
 
@@ -252,6 +253,7 @@ function samePoolConfiguration(
   return left.length === right.length && left.every((pool, index) => (
     pool.id === right[index]?.id
     && pool.memoryPoint === right[index]?.memoryPoint
+    && pool.varianceRatio === right[index]?.varianceRatio
     && pool.inferenceStages.join(',') === right[index]?.inferenceStages.join(',')
   ));
 }
@@ -274,6 +276,10 @@ function normalizeMemoryPoint(value: number) {
 
 function normalizeReasoningPoint(value: number) {
   return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+}
+
+function normalizeFactor(value: number) {
+  return Number.isFinite(value) ? value : 1;
 }
 
 function maxInferenceStage(pools: KnowledgeMemoryBudgetPool[]) {

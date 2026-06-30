@@ -147,7 +147,11 @@ export function runBackwardStats(
     );
     const gradient = node.kind === 'Output'
       ? getOutputInitialGradient(node)
-      : aggregateBackwardStats(flattened.gradients, outputPairStats);
+      : aggregateBackwardStats(
+        flattened.gradients,
+        flattened.outputNodes,
+        outputPairStats,
+      );
     const result = backwardModuleStats(node, gradient);
 
     node.backwardOutputPairStats = outputPairStats.length > 0

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { KnowledgeLossPoint } from '../knowledgeGraph/model/types';
 import type { ResolvedBlueprintTaskFeatureConfig } from '../../taskData/blueprintFeatureConfig';
 import { NetworkCapabilityControls } from '../dataController/controls/NetworkCapabilityControls';
 import { TrainingConfigurationControls } from '../dataController/controls/TrainingConfigurationControls';
@@ -11,16 +12,21 @@ import {
   saveTrainingCurves,
   type TrainingCurveSnapshot,
 } from '../../dataStorage/trainingCurveStorage';
+import type { TrainingProcessTaskSnapshot } from '../taskGuide/taskGuideSnapshot';
 
 export function TrainingProcessWorkspace({
   controller,
   features,
   fileId,
+  onTaskSnapshotChange,
   showMemoryReasoningControls = true,
 }: {
   controller: BlueprintDataController;
   features: ResolvedBlueprintTaskFeatureConfig['knowledgeGraph'];
   fileId: string;
+  onTaskSnapshotChange?: (
+    snapshot: Partial<TrainingProcessTaskSnapshot>,
+  ) => void;
   showMemoryReasoningControls?: boolean;
 }) {
   const [snapshots, setSnapshots] = useState(
@@ -39,6 +45,14 @@ export function TrainingProcessWorkspace({
   useEffect(() => {
     saveTrainingCurves(fileId, snapshots);
   }, [fileId, snapshots]);
+
+  useEffect(() => {
+    onTaskSnapshotChange?.({
+      savedCurveCount: snapshots.length,
+      bestValLoss: getBestValLoss(liveHistory),
+      savedBestValLoss: getBestSavedValLoss(snapshots),
+    });
+  }, [liveHistory, onTaskSnapshotChange, snapshots]);
 
   useEffect(() => {
     if (
@@ -127,4 +141,23 @@ export function TrainingProcessWorkspace({
       />
     </>
   );
+}
+
+function getBestSavedValLoss(snapshots: TrainingCurveSnapshot[]) {
+  return snapshots.reduce<number | undefined>((best, snapshot) => {
+    const value = getBestValLoss(snapshot.history);
+    return value !== undefined && (best === undefined || value < best)
+      ? value
+      : best;
+  }, undefined);
+}
+
+function getBestValLoss(history: KnowledgeLossPoint[]) {
+  return history.reduce<number | undefined>((best, point) => (
+    typeof point.valLoss === 'number'
+      && Number.isFinite(point.valLoss)
+      && (best === undefined || point.valLoss < best)
+      ? point.valLoss
+      : best
+  ), undefined);
 }

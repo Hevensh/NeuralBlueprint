@@ -1,5 +1,7 @@
 import { NumberField } from '../../NumberField';
 import { PropertyDropdown } from '../../PropertyDropdown';
+import { useLabels } from '../../i18n/LanguageContext';
+import type { AppLabelSet } from '../../i18n/label.en';
 import type {
   BiasInitializationMode,
   DropoutNodeData,
@@ -21,6 +23,7 @@ type UpdateSelectedNode = <TNode extends ModuleNodeData>(
   node: TNode,
   patch: Partial<TNode>,
 ) => void;
+type PropertyLabels = AppLabelSet['neuralBlueprint']['propertiesPanel'];
 
 export function NeuralBlueprintModuleProperties({
   effectiveRankDisabled,
@@ -28,10 +31,13 @@ export function NeuralBlueprintModuleProperties({
   showRankAnalysis,
   updateSelectedNode,
 }: NeuralBlueprintModulePropertiesProps) {
+  const labels = useLabels().neuralBlueprint.propertiesPanel;
+
   if (selectedNode.kind === 'Input') {
     return (
       <InputProperties
         effectiveRankDisabled={effectiveRankDisabled}
+        labels={labels}
         node={selectedNode}
         showRankAnalysis={showRankAnalysis}
         updateNode={updateSelectedNode}
@@ -42,6 +48,7 @@ export function NeuralBlueprintModuleProperties({
   if (selectedNode.kind === 'Linear') {
     return (
       <LinearProperties
+        labels={labels}
         node={selectedNode}
         updateNode={updateSelectedNode}
       />
@@ -51,6 +58,7 @@ export function NeuralBlueprintModuleProperties({
   if (selectedNode.kind === 'Dropout') {
     return (
       <DropoutProperties
+        labels={labels}
         node={selectedNode}
         updateNode={updateSelectedNode}
       />
@@ -62,11 +70,13 @@ export function NeuralBlueprintModuleProperties({
 
 function InputProperties({
   effectiveRankDisabled,
+  labels,
   node,
   showRankAnalysis,
   updateNode,
 }: {
   effectiveRankDisabled?: boolean;
+  labels: PropertyLabels;
   node: InputNodeData;
   showRankAnalysis: boolean;
   updateNode: UpdateSelectedNode;
@@ -76,7 +86,7 @@ function InputProperties({
       {showRankAnalysis && (
         <NumberField
           disabled={effectiveRankDisabled}
-          label="Effective Rank"
+          label={labels.effectiveRank}
           min={0}
           value={node.inputEffectiveRank}
           onChange={(inputEffectiveRank) => updateNode(node, {
@@ -86,11 +96,11 @@ function InputProperties({
       )}
 
       <div className="property-field">
-        <span className="property-label">Normalization</span>
+        <span className="property-label">{labels.normalization}</span>
         <PropertyDropdown<InputNormalizationMode>
           options={[
             { label: '0-1', value: '0-1' },
-            { label: 'Standard', value: 'standard' },
+            { label: labels.standard, value: 'standard' },
           ]}
           value={node.normalizationMode}
           onChange={(normalizationMode) => updateNode(node, { normalizationMode })}
@@ -101,20 +111,22 @@ function InputProperties({
 }
 
 function LinearProperties({
+  labels,
   node,
   updateNode,
 }: {
+  labels: PropertyLabels;
   node: LinearNodeData;
   updateNode: UpdateSelectedNode;
 }) {
   return (
     <>
       <div className="property-field">
-        <span className="property-label">Weight Initialization</span>
+        <span className="property-label">{labels.weightInitialization}</span>
         <PropertyDropdown<LinearInitializationMode>
           options={[
-            { label: 'Standard Normal', value: 'standard_normal' },
-            { label: 'Xavier Normal', value: 'xavier_normal' },
+            { label: labels.standardNormal, value: 'standard_normal' },
+            { label: labels.xavierNormal, value: 'xavier_normal' },
           ]}
           value={node.initializationMode}
           onChange={(initializationMode) => updateNode(node, { initializationMode })}
@@ -122,11 +134,11 @@ function LinearProperties({
       </div>
 
       <div className="property-field">
-        <span className="property-label">Bias Initialization</span>
+        <span className="property-label">{labels.biasInitialization}</span>
         <PropertyDropdown<BiasInitializationMode>
           options={[
-            { label: 'Zeros', value: 'zeros' },
-            { label: 'Standard Normal', value: 'standard_normal' },
+            { label: labels.zeros, value: 'zeros' },
+            { label: labels.standardNormal, value: 'standard_normal' },
           ]}
           value={node.biasInitializationMode}
           onChange={(biasInitializationMode) => updateNode(node, {
@@ -139,15 +151,17 @@ function LinearProperties({
 }
 
 function DropoutProperties({
+  labels,
   node,
   updateNode,
 }: {
+  labels: PropertyLabels;
   node: DropoutNodeData;
   updateNode: UpdateSelectedNode;
 }) {
   return (
     <NumberField
-      label="Dropout Rate (%)"
+      label={labels.dropoutRate}
       max={100}
       min={0}
       value={node.dropoutRate * 100}

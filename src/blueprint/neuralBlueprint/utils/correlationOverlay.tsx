@@ -27,7 +27,10 @@ export function CorrelationOverlay({ lines }: { lines: CorrelationLine[] }) {
     <svg className="correlation-overlay">
       {orderedLines.map((line) => (
         <g
-          className="correlation-overlay-line-group"
+          className={[
+            'correlation-overlay-line-group',
+            line.tone ? `tone-${line.tone}` : '',
+          ].filter(Boolean).join(' ')}
           key={line.id}
           onMouseEnter={() => setHoveredLineId(line.id)}
           onMouseLeave={() => setHoveredLineId(null)}

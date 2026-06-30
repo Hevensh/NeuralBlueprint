@@ -1,4 +1,5 @@
 import type { Viewport } from '@xyflow/react';
+import type { InferenceMemoryAggregationPair } from '../../InferenceMemoryProfileTypes';
 import type {
   ModuleAnalysisDirection,
   ModuleBaseNode,
@@ -7,6 +8,7 @@ import type {
 export interface CorrelationLine {
   id: string;
   labels: string[];
+  tone?: 'safe' | 'danger';
   fontSize: number;
   lineGap: number;
   strokeWidth: number;
@@ -43,7 +45,7 @@ export function createCorrelationLines(
   const drawnPairKeys = new Set<string>();
 
   return pairs
-    .map((pair) => {
+    .map((pair): CorrelationLine | null => {
       if (pair.leftNodeId === pair.rightNodeId) return null;
 
       const pairKey = getPairKey(pair.leftNodeId, pair.rightNodeId);
@@ -64,6 +66,47 @@ export function createCorrelationLines(
       return {
         id: `${analysisDirection}-correlation-${anchorNodeId}-${pair.leftNodeId}-${pair.rightNodeId}`,
         labels,
+        fontSize: 12 * viewport.zoom,
+        lineGap: 15 * viewport.zoom,
+        strokeWidth: 4 * viewport.zoom,
+        strokeDasharray: `${8 * viewport.zoom} ${12 * viewport.zoom}`,
+        x1: leftCenter.x,
+        y1: leftCenter.y,
+        x2: rightCenter.x,
+        y2: rightCenter.y,
+        labelX: (leftCenter.x + rightCenter.x) / 2,
+        labelY: (leftCenter.y + rightCenter.y) / 2,
+      };
+    })
+    .filter((line): line is CorrelationLine => Boolean(line));
+}
+
+export function createInferenceMemoryAggregationLines(
+  pairs: InferenceMemoryAggregationPair[],
+  nodes: ModuleBaseNode[],
+  viewport: Viewport,
+): CorrelationLine[] {
+  if (pairs.length === 0) return [];
+
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
+
+  return pairs
+    .map((pair): CorrelationLine | null => {
+      if (pair.leftNodeId === pair.rightNodeId) return null;
+
+      const leftNode = nodeById.get(pair.leftNodeId);
+      const rightNode = nodeById.get(pair.rightNodeId);
+      if (!leftNode || !rightNode) return null;
+
+      const leftCenter = getNodeScreenCenter(leftNode, viewport);
+      const rightCenter = getNodeScreenCenter(rightNode, viewport);
+
+      return {
+        id: `inference-memory-aggregation-${pair.leftNodeId}-${pair.rightNodeId}`,
+        labels: [
+          pair.rho > 0 ? 'connected' : 'disconnected',
+        ],
+        tone: pair.rho > 0 ? 'danger' : 'safe',
         fontSize: 12 * viewport.zoom,
         lineGap: 15 * viewport.zoom,
         strokeWidth: 4 * viewport.zoom,

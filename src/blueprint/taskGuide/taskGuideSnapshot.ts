@@ -32,6 +32,9 @@ export interface TrainingProcessTaskSnapshot {
   modelInitialized: boolean;
   epoch: number;
   trainSteps: number;
+  savedCurveCount?: number;
+  bestValLoss?: number;
+  savedBestValLoss?: number;
 }
 
 const MODULE_KINDS: ModuleBaseNodeKind[] = [

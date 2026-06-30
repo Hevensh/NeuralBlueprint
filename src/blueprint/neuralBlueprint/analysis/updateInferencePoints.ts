@@ -3,8 +3,8 @@ import type {
   ModuleBaseNode,
 } from '../ModuleBaseNodeTypes';
 import {
-  averageNodeMemoryPoint,
   collectInferenceModelIslands,
+  computeInferenceGroupProfile,
 } from './inferenceMemoryProfile';
 
 export function updateInferencePoints(nodes: ModuleBaseNode[]) {
@@ -49,7 +49,12 @@ export function updateInferencePoints(nodes: ModuleBaseNode[]) {
     });
 
     groups.forEach((groupNodes) => {
-      const inferencePoint = Math.floor(averageNodeMemoryPoint(groupNodes));
+      const inferencePoint = Math.floor(
+        computeInferenceGroupProfile(
+          groupNodes,
+          island.nodes.map((node) => node.data),
+        ).memoryPoint,
+      );
 
       groupNodes.forEach((node) => {
         node.inferencePoint = inferencePoint;

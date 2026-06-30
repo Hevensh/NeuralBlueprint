@@ -1,4 +1,5 @@
-﻿import { NumberField } from '../../NumberField';
+import { NumberField } from '../../NumberField';
+import { useLabels } from '../../i18n/LanguageContext';
 import type {
   KnowledgeGraphEdgeData,
   KnowledgeGraphNodeData,
@@ -42,9 +43,11 @@ export function KnowledgeDetailPanel({
   onEdgeMemoryChange,
   onInferenceStageChange,
 }: KnowledgeDetailPanelProps) {
+  const labels = useLabels().knowledgeGraph.detail;
+
   return (
     <aside className="right-panel">
-      <div className="title">Properties</div>
+      <div className="title">{labels.properties}</div>
       {enableMemoryAnalysis && (
         <InferenceStageSlider
           max={maxInferenceStage}
@@ -61,7 +64,7 @@ export function KnowledgeDetailPanel({
               onClick={onShowMemoryChange}
               type="button"
             >
-              Memory Allocation
+              {labels.memoryAllocation}
             </button>
           )}
           {enableMasteryOverfitAnalysis && (
@@ -71,7 +74,7 @@ export function KnowledgeDetailPanel({
               onClick={onShowMetricsChange}
               type="button"
             >
-              Mastery / Overfit
+              {labels.masteryOverfit}
             </button>
           )}
           {enableUtilityAnalysis && (
@@ -81,7 +84,7 @@ export function KnowledgeDetailPanel({
               onClick={onShowUtilityChange}
               type="button"
             >
-              Utility
+              {labels.utility}
             </button>
           )}
         </div>
@@ -97,16 +100,16 @@ export function KnowledgeDetailPanel({
           />
         )
         : selectedNode
-        ? (
-          <NodeProperties
-            selectedNode={selectedNode}
-            showMemory={showMemory}
-            showMetrics={showMetrics}
-            showUtility={showUtility}
-            onMemoryChange={onMemoryChange}
-          />
-        )
-        : <div className="property-empty">No Element Selected</div>}
+          ? (
+            <NodeProperties
+              selectedNode={selectedNode}
+              showMemory={showMemory}
+              showMetrics={showMetrics}
+              showUtility={showUtility}
+              onMemoryChange={onMemoryChange}
+            />
+          )
+          : <div className="property-empty">{labels.noElementSelected}</div>}
     </aside>
   );
 }
@@ -120,14 +123,16 @@ function InferenceStageSlider({
   max: number;
   onChange: (stage: number) => void;
 }) {
+  const labels = useLabels().knowledgeGraph.detail;
+
   return (
     <div className="knowledge-stage-control">
       <div className="knowledge-stage-header">
-        <span>Inference Stage</span>
+        <span>{labels.inferenceStage}</span>
         <strong>{value} / {max}</strong>
       </div>
       <input
-        aria-label="Inference Stage"
+        aria-label={labels.inferenceStage}
         disabled={max === 0}
         max={max}
         min={0}
@@ -153,21 +158,23 @@ function EdgeProperties({
   showUtility: boolean;
   onMemoryChange: (edgeId: string, memory: number) => void;
 }) {
+  const labels = useLabels().knowledgeGraph.detail;
   const { metrics } = selectedEdge;
+
   return (
     <div className="property-panel">
-      <Value label="Type" value={selectedEdge.kind} />
-      <Value label="Source" value={selectedEdge.source.name} />
-      <Value label="Target" value={selectedEdge.target.name} />
-      <Value label="Lambda" value={format(selectedEdge.properties.lambda)} />
+      <Value label={labels.type} value={selectedEdge.kind} />
+      <Value label={labels.source} value={selectedEdge.source.name} />
+      <Value label={labels.target} value={selectedEdge.target.name} />
+      <Value label={labels.lambda} value={format(selectedEdge.properties.lambda)} />
       {showMemory && (
         <>
           <Value
-            label="Required Memory"
+            label={labels.requiredMemory}
             value={format(selectedEdge.properties.requiredMemory)}
           />
           <NumberField
-            label={`Allocated Memory (${selectedEdge.memorySelectionLabel})`}
+            label={`${labels.allocatedMemory} (${selectedEdge.memorySelectionLabel})`}
             min={0}
             value={metrics.allocatedMemory}
             onChange={(memory) => onMemoryChange(
@@ -180,15 +187,15 @@ function EdgeProperties({
       {showMetrics && (
         <>
           <Value
-            label="Mastery"
+            label={labels.mastery}
             value={`${(metrics.mastery * 100).toFixed(2)}%`}
           />
           <Value
-            label="Effective Mastery"
+            label={labels.effectiveMastery}
             value={`${(metrics.effectiveMastery * 100).toFixed(2)}%`}
           />
           <Value
-            label="Overfit"
+            label={labels.overfit}
             value={`${metrics.overfitPercent.toFixed(2)}%`}
           />
         </>
@@ -211,23 +218,25 @@ function NodeProperties({
   showUtility: boolean;
   onMemoryChange: (nodeId: string, memory: number) => void;
 }) {
+  const labels = useLabels().knowledgeGraph.detail;
   const { metrics } = selectedNode;
+
   return (
     <div className="property-panel">
-      <Value label="Name" value={selectedNode.name} />
-      <Value label="Neighbors" value={selectedNode.neighborCount} />
+      <Value label={labels.name} value={selectedNode.name} />
+      <Value label={labels.neighbors} value={selectedNode.neighborCount} />
       <Value
-        label="Data Split"
+        label={labels.dataSplit}
         value={`${metrics.trainDataAmount}/${metrics.valDataAmount}/${metrics.testDataAmount}`}
       />
       {showMemory && (
         <>
           <Value
-            label="Required Memory"
+            label={labels.requiredMemory}
             value={format(selectedNode.properties.requiredMemory)}
           />
           <NumberField
-            label={`Allocated Memory (${selectedNode.memorySelectionLabel})`}
+            label={`${labels.allocatedMemory} (${selectedNode.memorySelectionLabel})`}
             min={0}
             value={metrics.allocatedMemory}
             onChange={(memory) => onMemoryChange(
@@ -240,22 +249,22 @@ function NodeProperties({
       {showMetrics && (
         <>
           <Value
-            label="Effective Memory"
+            label={labels.effectiveMemory}
             value={format(metrics.effectiveRequiredMemory)}
           />
           <Value
-            label="Mastery"
+            label={labels.mastery}
             value={`${(metrics.mastery * 100).toFixed(2)}%`}
           />
           <Value
-            label="Overfit"
+            label={labels.overfit}
             value={`${metrics.overfitPercent.toFixed(2)}%`}
           />
         </>
       )}
       {showUtility && <TrainingProperties training={metrics.training} />}
-      <Value label="Train Loss" value={format(metrics.trainLoss)} />
-      <Value label="Val Loss" value={format(metrics.valLoss)} />
+      <Value label={labels.trainLoss} value={format(metrics.trainLoss)} />
+      <Value label={labels.valLoss} value={format(metrics.valLoss)} />
     </div>
   );
 }
@@ -265,18 +274,20 @@ function TrainingProperties({
 }: {
   training: KnowledgeGraphNodeData['metrics']['training'];
 }) {
+  const labels = useLabels().knowledgeGraph.detail;
+
   return (
     <>
       <Value
-        label="Self Growth"
+        label={labels.selfGrowth}
         value={formatTrainingSignal(training.self)}
       />
       <Value
-        label="Adjacent Growth"
+        label={labels.adjacentGrowth}
         value={formatTrainingSignal(training.adjacent)}
       />
       <Value
-        label="Stage Utility Uₛ"
+        label={labels.stageUtility}
         value={formatTrainingSignal(training.total)}
       />
     </>

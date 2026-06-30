@@ -6,6 +6,7 @@ import {
   type MouseEvent,
 } from 'react';
 import { NumberField } from '../../NumberField';
+import { useLabels } from '../../i18n/LanguageContext';
 import type {
   DatasetSplitRatio,
   KnowledgeDataset,
@@ -36,6 +37,7 @@ export function KnowledgeDatasetSelector({
   onSplitRatioChange,
   onSeedChange,
 }: KnowledgeDatasetSelectorProps) {
+  const labels = useLabels().knowledgeGraph.datasets;
   const [open, setOpen] = useState(false);
   const [editingDatasetId, setEditingDatasetId] = useState<string | null>(null);
   const [pendingDatasetId, setPendingDatasetId] = useState<string | null>(null);
@@ -81,7 +83,7 @@ export function KnowledgeDatasetSelector({
 
   return (
     <section
-      aria-label="Knowledge datasets"
+      aria-label={labels.title}
       className={`knowledge-dataset-selector ${open ? 'open' : ''} nodrag nopan`}
       onClick={stopCanvasInteraction}
       onMouseDown={stopCanvasInteraction}
@@ -97,9 +99,9 @@ export function KnowledgeDatasetSelector({
         }}
         type="button"
       >
-        <strong>Datasets</strong>
+        <strong>{labels.title}</strong>
         <span>{enabledCount}/{collection.datasets.length}</span>
-        <span>{open ? 'Hide' : 'Show'}</span>
+        <span>{open ? labels.hide : labels.show}</span>
       </button>
 
       {!open && (
@@ -107,7 +109,7 @@ export function KnowledgeDatasetSelector({
           {collection.datasets.map((dataset) => (
             <button
               aria-label={`${dataset.label}: ${
-                dataset.enabled ? 'enabled' : 'disabled'
+                dataset.enabled ? labels.enabled : labels.disabled
               }`}
               aria-pressed={dataset.enabled}
               className={`knowledge-dataset-mini ${
@@ -166,12 +168,12 @@ export function KnowledgeDatasetSelector({
                     type="button"
                   >
                     <strong>{dataset.label}</strong>
-                    <span>Covered {coveredCount}</span>
-                    <span>Data {totalAmount}</span>
-                    <span>Split {formatRatio(dataset.splitRatio)}</span>
+                    <span>{labels.covered} {coveredCount}</span>
+                    <span>{labels.data} {totalAmount}</span>
+                    <span>{labels.split} {formatRatio(dataset.splitRatio)}</span>
                   </button>
                   <button
-                    aria-label={`${dataset.enabled ? 'Disable' : 'Enable'} ${
+                    aria-label={`${dataset.enabled ? labels.disable : labels.enable} ${
                       dataset.label
                     }`}
                     aria-pressed={dataset.enabled}
@@ -182,13 +184,14 @@ export function KnowledgeDatasetSelector({
                       dataset.id,
                       !dataset.enabled,
                     )}
-                    title={dataset.enabled ? 'Enabled' : 'Disabled'}
+                    title={dataset.enabled ? labels.enabled : labels.disabled}
                     type="button"
                   />
                 </div>
                 {editing && (
                   <DatasetSettings
                     dataset={dataset}
+                    labels={labels}
                     onSeedChange={onSeedChange}
                     onSplitRatioChange={onSplitRatioChange}
                   />
@@ -204,10 +207,12 @@ export function KnowledgeDatasetSelector({
 
 function DatasetSettings({
   dataset,
+  labels,
   onSplitRatioChange,
   onSeedChange,
 }: {
   dataset: KnowledgeDataset;
+  labels: ReturnType<typeof useLabels>['knowledgeGraph']['datasets'];
   onSplitRatioChange: (
     datasetId: string,
     splitRatio: DatasetSplitRatio,
@@ -216,13 +221,13 @@ function DatasetSettings({
 }) {
   return (
     <div className="knowledge-dataset-settings">
-      <strong>{dataset.label} Settings</strong>
+      <strong>{dataset.label} {labels.settings}</strong>
       <div className="knowledge-dataset-ratio-grid">
         {(['train', 'val', 'test'] as const).map((key) => (
           <NumberField
             className="knowledge-dataset-ratio-field"
             key={key}
-            label={key}
+            label={labels[key]}
             min={0}
             onChange={(value) => onSplitRatioChange(dataset.id, {
               ...dataset.splitRatio,
@@ -233,7 +238,7 @@ function DatasetSettings({
         ))}
       </div>
       <label className="knowledge-dataset-seed">
-        <span>Split Seed</span>
+        <span>{labels.splitSeed}</span>
         <input
           className="property-input"
           onChange={(event) => onSeedChange(dataset.id, event.target.value)}

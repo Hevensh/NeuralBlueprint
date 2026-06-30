@@ -143,6 +143,13 @@ function evaluateCondition(
     );
   }
 
+  if (condition.type === 'moduleCount') {
+    return compareStat(
+      snapshot.neuralBlueprint?.moduleCounts[condition.kind] ?? 0,
+      condition,
+    );
+  }
+
   if (condition.type === 'selectedModuleNode') {
     const selectedNode = snapshot.neuralBlueprint?.nodes.find((node) => (
       node.id === snapshot.neuralBlueprint?.selectedNodeId
@@ -175,7 +182,12 @@ function getTrainingStat(
   snapshot: TaskRuntimeSnapshot,
   stat: TrainingTaskStatName,
 ) {
-  return snapshot.trainingProcess?.[stat] ?? 0;
+  const value = snapshot.trainingProcess?.[stat];
+  if (value !== undefined) return value;
+
+  return stat === 'bestValLoss' || stat === 'savedBestValLoss'
+    ? Number.POSITIVE_INFINITY
+    : 0;
 }
 
 function hasModuleReachability(
@@ -284,13 +296,26 @@ function moduleNodeMatches(
     ))
   ) return false;
   if (
+    selector.predecessorKind !== undefined
+    && !node.data.predecessors.some((predecessor) => (
+      predecessor.kind === selector.predecessorKind
+    ))
+  ) return false;
+  if (
     selector.successorId !== undefined
     && !node.data.successors.some((successor) => (
       successor.id === selector.successorId
     ))
   ) return false;
+  if (
+    selector.successorKind !== undefined
+    && !node.data.successors.some((successor) => (
+      successor.kind === selector.successorKind
+    ))
+  ) return false;
 
   return matchesRecord(node.data, selector.props)
+    && matchesMinRecord(node.data, selector.minProps)
     && matchesRecord(node.data.stats, selector.stats);
 }
 
@@ -302,6 +327,17 @@ function matchesRecord(
   return Object.entries(expected ?? {}).every(([key, value]) => (
     indexedTarget?.[key] === value
   ));
+}
+
+function matchesMinRecord(
+  target: object | undefined,
+  expected: Record<string, number> | undefined,
+) {
+  const indexedTarget = target as Record<string, unknown> | undefined;
+  return Object.entries(expected ?? {}).every(([key, min]) => {
+    const value = indexedTarget?.[key];
+    return typeof value === 'number' && Number.isFinite(value) && value >= min;
+  });
 }
 
 function getBlueprintStat(

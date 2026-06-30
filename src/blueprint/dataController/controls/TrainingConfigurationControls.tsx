@@ -1,4 +1,5 @@
 import { NumberField } from '../../../NumberField';
+import { useLabels } from '../../../i18n/LanguageContext';
 import {
   ControlGrid,
   ControlSection,
@@ -23,27 +24,30 @@ export interface TrainingConfigurationControlsProps {
 export function TrainingConfigurationControls(
   props: TrainingConfigurationControlsProps,
 ) {
+  const labels = useLabels().knowledgeGraph.controls.trainingConfiguration;
+
   return (
     <ControlSection
-      title="Training Configuration"
+      title={labels.title}
       onReset={props.onReset}
       resetDisabled={props.disabled}
+      resetLabel={labels.reset}
     >
       <ControlGrid>
         <NumberField
-          label="Learning Rate (10^)"
+          label={`${labels.learningRate} (10^)`}
           value={props.learningRate}
           onChange={(value) => props.onLearningRateChange(Math.round(value))}
         />
         <NumberField
-          label="Reg Rate (10^)"
+          label={`${labels.regularizationRate} (10^)`}
           value={props.regularizationRate}
           onChange={(value) => props.onRegularizationRateChange(Math.round(value))}
         />
       </ControlGrid>
       <NumberField
         guideTarget="training-train-steps"
-        label="Train Steps"
+        label={labels.trainSteps}
         min={1}
         value={props.trainSteps}
         onChange={(value) => props.onTrainStepsChange(Math.max(1, Math.floor(value)))}
@@ -53,10 +57,10 @@ export function TrainingConfigurationControls(
         data-guide-target="training-train-button"
         disabled={props.disabled || props.trainDisabled}
         onClick={props.onTrain}
-        title={props.trainDisabled ? 'Initialize model before training' : undefined}
+        title={props.trainDisabled ? labels.initializeBeforeTraining : undefined}
         type="button"
       >
-        Train
+        {labels.train}
       </button>
       {props.showAllocationButtons !== false && (
         <>
@@ -66,7 +70,7 @@ export function TrainingConfigurationControls(
             onClick={props.onTransfer}
             type="button"
           >
-            Transfer Allocation
+            {labels.transferAllocation}
           </button>
           <button
             className="action-button"
@@ -74,7 +78,7 @@ export function TrainingConfigurationControls(
             onClick={props.onPerfect}
             type="button"
           >
-            Perfect Allocation
+            {labels.perfectAllocation}
           </button>
         </>
       )}

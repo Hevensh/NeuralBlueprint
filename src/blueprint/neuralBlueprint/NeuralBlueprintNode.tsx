@@ -17,6 +17,7 @@ export function NeuralBlueprintNode({
     'neural-blueprint-node',
     data.kind,
     data.inCycle ? 'in-cycle' : '',
+    data.inInferenceMemoryFocus ? 'in-inference-memory-focus' : '',
   ].filter(Boolean).join(' ');
 
   return (

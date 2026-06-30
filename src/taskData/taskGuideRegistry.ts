@@ -1,12 +1,10 @@
-import { guideTask1 } from './configs/task1';
+import type { AppLanguage } from '../i18n/labels';
+import { TASK_GUIDE_CONFIGS } from './configs';
 import type { TaskGuideConfig } from './taskGuideTypes';
-
-const TASK_GUIDE_CONFIGS: Record<string, TaskGuideConfig> = {
-  'task1:welcome to neural blueprint': guideTask1,
-};
 
 export function getTaskGuideConfig(
   fileId: string,
+  language: AppLanguage,
 ): TaskGuideConfig | undefined {
-  return TASK_GUIDE_CONFIGS[fileId];
+  return TASK_GUIDE_CONFIGS[fileId]?.(language);
 }

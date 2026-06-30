@@ -13,6 +13,11 @@ import {
 import { type Dispatch, type DragEvent, type SetStateAction, useCallback, useEffect, useState } from 'react';
 
 import { saveDesktopFiles, saveDesktopView } from '../dataStorage/desktopStorage';
+import {
+  toDesktopGridPosition,
+  toDesktopNode,
+  toDesktopNodes,
+} from './desktopFileLayout';
 import { DesktopIconNode } from './DesktopIconNode';
 import { DESKTOP_FILE_DRAG_TYPE } from './leftPanel';
 import type { DesktopFile, DesktopFileType, DesktopIconNodeType } from './desktopTypes';
@@ -20,22 +25,6 @@ import type { DesktopFile, DesktopFileType, DesktopIconNodeType } from './deskto
 const nodeTypes = {
   desktopIcon: DesktopIconNode,
 };
-
-function toDesktopNode(
-  file: DesktopFile,
-): DesktopIconNodeType {
-  return {
-    id: file.id,
-    type: 'desktopIcon',
-    position: file.position,
-    data: {
-      file,
-    },
-    draggable: true,
-    deletable: file.deletable,
-    selectable: true,
-  };
-}
 
 function getDefaultFileName(type: DesktopFileType) {
   return type === 'nbp' ? 'Untitled Blueprint' : 'Untitled Report';
@@ -66,7 +55,7 @@ export function DesktopCanvasInner({
 }: DesktopCanvasInnerProp) {
   const { screenToFlowPosition } = useReactFlow<DesktopIconNodeType, Edge>();
   const [initNodes] = useState<DesktopIconNodeType[]>(
-    () => initFiles.map((file) => toDesktopNode(file)),
+    () => toDesktopNodes(initFiles),
   );
   const [nodes, setNodes, onNodesChange] = useNodesState<DesktopIconNodeType>(initNodes);
 
@@ -85,10 +74,13 @@ export function DesktopCanvasInner({
       name: getDefaultFileName(type),
       type,
       deletable: true,
-      position: {
+      completed: false,
+      visible: true,
+      dependencyFileIds: [],
+      position: toDesktopGridPosition({
         x: position.x - 50,
         y: position.y - 80,
-      },
+      }),
     };
 
     setSelectedFile(nextFile);

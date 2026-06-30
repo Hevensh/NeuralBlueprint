@@ -114,6 +114,7 @@ export interface ModuleBaseNodeData<
   inferenceTopologyOrder?: Set<number>;
   backwardTopologyOrder?: number;
   inCycle?: boolean;
+  inInferenceMemoryFocus?: boolean;
   stats?: ModuleStats;
   statsBackward?: ModuleStatsBackward;
   analysisDirection?: ModuleAnalysisDirection;

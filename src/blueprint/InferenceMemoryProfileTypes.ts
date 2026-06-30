@@ -3,7 +3,24 @@ export interface InferenceMemoryGroup {
   nodeIds: string[];
   inferenceStages: number[];
   memoryPoint: number;
+  varianceRatio: number;
+  nodeWeights: InferenceMemoryNodeWeight[];
+  aggregationPairs: InferenceMemoryAggregationPair[];
   ratio: number;
+}
+
+export interface InferenceMemoryNodeWeight {
+  nodeId: string;
+  weight: number;
+  rhoCount: number;
+}
+
+export interface InferenceMemoryAggregationPair {
+  leftNodeId: string;
+  rightNodeId: string;
+  rho: number;
+  leftWeight: number;
+  rightWeight: number;
 }
 
 export interface InferenceMemoryStageSegment {
@@ -50,7 +67,16 @@ export function getInferenceMemoryProfileSignature(
   return [
     profile.networkSignature,
     profile.groups.map((group) => (
-      `${group.id}:${group.memoryPoint}:${group.inferenceStages.join(',')}`
+      [
+        group.id,
+        group.memoryPoint,
+        group.inferenceStages.join(','),
+        formatSignatureNumber(group.varianceRatio),
+      ].join(':')
     )).join('|'),
   ].join('::');
+}
+
+function formatSignatureNumber(value: number) {
+  return Number.isFinite(value) ? value.toFixed(4) : '0';
 }

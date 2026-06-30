@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { loadNeuralBlueprintUi } from '../../dataStorage/neuralBlueprintStorage';
 import type { ResolvedBlueprintTaskFeatureConfig } from '../../taskData/blueprintFeatureConfig';
-import type { InferenceMemoryProfile } from '../InferenceMemoryProfileTypes';
+import type {
+  InferenceMemoryAggregationPair,
+  InferenceMemoryProfile,
+} from '../InferenceMemoryProfileTypes';
 import type { NeuralBlueprintTaskSnapshot } from '../taskGuide/taskGuideSnapshot';
 import type {
   ModuleAnalysisDirection,
@@ -30,12 +33,21 @@ export function NeuralBlueprintWorkspace({
 }: NeuralBlueprintWorkspaceProp) {
   const [initialUi] = useState(() => loadNeuralBlueprintUi(fileId));
   const [selectedNode, setSelectedNode] = useState<ModuleNodeData | null>(null);
+  const [activeInferenceFocus, setActiveInferenceFocus] =
+    useState<InferenceMemoryFocus | null>(null);
   const [showVarianceAnalysis, setShowVarianceAnalysis] = useState(initialUi.showVarianceAnalysis);
   const [showRankAnalysis, setShowRankAnalysis] = useState(initialUi.showRankAnalysis);
   const [analysisDirection, setAnalysisDirection] = useState<ModuleAnalysisDirection>(
     initialUi.analysisDirection,
   );
   const [arrangeRequest, setArrangeRequest] = useState(0);
+  const updateActiveInferenceFocus = useCallback((
+    focus: InferenceMemoryFocus | null,
+  ) => {
+    setActiveInferenceFocus((current) => (
+      sameInferenceFocus(current, focus) ? current : focus
+    ));
+  }, []);
   const effectiveAnalysisDirection = features.showBackwardAnalysisControl
     ? analysisDirection
     : 'forward';
@@ -55,6 +67,10 @@ export function NeuralBlueprintWorkspace({
         analysisDirection={effectiveAnalysisDirection}
         availableModuleKinds={features.availableModuleKinds}
         fileId={fileId}
+        activeInferenceAggregationPairs={
+          activeInferenceFocus?.aggregationPairs ?? []
+        }
+        activeInferenceNodeIds={activeInferenceFocus?.nodeIds ?? []}
         showRankAnalysis={effectiveShowRankAnalysis}
         showVarianceAnalysis={effectiveShowVarianceAnalysis}
         setSelectedNode={setSelectedNode}
@@ -72,8 +88,35 @@ export function NeuralBlueprintWorkspace({
         setAnalysisDirection={setAnalysisDirection}
         setSelectedInferenceModelId={setSelectedInferenceModelId}
         setSelectedNode={setSelectedNode}
+        onActiveInferenceFocusChange={updateActiveInferenceFocus}
         onInferenceMemoryProfileChange={onInferenceMemoryProfileChange}
       />
     </>
   );
+}
+
+interface InferenceMemoryFocus {
+  nodeIds: string[];
+  aggregationPairs: InferenceMemoryAggregationPair[];
+}
+
+function sameInferenceFocus(
+  left: InferenceMemoryFocus | null,
+  right: InferenceMemoryFocus | null,
+) {
+  if (!left || !right) return left === right;
+  return sameStringArray(left.nodeIds, right.nodeIds)
+    && left.aggregationPairs.length === right.aggregationPairs.length
+    && left.aggregationPairs.every((pair, index) => (
+      pair.leftNodeId === right.aggregationPairs[index]?.leftNodeId
+      && pair.rightNodeId === right.aggregationPairs[index]?.rightNodeId
+      && pair.rho === right.aggregationPairs[index]?.rho
+      && pair.leftWeight === right.aggregationPairs[index]?.leftWeight
+      && pair.rightWeight === right.aggregationPairs[index]?.rightWeight
+    ));
+}
+
+function sameStringArray(left: string[], right: string[]) {
+  return left.length === right.length
+    && left.every((value, index) => value === right[index]);
 }

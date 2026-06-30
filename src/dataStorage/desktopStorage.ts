@@ -1,6 +1,7 @@
 import type { Viewport } from "@xyflow/react";
 import { INITIAL_DESKTOP_FILES } from "../taskData/desktopDefaults";
 import type { DesktopFile, DesktopIconNodeType } from "../desktop/desktopTypes";
+import { toDesktopGridPosition } from "../desktop/desktopFileLayout";
 import { appStorage } from "./storageAdapter";
 
 
@@ -16,7 +17,7 @@ export function loadDesktopFiles(): DesktopFile[] {
 export function saveDesktopFiles(nodes: DesktopIconNodeType[]): void {
   saveDesktopFileList(nodes.map((node) => ({
     ...node.data.file,
-    position: node.position,
+    position: toDesktopGridPosition(node.position),
   })));
 
   // console.log('files saved');
@@ -36,19 +37,19 @@ function saveDesktopFileList(files: DesktopFile[]): void {
 }
 
 
-const initialViewport: Viewport = { x: 0, y: 0, zoom: 1 };
+export const INITIAL_DESKTOP_VIEWPORT: Viewport = { x: 0, y: 0, zoom: 2 };
 export function loadDesktopView(): Viewport {
   // console.log('loading viewport');
   try {
     const raw = appStorage.getItem(DESKTOP_VIEW_STORAGE_KEY);
-    if (!raw) return initialViewport;
+    if (!raw) return INITIAL_DESKTOP_VIEWPORT;
 
     const viewport = JSON.parse(raw) as Viewport;
 
     // console.log('viewport loaded');
     return viewport;
   } catch {
-    return initialViewport;
+    return INITIAL_DESKTOP_VIEWPORT;
   }
 }
 

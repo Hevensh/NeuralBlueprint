@@ -11,7 +11,6 @@ import {
   getTrainingEntities,
   poolAllocatedMemory,
   readEntityPoolStageMemory,
-  readEntityTotalMemory,
   writeEntityPoolStageMemory,
 } from './memoryOperations';
 import { hashSeed } from './random';
@@ -22,6 +21,7 @@ import type {
   KnowledgeEntity,
   KnowledgeGraphDefinition,
   KnowledgeGraphMemory,
+  KnowledgeMemoryBudgetPool,
 } from './types';
 
 export type TrainingSimulationOptions = {
@@ -161,6 +161,7 @@ function trainOneStep(
           stage,
         ).total,
         random,
+        poolSkipWeight(pool),
       );
       if (!choice) continue;
       writeEntityPoolStageMemory(
@@ -206,49 +207,56 @@ function regularizeMemory(
   );
   const lowerRatio = baseLowerRatio * (1 + 0.3 * memorySupplyRatio);
   const upperRatio = 1.5 * lowerRatio;
-  entities.forEach((entity) => {
-    const allocated = readEntityTotalMemory(memory, entity);
-    const target = Math.round(
-      entityRequiredMemory(entity)
-      * (lowerRatio + random() * (upperRatio - lowerRatio)),
-    );
-    removeByStageRoulette(
-      memory,
-      entity,
-      Math.max(0, allocated - target),
-      random,
-    );
+  memory.budgetPools.forEach((pool) => {
+    const poolRatio = memory.availableMemoryPoints > 0
+      ? pool.memoryPoint / memory.availableMemoryPoints
+      : 1 / Math.max(1, memory.budgetPools.length);
+    const regularizationFactor = 1 / poolSkipWeight(pool);
+    const poolLowerRatio = lowerRatio * regularizationFactor;
+    const poolUpperRatio = upperRatio * regularizationFactor;
+
+    entities.forEach((entity) => {
+      const allocated = readEntityPoolMemory(memory, entity, pool.id);
+      const target = Math.round(
+        entityRequiredMemory(entity)
+        * poolRatio
+        * (
+          poolLowerRatio
+          + random() * (poolUpperRatio - poolLowerRatio)
+        ),
+      );
+      removeByPoolStageRoulette(
+        memory,
+        entity,
+        pool.id,
+        Math.max(0, allocated - target),
+        random,
+      );
+    });
   });
 }
 
-function removeByStageRoulette(
+function removeByPoolStageRoulette(
   memory: KnowledgeGraphMemory,
   entity: KnowledgeEntity,
+  poolId: string,
   count: number,
   random: () => number,
 ) {
   for (let removed = 0; removed < count; removed += 1) {
     const stages = memory.stageTables.filter((table) => (
-      Object.keys(table.allocations).some((poolId) => (
+      table.allocations[poolId]
+      && (
         readEntityPoolStageMemory(
           memory,
           entity,
           poolId,
           table.stage,
         ) > 0
-      ))
+      )
     ));
     if (stages.length === 0) return;
     const stage = stages[Math.floor(random() * stages.length)];
-    const pools = Object.keys(stage.allocations).filter((poolId) => (
-      readEntityPoolStageMemory(
-        memory,
-        entity,
-        poolId,
-        stage.stage,
-      ) > 0
-    ));
-    const poolId = pools[Math.floor(random() * pools.length)];
     const allocated = readEntityPoolStageMemory(
       memory,
       entity,
@@ -263,6 +271,24 @@ function removeByStageRoulette(
       allocated - 1,
     );
   }
+}
+
+function readEntityPoolMemory(
+  memory: KnowledgeGraphMemory,
+  entity: KnowledgeEntity,
+  poolId: string,
+) {
+  return memory.stageTables.reduce((sum, table) => (
+    sum + readEntityPoolStageMemory(memory, entity, poolId, table.stage)
+  ), 0);
+}
+
+function poolSkipWeight(pool: KnowledgeMemoryBudgetPool) {
+  return Math.sqrt(Math.max(1, normalizeVarianceRatio(pool.varianceRatio)));
+}
+
+function normalizeVarianceRatio(value: number | undefined) {
+  return Number.isFinite(value) ? Math.max(0.01, value as number) : 1;
 }
 
 function evaluateLoss(
@@ -302,10 +328,14 @@ function weightedPick<T>(
   values: T[],
   weightOf: (value: T) => number,
   random: () => number,
+  emptyWeight = 1,
 ) {
   const weights = values.map((value) => Math.max(0, weightOf(value)));
-  const total = 1 + weights.reduce((sum, weight) => sum + weight, 0);
-  let cursor = random() * total - 1;
+  const noAllocationWeight = Math.max(0, emptyWeight);
+  const total = noAllocationWeight + weights.reduce((sum, weight) => (
+    sum + weight
+  ), 0);
+  let cursor = random() * total - noAllocationWeight;
   if (cursor < 0) return undefined;
   return values.find((_item, index) => {
     cursor -= weights[index];
