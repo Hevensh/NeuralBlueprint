@@ -125,6 +125,7 @@ function layoutIsland(
       getDataTopologyOrder,
       getNodeColumnWidth,
       getNodeHeightUnits,
+      { onlyAdjustRecursiveSourceConnections: true },
     ),
     getDataTopologyOrder,
   );
@@ -157,6 +158,7 @@ function layoutIsland(
       collectBranchHeights(
         branch,
         visitedNodeIds,
+        layout.nodeColumnOrders,
         nodeById,
         layout.ridgeHeights,
         maxForwardOrder,
@@ -189,12 +191,26 @@ function addHeightResult(
 function collectBranchHeights(
   branch: CandidateBranch,
   assignedNodeIds: Set<string>,
+  assignedColumnOrders: Map<string, number>,
   nodeById: Map<string, ModuleNodeData>,
   ridgeHeights: number[],
   maxForwardOrder: number,
   blockById: Map<string, ArrangeNodeBlock>,
 ) {
-  const assignedNodes = [...assignedNodeIds].map((nodeId) => nodeById.get(nodeId)!);
+  const assignedColumnEnds = buildAssignedColumnEndMap(
+    assignedNodeIds,
+    assignedColumnOrders,
+    nodeById,
+    blockById,
+  );
+  const assignedNodes = [...assignedNodeIds]
+    .map((nodeId) => nodeById.get(nodeId)!)
+    .sort((left, right) => compareBranchAnchors(
+      left,
+      right,
+      branch,
+      assignedColumnEnds,
+    ));
   const getColumnOrder = getBranchColumnOrder(branch.side, maxForwardOrder, blockById);
   const getNodeColumnWidth = (node: ModuleNodeData) => (
     blockById.get(node.id)?.columnWidth ?? 1
@@ -232,6 +248,46 @@ function collectBranchHeights(
   });
 
   return result;
+}
+
+function compareBranchAnchors(
+  left: ModuleNodeData,
+  right: ModuleNodeData,
+  branch: CandidateBranch,
+  assignedColumnEnds: Map<string, number>,
+) {
+  const leftColumn = assignedColumnEnds.get(left.id) ?? getDataTopologyOrder(left);
+  const rightColumn = assignedColumnEnds.get(right.id) ?? getDataTopologyOrder(right);
+  const columnDifference = branch.side === 'sink'
+    ? rightColumn - leftColumn
+    : leftColumn - rightColumn;
+
+  if (columnDifference !== 0) return columnDifference;
+
+  return left.id.localeCompare(right.id);
+}
+
+function buildAssignedColumnEndMap(
+  assignedNodeIds: Set<string>,
+  assignedColumnOrders: Map<string, number>,
+  nodeById: Map<string, ModuleNodeData>,
+  blockById: Map<string, ArrangeNodeBlock>,
+) {
+  const columnEnds = new Map<string, number>();
+
+  assignedNodeIds.forEach((nodeId) => {
+    const node = nodeById.get(nodeId);
+    const columnOrder = assignedColumnOrders.get(nodeId)
+      ?? (node ? getDataTopologyOrder(node) : undefined);
+
+    if (columnOrder === undefined) return;
+    columnEnds.set(
+      nodeId,
+      columnOrder + (blockById.get(nodeId)?.columnWidth ?? 1) - 1,
+    );
+  });
+
+  return columnEnds;
 }
 
 function getProfileOffset(

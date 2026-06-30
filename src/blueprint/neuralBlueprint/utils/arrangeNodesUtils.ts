@@ -6,6 +6,18 @@ export interface HeightCollectionResult {
   valleyHeights: number[];
 }
 
+interface BackwardCollectionOptions {
+  onlyAdjustRecursiveSourceConnections?: boolean;
+}
+
+interface BackwardIslandContext {
+  candidateNodeIds: Set<string>;
+  islandWidth: number;
+  pathSuccessorsByNodeId: Map<string, ModuleNodeData[]>;
+  sinkIds: Set<string>;
+  sourceNodes: ModuleNodeData[];
+}
+
 export function getDataTopologyOrder(node: ModuleNodeData) {
   return node.forwardTopologyOrder ?? 0;
 }
@@ -79,12 +91,13 @@ export function collectIslandBackwardFromSink(
   getTopologyOrder = getDataTopologyOrder,
   getNodeColumnWidth: (node: ModuleNodeData) => number = () => 1,
   getNodeHeightUnits: (node: ModuleNodeData) => number = () => 2,
+  options: BackwardCollectionOptions = {},
 ): HeightCollectionResult {
-  const shortestPathNodeIds = findShortestSourceSinkPathNodeIds(
+  const islandContext = buildBackwardIslandContext(
     sinks,
     candidateNodes,
   );
-  const islandWidth = getCandidateIslandWidth(sinks, candidateNodes);
+  const basePathNodeIds = findBranchiestSourceSinkPathNodeIds(islandContext);
 
   return collectIslandHeights({
     anchors: sinks,
@@ -98,21 +111,24 @@ export function collectIslandBackwardFromSink(
     compareLinkedNodes: (left, right) => compareForwardArrangeNodes(
       left,
       right,
-      shortestPathNodeIds,
-      islandWidth,
+      basePathNodeIds,
+      islandContext.islandWidth,
     ),
     writeSegment: ({
       nodeHeights,
       writeRidge,
       writeValley,
+      currentNode,
       linkedNode,
       placedNodeIds,
     }) => {
       const from = getTopologyOrder(linkedNode);
       const fromEnd = from + getNodeColumnWidth(linkedNode) - 1;
-      const connectionTargets = linkedNode.successors.filter((successor) => (
-        placedNodeIds.has(successor.id)
-      ));
+      const connectionTargets = options.onlyAdjustRecursiveSourceConnections
+        ? linkedNode.successors.filter((successor) => successor.id === currentNode.id)
+        : linkedNode.successors.filter((successor) => (
+          placedNodeIds.has(successor.id)
+        ));
       const columnBaseHeight = getMaxRidgeHeight(ridgeHeights, from, fromEnd);
       const connectionBaseHeight = getMaxConnectionBaseHeight(
         connectionTargets.map((target) => ({
@@ -148,65 +164,190 @@ export function collectIslandBackwardFromSink(
   });
 }
 
-export function findShortestSourceSinkPathNodeIds(
+interface SourceSinkPathScore {
+  nodeId: string;
+  nextNodeId?: string;
+  branchCount: number;
+  edgeCount: number;
+}
+
+function buildBackwardIslandContext(
   sinks: ModuleNodeData | ModuleNodeData[],
   candidateNodeIds: Set<string>,
 ) {
-  const sinkList = Array.isArray(sinks) ? sinks : [sinks];
+  const sinkList = toNodeList(sinks);
   const sinkIds = new Set(sinkList.map((sink) => sink.id));
   const nodeById = collectCandidateNodesFromSinks(sinkList, candidateNodeIds);
-  const sourceNodes = [...nodeById.values()].filter((node) => (
-    candidateNodeIds.has(node.id)
-    && !node.predecessors.some((predecessor) => (
-      candidateNodeIds.has(predecessor.id)
-    ))
-  ));
-  const distanceFromSource = collectShortestDistances(
-    sourceNodes,
-    (node) => node.successors,
-    candidateNodeIds,
-    sinkIds,
-  );
-  const distanceToSink = collectShortestDistances(
-    sinkList,
-    (node) => node.predecessors,
-    candidateNodeIds,
-    sinkIds,
-  );
-  const shortestDistance = Math.min(
-    ...sinkList.map((sink) => (
-      distanceFromSource.get(sink.id) ?? Number.POSITIVE_INFINITY
-    )),
-  );
 
-  if (!Number.isFinite(shortestDistance)) {
-    return new Set<string>();
+  return {
+    candidateNodeIds,
+    islandWidth: Math.max(
+      0,
+      ...[...nodeById.values()].map(getDataTopologyOrder),
+    ),
+    pathSuccessorsByNodeId: new Map<string, ModuleNodeData[]>(),
+    sinkIds,
+    sourceNodes: getCandidateSourceNodes(nodeById, candidateNodeIds),
+  };
+}
+
+function findBranchiestSourceSinkPathNodeIds({
+  sinkIds,
+  sourceNodes,
+  pathSuccessorsByNodeId,
+  candidateNodeIds,
+}: BackwardIslandContext) {
+  const memo = new Map<string, SourceSinkPathScore | null>();
+  const visiting = new Set<string>();
+
+  function collectBestPath(node: ModuleNodeData): SourceSinkPathScore | null {
+    if (sinkIds.has(node.id)) {
+      const sinkPath = {
+        nodeId: node.id,
+        branchCount: 0,
+        edgeCount: 0,
+      };
+
+      memo.set(node.id, sinkPath);
+      return sinkPath;
+    }
+    if (visiting.has(node.id)) return null;
+
+    if (memo.has(node.id)) return memo.get(node.id) ?? null;
+
+    visiting.add(node.id);
+
+    const successorPaths = getPathSuccessors(
+      node,
+      candidateNodeIds,
+      sinkIds,
+      pathSuccessorsByNodeId,
+    )
+      .map((successor) => collectBestPath(successor))
+      .filter((path): path is SourceSinkPathScore => Boolean(path));
+    const branchCount = Math.max(0, successorPaths.length - 1);
+    const bestSuccessorPath = pickPreferredSourceSinkPath(successorPaths);
+
+    const bestPath = bestSuccessorPath
+      ? {
+        nodeId: node.id,
+        nextNodeId: bestSuccessorPath.nodeId,
+        branchCount: branchCount + bestSuccessorPath.branchCount,
+        edgeCount: bestSuccessorPath.edgeCount + 1,
+      }
+      : null;
+
+    visiting.delete(node.id);
+    memo.set(node.id, bestPath);
+    return bestPath;
   }
 
-  return new Set(
-    [...nodeById.keys()].filter((nodeId) => (
-      (distanceFromSource.get(nodeId) ?? Number.POSITIVE_INFINITY)
-      + (distanceToSink.get(nodeId) ?? Number.POSITIVE_INFINITY)
-      === shortestDistance
-    )),
+  const bestPath = pickPreferredSourceSinkPath(
+    sourceNodes
+      .map((source) => collectBestPath(source))
+      .filter((path): path is SourceSinkPathScore => Boolean(path)),
   );
+
+  return traceSourceSinkPath(bestPath, memo);
+}
+
+function isSourceSinkPathPreferred(
+  candidate: SourceSinkPathScore,
+  current: SourceSinkPathScore,
+) {
+  if (candidate.branchCount !== current.branchCount) {
+    return candidate.branchCount > current.branchCount;
+  }
+
+  return candidate.edgeCount < current.edgeCount;
+}
+
+function pickPreferredSourceSinkPath(paths: SourceSinkPathScore[]) {
+  return paths.reduce<SourceSinkPathScore | null>(
+    (bestPath, path) => (
+      !bestPath || isSourceSinkPathPreferred(path, bestPath)
+        ? path
+        : bestPath
+    ),
+    null,
+  );
+}
+
+function traceSourceSinkPath(
+  path: SourceSinkPathScore | null,
+  pathByNodeId: Map<string, SourceSinkPathScore | null>,
+) {
+  const nodeIds = new Set<string>();
+  let currentPath = path;
+
+  while (currentPath && !nodeIds.has(currentPath.nodeId)) {
+    nodeIds.add(currentPath.nodeId);
+    currentPath = currentPath.nextNodeId
+      ? pathByNodeId.get(currentPath.nextNodeId) ?? null
+      : null;
+  }
+
+  return nodeIds;
+}
+
+function getCandidateSourceNodes(
+  nodeById: Map<string, ModuleNodeData>,
+  candidateNodeIds: Set<string>,
+) {
+  return [...nodeById.values()]
+    .filter((node) => (
+      candidateNodeIds.has(node.id)
+      && !node.predecessors.some((predecessor) => (
+        candidateNodeIds.has(predecessor.id)
+      ))
+    ))
+    .sort(compareTopologyThenId);
+}
+
+function getPathSuccessors(
+  node: ModuleNodeData,
+  candidateNodeIds: Set<string>,
+  sinkIds: Set<string>,
+  pathSuccessorsByNodeId: Map<string, ModuleNodeData[]>,
+) {
+  const cachedSuccessors = pathSuccessorsByNodeId.get(node.id);
+
+  if (cachedSuccessors) return cachedSuccessors;
+
+  const successors = node.successors
+    .filter((successor) => (
+      candidateNodeIds.has(successor.id)
+      || sinkIds.has(successor.id)
+    ))
+    .sort(compareTopologyThenId);
+
+  pathSuccessorsByNodeId.set(node.id, successors);
+  return successors;
+}
+
+function compareTopologyThenId(left: ModuleNodeData, right: ModuleNodeData) {
+  const topologyDifference = getDataTopologyOrder(left) - getDataTopologyOrder(right);
+
+  if (topologyDifference !== 0) return topologyDifference;
+
+  return left.id.localeCompare(right.id);
 }
 
 export function compareForwardArrangeNodes(
   left: ModuleNodeData,
   right: ModuleNodeData,
-  shortestPathNodeIds: Set<string>,
+  basePathNodeIds: Set<string>,
   islandWidth: number,
 ) {
-  const shortestPathDifference = Number(!shortestPathNodeIds.has(left.id))
-    - Number(!shortestPathNodeIds.has(right.id));
-  if (shortestPathDifference !== 0) return shortestPathDifference;
+  const basePathDifference = Number(!basePathNodeIds.has(left.id))
+    - Number(!basePathNodeIds.has(right.id));
+  if (basePathDifference !== 0) return basePathDifference;
 
   const topologyBalanceDifference = getTopologyGap(left, islandWidth)
     - getTopologyGap(right, islandWidth);
   if (topologyBalanceDifference !== 0) return topologyBalanceDifference;
 
-  return getDataTopologyOrder(left) - getDataTopologyOrder(right);
+  return 0;
 }
 
 export function collectIslandForwardFromSource(
@@ -333,51 +474,6 @@ function collectCandidateNodesFromSinks(
   return nodeById;
 }
 
-function getCandidateIslandWidth(
-  sinks: ModuleNodeData | ModuleNodeData[],
-  candidateNodeIds: Set<string>,
-) {
-  const sinkList = Array.isArray(sinks) ? sinks : [sinks];
-  const nodeById = collectCandidateNodesFromSinks(sinkList, candidateNodeIds);
-
-  return Math.max(
-    0,
-    ...[...nodeById.values()].map(getDataTopologyOrder),
-  );
-}
-
-function collectShortestDistances(
-  starts: ModuleNodeData[],
-  getLinkedNodes: (node: ModuleNodeData) => ModuleNodeData[],
-  candidateNodeIds: Set<string>,
-  sinkIds: Set<string>,
-) {
-  const distances = new Map<string, number>();
-  const queue = [...starts];
-
-  starts.forEach((node) => {
-    distances.set(node.id, 0);
-  });
-
-  for (let index = 0; index < queue.length; index += 1) {
-    const node = queue[index];
-    const nextDistance = (distances.get(node.id) ?? 0) + 1;
-
-    getLinkedNodes(node).forEach((linkedNode) => {
-      if (
-        !candidateNodeIds.has(linkedNode.id)
-        && !sinkIds.has(linkedNode.id)
-      ) return;
-      if (distances.has(linkedNode.id)) return;
-
-      distances.set(linkedNode.id, nextDistance);
-      queue.push(linkedNode);
-    });
-  }
-
-  return distances;
-}
-
 function getTopologyGap(node: ModuleNodeData, islandWidth: number) {
   return islandWidth
     - getDataTopologyOrder(node)
@@ -423,7 +519,7 @@ function collectIslandHeights({
   const visitedNodes: ModuleNodeData[] = [];
   const valleyHeights: number[] = [];
   const expanded = new Set<string>();
-  const anchorList = Array.isArray(anchors) ? anchors : [anchors];
+  const anchorList = toNodeList(anchors);
   const placedNodeIds = new Set(anchorList.map((anchor) => anchor.id));
 
   function writeRidge(index: number, value: number) {
@@ -495,6 +591,10 @@ function collectIslandHeights({
     visitedNodes,
     valleyHeights,
   };
+}
+
+function toNodeList(nodes: ModuleNodeData | ModuleNodeData[]) {
+  return Array.isArray(nodes) ? nodes : [nodes];
 }
 
 function writeNodeRidge(
