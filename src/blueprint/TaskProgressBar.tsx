@@ -34,10 +34,11 @@ export function TaskProgressBar({
   }));
   const progress = guide.progressRatio * 100;
   const completed = guide.completedStepCount === guide.steps.length;
-  const hint = guide.activeStep
+  const activeStep = guide.activeStep;
+  const hint = activeStep
     ? completed
       ? 'Current level completed.'
-      : guide.activeStep.hint
+      : activeStep.hint
     : null;
 
   return (
@@ -88,6 +89,20 @@ export function TaskProgressBar({
             onClick={(event) => {
               const rect = event.currentTarget.getBoundingClientRect();
               onCompletionInfoRequest?.({
+                x: rect.left + rect.width / 2,
+                y: rect.top + rect.height / 2,
+              });
+            }}
+            type="button"
+          >
+            {hint}
+          </button>
+        ) : hint && activeStep ? (
+          <button
+            className="task-progress-hint task-progress-hint-button"
+            onClick={(event) => {
+              const rect = event.currentTarget.getBoundingClientRect();
+              onStepInfoRequest?.(activeStep.id, {
                 x: rect.left + rect.width / 2,
                 y: rect.top + rect.height / 2,
               });
