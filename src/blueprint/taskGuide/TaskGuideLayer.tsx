@@ -2,9 +2,15 @@ import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import type {
   TaskGuideAnimationDemo,
   TaskGuideConnectionSegment,
+  TaskGuideDragOffset,
 } from '../../taskData/taskGuideTypes';
 import type { EvaluatedTaskGuide } from './evaluateTaskGuide';
 import './taskGuideLayer.css';
+
+const GUIDE_DRAG_OFFSET_STEP_X = 180;
+const GUIDE_DRAG_OFFSET_STEP_Y = 72;
+const DEFAULT_GUIDE_DRAG_OFFSET_X = 0;
+const DEFAULT_GUIDE_DRAG_OFFSET_Y = -1;
 
 type GuideRect = {
   left: number;
@@ -126,12 +132,17 @@ function GuideDemo({ demo }: { demo: GuideDemoRender }) {
       left: demo.from.x,
       top: demo.from.y,
     } as CSSProperties;
+    const targetStyle = {
+      left: demo.to.x,
+      top: demo.to.y,
+    } as CSSProperties;
 
     return (
       <>
         <svg className="task-guide-demo-svg">
           <path className="task-guide-demo-path drag" d={path} />
         </svg>
+        <div className="task-guide-drag-target" style={targetStyle} />
         <div className="task-guide-drag-ghost" style={ghostStyle}>
           {demo.label ?? 'Node'}
         </div>
@@ -214,10 +225,13 @@ function buildGuideDemo(
       target: demo.fromTarget,
       selector: demo.fromSelector,
     }));
-    const to = guidePoint(resolveGuideElement({
-      target: demo.toTarget,
-      selector: demo.toSelector,
-    }));
+    const to = dragTargetPoint(
+      guidePoint(resolveGuideElement({
+        target: demo.toTarget,
+        selector: demo.toSelector,
+      })),
+      demo.toOffset,
+    );
 
     return from && to
       ? {
@@ -274,6 +288,32 @@ function guidePoint(element: HTMLElement | null): GuidePoint | null {
   return {
     x: rect.left + rect.width / 2,
     y: rect.top + rect.height / 2,
+  };
+}
+
+function dragTargetPoint(
+  point: GuidePoint | null,
+  offset?: TaskGuideDragOffset,
+): GuidePoint | null {
+  if (!point) return null;
+  const normalizedOffset = normalizeDragOffset(offset);
+  return {
+    x: point.x + normalizedOffset.x * GUIDE_DRAG_OFFSET_STEP_X,
+    y: point.y + normalizedOffset.y * GUIDE_DRAG_OFFSET_STEP_Y,
+  };
+}
+
+function normalizeDragOffset(offset: TaskGuideDragOffset | undefined) {
+  if (typeof offset === 'number') {
+    return {
+      x: offset,
+      y: DEFAULT_GUIDE_DRAG_OFFSET_Y,
+    };
+  }
+
+  return {
+    x: offset?.x ?? DEFAULT_GUIDE_DRAG_OFFSET_X,
+    y: offset?.y ?? DEFAULT_GUIDE_DRAG_OFFSET_Y,
   };
 }
 

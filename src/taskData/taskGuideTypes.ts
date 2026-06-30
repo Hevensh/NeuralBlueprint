@@ -32,6 +32,7 @@ export interface TaskGuideStepAnimation {
   selector?: string;
   placement?: 'top' | 'right' | 'bottom' | 'left';
   demo?: TaskGuideAnimationDemo;
+  skipWhen?: TaskGuideCondition;
   completeWhen?: TaskGuideCondition;
 }
 
@@ -42,12 +43,20 @@ export type TaskGuideAnimationDemo =
     fromSelector?: string;
     toTarget?: string;
     toSelector?: string;
+    toOffset?: TaskGuideDragOffset;
     label?: string;
     path?: 'straight' | 'curve';
   }
   | {
     type: 'connect';
     segments: TaskGuideConnectionSegment[];
+  };
+
+export type TaskGuideDragOffset =
+  | number
+  | {
+    x?: number;
+    y?: number;
   };
 
 export interface TaskGuideConnectionSegment {
@@ -58,6 +67,18 @@ export interface TaskGuideConnectionSegment {
 }
 
 export type TaskGuideCondition =
+  | {
+    type: 'all';
+    conditions: TaskGuideCondition[];
+  }
+  | {
+    type: 'any';
+    conditions: TaskGuideCondition[];
+  }
+  | {
+    type: 'not';
+    condition: TaskGuideCondition;
+  }
   | {
     type: 'activeWorkspace';
     workspace: PageType;

@@ -61,7 +61,7 @@ export type KnowledgeMemoryBudgetPool = {
   id: string;
   inferenceStages: number[];
   memoryPoint: number;
-  varianceRatio?: number;
+  varianceLogDistance?: number;
 };
 
 export type KnowledgeMemoryAllocation = {

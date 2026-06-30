@@ -1,11 +1,13 @@
 export interface Task2GuideTextValues {
   trainEpochs: number;
   targetValLoss: number;
+  retryEpochs: number;
 }
 
 export function createTask2GuideTextEn({
   trainEpochs,
   targetValLoss,
+  retryEpochs,
 }: Task2GuideTextValues) {
   return {
     title: 'Task 2: Nonlinear Regression',
@@ -108,6 +110,10 @@ export function createTask2GuideTextEn({
           title: 'Select First Linear',
           hint: 'Select the Linear node directly after Input.',
         },
+        openBlueprint: {
+          title: 'Return to Blueprint',
+          hint: `Best Val is still above target after ${retryEpochs} epochs. Return to Blueprint and increase the first Linear output dim again.`,
+        },
         setOutputDim: {
           title: 'Increase Output Dim',
           hint: 'Increase this Linear node’s Output Dim.',
@@ -118,7 +124,7 @@ export function createTask2GuideTextEn({
         },
         retrain: {
           title: 'Retrain',
-          hint: `Run training again until Best Val Loss is below ${targetValLoss}.`,
+          hint: `Run training again until Best Val Loss is below ${targetValLoss}. If it is still too high after ${retryEpochs} epochs, increase the first Linear output dim again.`,
         },
       },
     },

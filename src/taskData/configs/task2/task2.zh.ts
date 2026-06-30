@@ -6,6 +6,7 @@ import type {
 export function createTask2GuideTextZh({
   trainEpochs,
   targetValLoss,
+  retryEpochs, 
 }: Task2GuideTextValues): Task2GuideText {
   return {
     title: '任务 2：非线性回归',
@@ -107,6 +108,10 @@ export function createTask2GuideTextZh({
         selectFirstLinear: {
           title: '选择第一个 Linear',
           hint: '选择直接连接在 Input 后面的 Linear 节点。',
+        },
+        openBlueprint: {
+          title: '返回蓝图',
+          hint: `训练到 ${retryEpochs} epoch 后 Best Val 仍然没有达标。返回蓝图，继续增大第一个 Linear 的 Output Dim。`,
         },
         setOutputDim: {
           title: '增大 Output Dim',

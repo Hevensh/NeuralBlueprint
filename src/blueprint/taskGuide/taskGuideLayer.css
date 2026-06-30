@@ -122,6 +122,24 @@
   animation: task-guide-drag-ghost 2.1s ease-in-out infinite;
 }
 
+.task-guide-drag-target {
+  position: fixed;
+  box-sizing: border-box;
+  width: 156px;
+  height: 96px;
+  border: 1px dashed rgba(125, 211, 252, 0.78);
+  border-radius: 13px;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(34, 211, 238, 0.1), transparent 70%),
+    rgba(2, 6, 23, 0.18);
+  box-shadow:
+    0 0 0 1px rgba(14, 165, 233, 0.16),
+    0 0 18px rgba(34, 211, 238, 0.2),
+    inset 0 0 14px rgba(125, 211, 252, 0.1);
+  transform: translate(-50%, -50%);
+  animation: task-guide-drag-target-pulse 1.45s ease-in-out infinite;
+}
+
 .guide-target-active {
   animation: task-guide-target-pulse 1.55s ease-in-out infinite;
 }
@@ -234,11 +252,25 @@
   }
 }
 
+@keyframes task-guide-drag-target-pulse {
+  0%,
+  100% {
+    opacity: 0.48;
+    transform: translate(-50%, -50%) scale(0.98);
+  }
+
+  50% {
+    opacity: 0.9;
+    transform: translate(-50%, -50%) scale(1.03);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .guide-target-active,
   .task-guide-bubble,
   .task-guide-demo-path,
   .task-guide-drag-ghost,
+  .task-guide-drag-target,
   .task-guide-handle-ring,
   .task-guide-spotlight {
     animation: none;

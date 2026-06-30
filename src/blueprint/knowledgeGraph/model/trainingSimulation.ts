@@ -13,6 +13,7 @@ import {
   readEntityPoolStageMemory,
   writeEntityPoolStageMemory,
 } from './memoryOperations';
+import { varianceLogDistanceToLearningFactor } from '../../InferenceMemoryVariance';
 import { hashSeed } from './random';
 import { estimateStagedMastery } from './reasoning';
 import { computeStageTrainingSignal } from './trainingSignal';
@@ -151,6 +152,9 @@ function trainOneStep(
         entity,
       }))
     ));
+    const learningFactor = poolVarianceLearningFactor(pool);
+    if (learningFactor <= 0) return;
+    const noAllocationWeight = 1 / learningFactor;
 
     for (let point = 0; point < additions; point += 1) {
       const choice = weightedPick(
@@ -161,7 +165,7 @@ function trainOneStep(
           stage,
         ).total,
         random,
-        poolSkipWeight(pool),
+        noAllocationWeight,
       );
       if (!choice) continue;
       writeEntityPoolStageMemory(
@@ -211,7 +215,7 @@ function regularizeMemory(
     const poolRatio = memory.availableMemoryPoints > 0
       ? pool.memoryPoint / memory.availableMemoryPoints
       : 1 / Math.max(1, memory.budgetPools.length);
-    const regularizationFactor = 1 / poolSkipWeight(pool);
+    const regularizationFactor = poolVarianceLearningFactor(pool);
     const poolLowerRatio = lowerRatio * regularizationFactor;
     const poolUpperRatio = upperRatio * regularizationFactor;
 
@@ -283,12 +287,8 @@ function readEntityPoolMemory(
   ), 0);
 }
 
-function poolSkipWeight(pool: KnowledgeMemoryBudgetPool) {
-  return Math.sqrt(Math.max(1, normalizeVarianceRatio(pool.varianceRatio)));
-}
-
-function normalizeVarianceRatio(value: number | undefined) {
-  return Number.isFinite(value) ? Math.max(0.01, value as number) : 1;
+function poolVarianceLearningFactor(pool: KnowledgeMemoryBudgetPool) {
+  return varianceLogDistanceToLearningFactor(pool.varianceLogDistance);
 }
 
 function evaluateLoss(

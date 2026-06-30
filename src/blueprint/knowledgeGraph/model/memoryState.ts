@@ -187,7 +187,7 @@ function createBlueprintPools(profile: InferenceMemoryProfile) {
       id: `blueprint:${group.id}`,
       inferenceStages: normalizeStages(group.inferenceStages),
       memoryPoint: normalizeMemoryPoint(group.memoryPoint),
-      varianceRatio: normalizeFactor(group.varianceRatio),
+      varianceLogDistance: normalizeFactor(group.varianceLogDistance),
     }));
 }
 
@@ -253,7 +253,7 @@ function samePoolConfiguration(
   return left.length === right.length && left.every((pool, index) => (
     pool.id === right[index]?.id
     && pool.memoryPoint === right[index]?.memoryPoint
-    && pool.varianceRatio === right[index]?.varianceRatio
+    && pool.varianceLogDistance === right[index]?.varianceLogDistance
     && pool.inferenceStages.join(',') === right[index]?.inferenceStages.join(',')
   ));
 }

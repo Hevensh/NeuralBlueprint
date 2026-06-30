@@ -94,8 +94,29 @@ function activeAnimation(
 ) {
   const animations = toAnimationList(animation);
   return animations.find((item) => (
-    !item.completeWhen || !evaluateCondition(item.completeWhen, snapshot)
+    !shouldSkipAnimation(item, snapshot)
+    && !isAnimationComplete(item, snapshot)
   )) ?? animations.at(-1);
+}
+
+function shouldSkipAnimation(
+  animation: TaskGuideStepAnimation,
+  snapshot: TaskRuntimeSnapshot,
+) {
+  return Boolean(
+    animation.skipWhen
+    && evaluateCondition(animation.skipWhen, snapshot),
+  );
+}
+
+function isAnimationComplete(
+  animation: TaskGuideStepAnimation,
+  snapshot: TaskRuntimeSnapshot,
+) {
+  return Boolean(
+    animation.completeWhen
+    && evaluateCondition(animation.completeWhen, snapshot),
+  );
 }
 
 function firstAnimation(animation: TaskGuideStepConfig['animation']) {
@@ -114,6 +135,22 @@ function evaluateCondition(
   condition: TaskGuideCondition,
   snapshot: TaskRuntimeSnapshot,
 ): boolean {
+  if (condition.type === 'all') {
+    return condition.conditions.every((item) => (
+      evaluateCondition(item, snapshot)
+    ));
+  }
+
+  if (condition.type === 'any') {
+    return condition.conditions.some((item) => (
+      evaluateCondition(item, snapshot)
+    ));
+  }
+
+  if (condition.type === 'not') {
+    return !evaluateCondition(condition.condition, snapshot);
+  }
+
   if (condition.type === 'activeWorkspace') {
     return snapshot.activeWorkspace === condition.workspace;
   }

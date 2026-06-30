@@ -9,6 +9,7 @@ import type {
   InferenceMemoryProfile,
   InferenceMemoryStageSegment,
 } from '../../InferenceMemoryProfileTypes';
+import { computeVarianceLogDistance } from '../../InferenceMemoryVariance';
 import { buildArrangeReachabilityMaps } from '../utils/arrangeNodesUtils';
 
 export type {
@@ -84,7 +85,7 @@ export function buildInferenceMemoryProfile(
         nodeIds: group.nodes.map((node) => node.id),
         inferenceStages: group.inferenceStages,
         memoryPoint: Math.floor(stats.memoryPoint),
-        varianceRatio: stats.varianceRatio,
+        varianceLogDistance: stats.varianceLogDistance,
         nodeWeights: stats.nodeWeights,
         aggregationPairs: stats.aggregationPairs,
       };
@@ -209,35 +210,64 @@ export function computeInferenceGroupProfile(
   allNodes: ModuleNodeData[],
 ) {
   const aggregation = computeGroupAggregation(nodes, allNodes);
-  const weighted = nodes.reduce(
-    (state, node) => {
-      const memoryPoint = isFiniteNumber(node.memoryPoint)
-        ? node.memoryPoint
-        : 0;
-      const weight = aggregation.weights.get(node.id)?.weight ?? 1;
-      return {
-        memoryPoint: state.memoryPoint + memoryPoint * weight,
-        forwardVariance: state.forwardVariance
-          + finitePositive(node.stats?.variance) * weight,
-        backwardVariance: state.backwardVariance
-          + finitePositive(node.statsBackward?.variance) * weight,
-      };
-    },
-    {
-      memoryPoint: 0,
-      forwardVariance: 0,
-      backwardVariance: 0,
-    },
-  );
-  const varianceRatio = weighted.backwardVariance > 0
-    ? weighted.forwardVariance / weighted.backwardVariance
-    : 1;
+  const nodeWeights = [...aggregation.weights.values()];
+  const normalizedWeights = normalizeNodeWeights(nodes, aggregation.weights);
+
   return {
-    memoryPoint: weighted.memoryPoint,
-    varianceRatio,
-    nodeWeights: [...aggregation.weights.values()],
+    memoryPoint: weightedMemoryPoint(nodes, aggregation.weights),
+    varianceLogDistance: weightedVarianceLogDistance(nodes, normalizedWeights),
+    nodeWeights,
     aggregationPairs: aggregation.pairs,
   };
+}
+
+function weightedMemoryPoint(
+  nodes: LinearNodeData[],
+  weights: Map<string, { weight: number }>,
+) {
+  return nodes.reduce((sum, node) => {
+    const memoryPoint = isFiniteNumber(node.memoryPoint)
+      ? node.memoryPoint
+      : 0;
+    const weight = weights.get(node.id)?.weight ?? 1;
+    return sum + memoryPoint * weight;
+  }, 0);
+}
+
+function weightedVarianceLogDistance(
+  nodes: LinearNodeData[],
+  normalizedWeights: Map<string, number>,
+) {
+  return nodes.reduce((sum, node) => (
+    sum
+    + computeVarianceLogDistance(
+      node.stats?.variance,
+      node.statsBackward?.variance,
+    )
+    * (normalizedWeights.get(node.id) ?? 0)
+  ), 0);
+}
+
+function normalizeNodeWeights(
+  nodes: LinearNodeData[],
+  weights: Map<string, { weight: number }>,
+) {
+  const rawWeights = nodes.map((node) => ({
+    nodeId: node.id,
+    weight: Math.max(0, weights.get(node.id)?.weight ?? 1),
+  }));
+  const totalWeight = rawWeights.reduce(
+    (sum, item) => sum + item.weight,
+    0,
+  );
+  const fallbackWeight = nodes.length > 0 ? 1 / nodes.length : 0;
+
+  return new Map(rawWeights.map((item) => [
+    item.nodeId,
+    totalWeight > 0
+      ? item.weight / totalWeight
+      : fallbackWeight,
+  ]));
 }
 
 function collectConnectedNodeIslands(nodes: ModuleBaseNode[]) {
@@ -336,10 +366,6 @@ function intersectSets(left: Set<string>, right: Set<string>) {
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
-}
-
-function finitePositive(value: unknown) {
-  return isFiniteNumber(value) ? Math.max(0, value) : 0;
 }
 
 function computeGroupAggregation(

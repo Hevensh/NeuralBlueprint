@@ -100,6 +100,7 @@ export function createGuideTask1(language: AppLanguage): TaskGuideConfig {
             type: 'drag',
             fromTarget: 'module-card-Linear',
             toTarget: 'neural-blueprint-canvas',
+            toOffset: { x: 0, y: -1 },
             label: text.steps.addLinear.dragLabel,
             path: 'straight',
           },

@@ -3,7 +3,10 @@ import { DEFAULT_OUTPUT_DIM } from '../../../blueprint/neuralBlueprint/moduleNod
 import type { AppLanguage } from '../../../i18n/labels';
 import type { BlueprintTaskFeatureConfig } from '../../blueprintFeatureConfig';
 import type { TaskFileConfig } from '../../taskFileTypes';
-import type { TaskGuideConfig } from '../../taskGuideTypes';
+import type {
+  TaskGuideCondition,
+  TaskGuideConfig,
+} from '../../taskGuideTypes';
 import { renderTask2NonlinearLinearFitDiagram } from './diagrams/nonlinearLinearFitDiagram';
 import { renderTask2NonlinearReluFitDiagram } from './diagrams/nonlinearReluFitDiagram';
 import {
@@ -16,6 +19,7 @@ const TASK2_INPUT_OUTPUT_DIM = 32;
 const TASK2_INPUT_EFFECTIVE_RANK = 16;
 const TASK2_OUTPUT_DIM = 2;
 const TASK2_TRAIN_EPOCHS = 100;
+const TASK2_RETRY_EPOCHS = 500;
 const TASK2_TARGET_VAL_LOSS = 0.5;
 const TASK2_TUNED_HIDDEN_DIM = DEFAULT_OUTPUT_DIM + 1;
 
@@ -109,6 +113,49 @@ export const configTask2: TaskFileConfig = {
 
 export function createGuideTask2(language: AppLanguage): TaskGuideConfig {
   const text = createTask2GuideText(language);
+  const firstLinearExpandedCondition: TaskGuideCondition = {
+    type: 'moduleNodeExists',
+    selector: {
+      kind: 'Linear',
+      predecessorId: 'task2_input',
+      minProps: { outFeatures: TASK2_TUNED_HIDDEN_DIM },
+    },
+  };
+  const retryFailedCondition: TaskGuideCondition = {
+    type: 'all',
+    conditions: [
+      {
+        type: 'trainingStat',
+        stat: 'epoch',
+        min: TASK2_RETRY_EPOCHS,
+      },
+      {
+        type: 'trainingStat',
+        stat: 'bestValLoss',
+        min: TASK2_TARGET_VAL_LOSS,
+      },
+    ],
+  };
+  const dimEditSatisfiedCondition: TaskGuideCondition = {
+    type: 'all',
+    conditions: [
+      firstLinearExpandedCondition,
+      {
+        type: 'any',
+        conditions: [
+          {
+            type: 'not',
+            condition: retryFailedCondition,
+          },
+          {
+            type: 'trainingFlag',
+            flag: 'modelInitialized',
+            value: false,
+          },
+        ],
+      },
+    ],
+  };
 
   return {
     id: 'task2-guide',
@@ -131,6 +178,7 @@ export function createGuideTask2(language: AppLanguage): TaskGuideConfig {
             type: 'drag',
             fromTarget: 'module-card-Linear',
             toTarget: 'neural-blueprint-canvas',
+            toOffset: { x: -1, y: -1 },
             label: text.steps.addLinear.dragLabel,
             path: 'straight',
           },
@@ -158,6 +206,7 @@ export function createGuideTask2(language: AppLanguage): TaskGuideConfig {
             type: 'drag',
             fromTarget: 'module-card-ReLU',
             toTarget: 'neural-blueprint-canvas',
+            toOffset: { x: 0, y: -1 },
             label: text.steps.addRelu.dragLabel,
             path: 'straight',
           },
@@ -185,6 +234,7 @@ export function createGuideTask2(language: AppLanguage): TaskGuideConfig {
               type: 'drag',
               fromTarget: 'module-card-Linear',
               toTarget: 'neural-blueprint-canvas',
+              toOffset: { x: 1, y: -1 },
               label: text.steps.addLinear.dragLabel,
               path: 'straight',
             },
@@ -393,10 +443,22 @@ export function createGuideTask2(language: AppLanguage): TaskGuideConfig {
         info: text.steps.tuneHiddenDim.info,
         animation: [
           {
+            title: text.steps.tuneHiddenDim.openBlueprint.title,
+            hint: text.steps.tuneHiddenDim.openBlueprint.hint,
+            target: 'workspace-tab-neuralBlueprint',
+            placement: 'bottom',
+            skipWhen: dimEditSatisfiedCondition,
+            completeWhen: {
+              type: 'activeWorkspace',
+              workspace: PageType.NeuralBlueprint,
+            },
+          },
+          {
             title: text.steps.tuneHiddenDim.selectFirstLinear.title,
             hint: text.steps.tuneHiddenDim.selectFirstLinear.hint,
             selector: '[data-guide-node-kind="Linear"][data-guide-predecessor-ids~="task2_input"]',
             placement: 'left',
+            skipWhen: dimEditSatisfiedCondition,
             completeWhen: {
               type: 'selectedModuleNode',
               selector: {
@@ -410,14 +472,7 @@ export function createGuideTask2(language: AppLanguage): TaskGuideConfig {
             hint: text.steps.tuneHiddenDim.setOutputDim.hint,
             target: 'property-output-dim',
             placement: 'left',
-            completeWhen: {
-              type: 'moduleNodeExists',
-              selector: {
-                kind: 'Linear',
-                predecessorId: 'task2_input',
-                minProps: { outFeatures: TASK2_TUNED_HIDDEN_DIM },
-              },
-            },
+            completeWhen: dimEditSatisfiedCondition,
           },
           {
             title: text.steps.trainAndSave.openTraining.title,
@@ -460,6 +515,7 @@ function createTask2GuideText(language: AppLanguage): Task2GuideText {
   const values = {
     targetValLoss: TASK2_TARGET_VAL_LOSS,
     trainEpochs: TASK2_TRAIN_EPOCHS,
+    retryEpochs: TASK2_RETRY_EPOCHS,
   };
 
   return language === 'zh'

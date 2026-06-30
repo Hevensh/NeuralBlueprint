@@ -3,7 +3,7 @@ export interface InferenceMemoryGroup {
   nodeIds: string[];
   inferenceStages: number[];
   memoryPoint: number;
-  varianceRatio: number;
+  varianceLogDistance: number;
   nodeWeights: InferenceMemoryNodeWeight[];
   aggregationPairs: InferenceMemoryAggregationPair[];
   ratio: number;
@@ -71,7 +71,7 @@ export function getInferenceMemoryProfileSignature(
         group.id,
         group.memoryPoint,
         group.inferenceStages.join(','),
-        formatSignatureNumber(group.varianceRatio),
+        formatSignatureNumber(group.varianceLogDistance),
       ].join(':')
     )).join('|'),
   ].join('::');
