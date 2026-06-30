@@ -38,18 +38,18 @@ export function renderTask1LinearRegressionDiagram() {
         />
         <path
           className="diagram-line"
-          d="M70 150 C112 132 143 111 184 86 C214 67 238 58 266 47"
+          d="M70 150 L266 52"
         />
         {[
           [82, 147],
           [105, 131],
-          [126, 139],
+          [126, 126],
           [148, 112],
-          [171, 99],
+          [171, 103],
           [190, 87],
-          [210, 78],
+          [210, 83],
           [233, 63],
-          [252, 60],
+          [252, 58],
         ].map(([cx, cy], index) => (
           <circle
             className="diagram-point"

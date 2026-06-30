@@ -162,3 +162,19 @@
   line-height: 1.35;
   text-align: center;
 }
+
+.task-progress-hint-button {
+  display: block;
+  width: 100%;
+  border-right: 0;
+  border-bottom: 0;
+  border-left: 0;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.task-progress-hint-button:hover {
+  color: #e0faff;
+  text-shadow: 0 0 12px rgba(34, 211, 238, 0.38);
+}

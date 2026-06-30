@@ -10,6 +10,10 @@ export function createTask2GuideTextZh({
 }: Task2GuideTextValues): Task2GuideText {
   return {
     title: '任务 2：非线性回归',
+    completionInfo: {
+      title: '你完成了非线性回归流程。',
+      body: `这个任务展示了为什么单个 Linear 不足以拟合曲线数据，ReLU 如何提供分段线性的弯折能力，第二个 Linear 为什么需要还原输出维度，以及如何通过增大隐藏维度让 Best Val Loss 低于 ${targetValLoss}。`,
+    },
     steps: {
       addLinear: {
         title: '添加 Linear',
@@ -33,7 +37,7 @@ export function createTask2GuideTextZh({
       },
       connectNetwork: {
         title: '连接网络',
-        description: '构建 Input → Linear → ReLU → Linear → Output',
+        description: '连接非线性网络路径',
         hint: '在 ReLU 后再加入一个 Linear 节点，然后连成完整路径。',
         info: {
           title: '第二个 Linear 用来还原最终输出维度。',

@@ -5,6 +5,7 @@ import type { ModuleBaseNodeKind } from '../blueprint/neuralBlueprint/ModuleBase
 export interface TaskGuideConfig {
   id: string;
   title: string;
+  completionInfo?: TaskGuideStepInfo;
   steps: TaskGuideStepConfig[];
 }
 

@@ -7,7 +7,6 @@ import {
   type CSSProperties,
 } from 'react';
 import type { TaskGuideStepInfo } from '../../taskData/taskGuideTypes';
-import type { EvaluatedTaskGuideStep } from './evaluateTaskGuide';
 import './taskGuideInfoDialog.css';
 
 export interface TaskGuideInfoSource {
@@ -27,9 +26,13 @@ interface TaskGuideInfoMotionRect {
 }
 
 interface TaskGuideInfoDialogProps {
+  actionHint: string;
+  actionTitle: string;
   guideTitle: string;
-  step: EvaluatedTaskGuideStep;
+  info: TaskGuideStepInfo;
+  motionKey: string;
   source?: TaskGuideInfoSource;
+  variant?: 'step' | 'completion';
   onClose: () => void;
 }
 
@@ -37,9 +40,13 @@ const START_WIDTH = 112;
 const START_HEIGHT = 64;
 
 export function TaskGuideInfoDialog({
+  actionHint,
+  actionTitle,
   guideTitle,
-  step,
+  info,
+  motionKey,
   source,
+  variant = 'step',
   onClose,
 }: TaskGuideInfoDialogProps) {
   const [closing, setClosing] = useState(false);
@@ -47,10 +54,6 @@ export function TaskGuideInfoDialog({
     useState<TaskGuideInfoMotionRect | null>(null);
   const closeTimerRef = useRef<number | null>(null);
   const dialogRef = useRef<HTMLElement | null>(null);
-  const info: TaskGuideStepInfo = step.info ?? {
-    title: step.title,
-    body: step.description ?? step.hint,
-  };
   const illustration = info.illustration?.();
   const style = useMemo(() => (
     motionRect
@@ -91,7 +94,7 @@ export function TaskGuideInfoDialog({
       targetTop: rect.top,
       targetWidth: rect.width,
     });
-  }, [source, step.id]);
+  }, [motionKey, source]);
 
   useEffect(() => () => {
     if (closeTimerRef.current !== null) {
@@ -111,6 +114,7 @@ export function TaskGuideInfoDialog({
           'task-guide-info-dialog',
           motionRect ? 'motion-ready' : '',
           illustration ? 'with-illustration' : '',
+          variant === 'completion' ? 'completion' : '',
         ].filter(Boolean).join(' ')}
         onMouseDown={(event) => event.stopPropagation()}
         ref={dialogRef}
@@ -135,10 +139,12 @@ export function TaskGuideInfoDialog({
             </>
           )}
 
-          <div className="task-guide-info-action">
-            <span>{step.title}</span>
-            <p>{step.hint}</p>
-          </div>
+          {variant === 'step' && (
+            <div className="task-guide-info-action">
+              <span>{actionTitle}</span>
+              <p>{actionHint}</p>
+            </div>
+          )}
         </div>
       </section>
     </div>

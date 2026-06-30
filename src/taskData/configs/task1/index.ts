@@ -82,6 +82,7 @@ export function createGuideTask1(language: AppLanguage): TaskGuideConfig {
   return {
     id: 'task1-guide',
     title: text.title,
+    completionInfo: text.completionInfo,
     steps: [
       {
         id: 'add-linear',

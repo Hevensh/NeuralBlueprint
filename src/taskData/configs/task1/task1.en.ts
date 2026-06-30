@@ -9,6 +9,10 @@ export function createTask1GuideTextEn({
 }: Task1GuideTextValues) {
   return {
     title: 'Task 1: Linear Regression',
+    completionInfo: {
+      title: 'You completed the linear regression workflow.',
+      body: `This task introduced the basic Neural Blueprint loop: add a Linear transform, connect a valid Input-to-Output path, match the final output dimension to ${outputDim}, initialize the model, and train for ${trainEpochs} epochs.`,
+    },
     steps: {
       addLinear: {
         title: 'Add Linear',

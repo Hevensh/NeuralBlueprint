@@ -32,6 +32,7 @@ import {
   type InferenceMemoryProfile,
 } from './InferenceMemoryProfileTypes';
 import { useLanguage } from '../i18n/LanguageContext';
+import type { TaskGuideStepInfo } from '../taskData/taskGuideTypes';
 
 interface BlueprintCanvasProp {
   file: DesktopFile;
@@ -56,8 +57,12 @@ export function BlueprintCanvas({ file, closeFile }: BlueprintCanvasProp) {
     () => Math.max(0, Math.floor(file.guideCompletedStepCount ?? 0)),
   );
   const [guideInfo, setGuideInfo] = useState<{
+    kind: 'step';
     source?: TaskGuideInfoSource;
     stepId: string;
+  } | {
+    kind: 'completion';
+    source?: TaskGuideInfoSource;
   } | null>(null);
   const seenGuideInfoStepIdsRef = useRef<Set<string>>(new Set());
   const [neuralBlueprintSnapshot, setNeuralBlueprintSnapshot] =
@@ -124,16 +129,47 @@ export function BlueprintCanvas({ file, closeFile }: BlueprintCanvasProp) {
       ? evaluateTaskGuide(guideConfig, taskSnapshot, guideCompletedStepCount)
       : undefined
   ), [guideCompletedStepCount, guideConfig, taskSnapshot]);
-  const guideInfoStep = useMemo(() => (
-    guideInfo
-      ? taskGuide?.steps.find((step) => step.id === guideInfo.stepId) ?? null
-      : null
-  ), [guideInfo, taskGuide]);
+  const guideInfoContent = useMemo(() => {
+    if (!guideInfo || !taskGuide) return null;
+
+    if (guideInfo.kind === 'completion') {
+      return taskGuide.completionInfo
+        ? {
+            actionHint: taskGuide.completionInfo.title,
+            actionTitle: taskGuide.title,
+            info: taskGuide.completionInfo,
+            key: `${taskGuide.id}:completion`,
+            variant: 'completion' as const,
+          }
+        : null;
+    }
+
+    const step = taskGuide.steps.find((item) => item.id === guideInfo.stepId);
+    if (!step) return null;
+
+    const info: TaskGuideStepInfo = step.info ?? {
+      title: step.title,
+      body: step.description ?? step.hint,
+    };
+
+    return {
+      actionHint: step.hint,
+      actionTitle: step.title,
+      info,
+      key: step.id,
+      variant: 'step' as const,
+    };
+  }, [guideInfo, taskGuide]);
   const openGuideInfo = useCallback((
     stepId: string,
     source?: TaskGuideInfoSource,
   ) => {
-    setGuideInfo({ source, stepId });
+    setGuideInfo({ kind: 'step', source, stepId });
+  }, []);
+  const openGuideCompletionInfo = useCallback((
+    source?: TaskGuideInfoSource,
+  ) => {
+    setGuideInfo({ kind: 'completion', source });
   }, []);
   useEffect(() => {
     const activeStep = taskGuide?.activeStep;
@@ -153,6 +189,11 @@ export function BlueprintCanvas({ file, closeFile }: BlueprintCanvasProp) {
       completed,
       guideCompletedStepCount: completedStepCount,
     }));
+    if (completed && taskGuide?.completionInfo) {
+      openGuideCompletionInfo(getTaskProgressDotSource(
+        taskGuide.steps.at(-1)?.id,
+      ));
+    }
     const timer = window.setTimeout(() => {
       setGuideCompletedStepCount(completedStepCount);
     }, 0);
@@ -160,7 +201,10 @@ export function BlueprintCanvas({ file, closeFile }: BlueprintCanvasProp) {
   }, [
     fileId,
     guideCompletedStepCount,
+    openGuideCompletionInfo,
+    taskGuide?.completionInfo,
     taskGuide?.completedStepCount,
+    taskGuide?.steps,
     taskGuide?.steps.length,
   ]);
   const title = {
@@ -220,16 +264,21 @@ export function BlueprintCanvas({ file, closeFile }: BlueprintCanvasProp) {
       {taskGuide && (
         <TaskProgressBar
           guide={taskGuide}
+          onCompletionInfoRequest={openGuideCompletionInfo}
           onStepInfoRequest={openGuideInfo}
         />
       )}
       {taskGuide && <TaskGuideLayer guide={taskGuide} />}
-      {taskGuide && guideInfoStep && (
+      {taskGuide && guideInfoContent && (
         <TaskGuideInfoDialog
+          actionHint={guideInfoContent.actionHint}
+          actionTitle={guideInfoContent.actionTitle}
           guideTitle={taskGuide.title}
-          key={guideInfoStep.id}
+          info={guideInfoContent.info}
+          key={guideInfoContent.key}
+          motionKey={guideInfoContent.key}
           source={guideInfo?.source}
-          step={guideInfoStep}
+          variant={guideInfoContent.variant}
           onClose={() => setGuideInfo(null)}
         />
       )}
@@ -238,8 +287,9 @@ export function BlueprintCanvas({ file, closeFile }: BlueprintCanvasProp) {
 }
 
 function getTaskProgressDotSource(
-  stepId: string,
+  stepId: string | undefined,
 ): TaskGuideInfoSource | undefined {
+  if (!stepId) return undefined;
   const dot = document.querySelector<HTMLButtonElement>(
     `[data-task-progress-step-id="${stepId}"]`,
   );

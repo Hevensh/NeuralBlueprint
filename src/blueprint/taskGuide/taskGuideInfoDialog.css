@@ -44,6 +44,12 @@
   min-height: 360px;
 }
 
+.task-guide-info-dialog.completion {
+  width: min(640px, calc(100vw - 64px));
+  min-height: 260px;
+  padding: 34px 38px;
+}
+
 .task-guide-info-dialog.motion-ready {
   top: var(--task-guide-info-target-top);
   left: var(--task-guide-info-target-left);
@@ -65,7 +71,7 @@
 }
 
 .task-guide-info-dialog.motion-ready .task-guide-info-content {
-  animation: task-guide-info-content-in 0.18s ease-out 0.12s both;
+  animation: task-guide-info-content-in 0.16s ease-out 0.24s both;
 }
 
 .task-guide-info-backdrop.closing .task-guide-info-content {
@@ -100,6 +106,10 @@
   line-height: 1.16;
 }
 
+.task-guide-info-dialog.completion h2 {
+  max-width: 520px;
+}
+
 .task-guide-info-dialog > .task-guide-info-content > p {
   max-width: 620px;
   margin: 18px 0 0;
@@ -107,6 +117,10 @@
   font-size: 15px;
   font-weight: 560;
   line-height: 1.7;
+}
+
+.task-guide-info-dialog.completion > .task-guide-info-content > p {
+  max-width: 540px;
 }
 
 .task-guide-info-copy > p {

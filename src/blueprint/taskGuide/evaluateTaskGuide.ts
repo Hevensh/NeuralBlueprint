@@ -13,6 +13,7 @@ import type { NeuralBlueprintTaskSnapshot, TaskRuntimeSnapshot } from './taskGui
 export interface EvaluatedTaskGuide {
   id: string;
   title: string;
+  completionInfo?: TaskGuideConfig['completionInfo'];
   steps: EvaluatedTaskGuideStep[];
   activeStep: EvaluatedTaskGuideStep | null;
   completedStepCount: number;
@@ -56,6 +57,7 @@ export function evaluateTaskGuide(
   return {
     id: guide.id,
     title: guide.title,
+    completionInfo: guide.completionInfo,
     steps,
     activeStep: steps[activeIndex] ?? null,
     completedStepCount,

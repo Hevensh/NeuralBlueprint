@@ -9,6 +9,10 @@ export function createTask1GuideTextZh({
 }: Task1GuideTextValues): Task1GuideText {
   return {
     title: '任务 1：线性回归',
+    completionInfo: {
+      title: '你完成了线性回归流程。',
+      body: `这个任务介绍了 Neural Blueprint 的基础流程：添加 Linear 变换、连接有效的 Input 到 Output 路径、把最后一层输出维度调整为 ${outputDim}、初始化模型，并训练 ${trainEpochs} 个 epoch。`,
+    },
     steps: {
       addLinear: {
         title: '添加 Linear',

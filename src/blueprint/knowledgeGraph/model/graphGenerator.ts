@@ -150,7 +150,7 @@ export function createGeneratedKnowledgeNode(
   const lossMin = Math.exp(sampleNormal(random, -2, 0.8));
   const lossMax = Math.max(
     lossMin * 2,
-    Math.exp(sampleNormal(random, 2, 0.8)),
+    Math.exp(sampleNormal(random, 1, 0.8)),
   );
   return {
     kind: 'node',

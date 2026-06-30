@@ -11,6 +11,10 @@ export function createTask2GuideTextEn({
 }: Task2GuideTextValues) {
   return {
     title: 'Task 2: Nonlinear Regression',
+    completionInfo: {
+      title: 'You completed the nonlinear regression workflow.',
+      body: `This task showed why one Linear layer is not enough for curved data, how ReLU adds piecewise-linear bends, why a second Linear restores the output dimension, and how increasing hidden width can reduce Best Val Loss below ${targetValLoss}.`,
+    },
     steps: {
       addLinear: {
         title: 'Add Linear',
@@ -34,7 +38,7 @@ export function createTask2GuideTextEn({
       },
       connectNetwork: {
         title: 'Connect Network',
-        description: 'Build Input → Linear → ReLU → Linear → Output',
+        description: 'Connect the nonlinear network path',
         hint: 'Add one more Linear node after ReLU, then connect the full path to Output.',
         info: {
           title: 'The second Linear restores the final output dimension.',
