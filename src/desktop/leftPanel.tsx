@@ -44,7 +44,7 @@ export function DesktopLeftPanel({
         {leftPanelLabels.settings}
       </button>
       <div className="panel-section-spacer" />
-      <button className="action-button" onClick={onResetPositions}>
+      <button className="action-button" onClick={onResetPositions} type="button">
         {leftPanelLabels.centerView}
       </button>
       <div className="panel-section-spacer" />

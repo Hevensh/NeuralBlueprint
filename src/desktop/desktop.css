@@ -122,6 +122,31 @@ body,
   transform: translate(-50%, 0);
 }
 
+.desktop-return-button {
+  grid-column: 1;
+  justify-self: start;
+  min-width: 112px;
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid rgba(34, 211, 238, 0.38);
+  border-radius: 999px;
+  background: rgba(8, 47, 73, 0.46);
+  color: #cffafe;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    border-color 0.16s ease,
+    background 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.desktop-return-button:hover {
+  border-color: rgba(103, 232, 249, 0.72);
+  background: rgba(14, 116, 144, 0.58);
+  box-shadow: 0 0 16px rgba(34, 211, 238, 0.2);
+}
+
 .desktop-settings-backdrop {
   position: fixed;
   inset: 0;

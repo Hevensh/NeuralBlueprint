@@ -9,8 +9,8 @@ import {
 import '@xyflow/react/dist/style.css';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { exitApplication } from '../appActions';
 import {
-  clearWorkspace as clearDesktopWorkspace,
   INITIAL_DESKTOP_VIEWPORT,
   loadDesktopFiles,
   loadDesktopView,
@@ -18,11 +18,13 @@ import {
   saveDesktopView,
   updateDesktopFile,
 } from '../dataStorage/desktopStorage';
-import { clearKnowledgeGraphSession } from '../dataStorage/knowledgeGraphStorage';
-import { clearNeuralBlueprintGraph } from '../dataStorage/neuralBlueprintStorage';
+import {
+  clearDesktopFileRuntime,
+  resetAllFileStorage,
+} from '../dataStorage/fileReset';
 import type { FileWorkspaceType, OpenFileType } from '../dataStorage/systemType';
-import { clearTrainingCurves } from '../dataStorage/trainingCurveStorage';
 import { INITIAL_DESKTOP_FILES } from '../taskData/desktopDefaults';
+import { useLanguage } from '../i18n/LanguageContext';
 import {
   isDesktopFileVisible,
   toDesktopFlowPosition,
@@ -36,9 +38,11 @@ import type { DesktopFile, DesktopIconNodeType } from './desktopTypes';
 
 interface DesktopCanvasProp {
   openFile: OpenFileType;
+  onReturnToLab: () => void;
 }
 
-export function DesktopCanvas({ openFile }: DesktopCanvasProp) {
+export function DesktopCanvas({ openFile, onReturnToLab }: DesktopCanvasProp) {
+  const { labels } = useLanguage();
   const [selectedFile, setSelectedFile] = useState<DesktopFile | null>(null);
   const [saveNotice, setSaveNotice] = useState('');
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -65,23 +69,6 @@ export function DesktopCanvas({ openFile }: DesktopCanvasProp) {
   const pushHistory = useCallback(() => {
     historyRef.current = [...historyRef.current, canvas?.getNodes() ?? []];
   }, [canvas]);
-
-  const exitApp = useCallback(() => {
-    const closePage = () => {
-      window.close();
-      window.setTimeout(() => {
-        if (!window.closed) window.location.href = 'about:blank';
-      }, 120);
-    };
-
-    if (window.neuralBlueprintApp) {
-      void window.neuralBlueprintApp.quit().finally(closePage);
-      return;
-    }
-
-    void fetch('/__neural-blueprint-exit', { method: 'POST' })
-      .finally(closePage);
-  }, []);
 
   const handleOpenFile = useCallback((file: DesktopFile) => {
     saveDesktopFiles(canvas?.getNodes() ?? []);
@@ -118,15 +105,6 @@ export function DesktopCanvas({ openFile }: DesktopCanvasProp) {
     canvas?.deleteElements({ nodes: [{ id: fileId }] });
   }, [canvas, pushHistory, selectedFile?.deletable]);
 
-  const clearDesktopFileRuntime = useCallback((file: DesktopFile) => {
-    if (file.type !== 'nbp') return false;
-
-    clearNeuralBlueprintGraph(file.id);
-    clearKnowledgeGraphSession(file.id);
-    clearTrainingCurves(file.id);
-    return true;
-  }, []);
-
   const resetDesktopFileStorage = useCallback((file: DesktopFile) => {
     if (clearDesktopFileRuntime(file)) {
       updateDesktopFile(file.id, (desktopFile) => ({
@@ -162,23 +140,18 @@ export function DesktopCanvas({ openFile }: DesktopCanvasProp) {
     }
 
     showSaveNotice('No stored data for this file type');
-  }, [canvas, clearDesktopFileRuntime, showSaveNotice]);
+  }, [canvas, showSaveNotice]);
 
   const resetAllFiles = useCallback(() => {
-    const files = new Map<string, DesktopFile>();
-    loadDesktopFiles().forEach((file) => files.set(file.id, file));
-    canvas?.getNodes().forEach((node) => files.set(node.data.file.id, node.data.file));
-    INITIAL_DESKTOP_FILES.forEach((file) => files.set(file.id, file));
-    files.forEach(clearDesktopFileRuntime);
+    resetAllFileStorage(canvas?.getNodes().map((node) => node.data.file));
 
     pushHistory();
-    clearDesktopWorkspace();
     const initialNodes = toDesktopNodes(INITIAL_DESKTOP_FILES);
     canvas?.setNodes(initialNodes);
     void canvas?.setViewport(INITIAL_DESKTOP_VIEWPORT, { duration: 300 });
     setSelectedFile(null);
     showSaveNotice('All files reset');
-  }, [canvas, clearDesktopFileRuntime, pushHistory, showSaveNotice]);
+  }, [canvas, pushHistory, showSaveNotice]);
 
   const undo = useCallback(() => {
     const previousNodes = historyRef.current.at(-1);
@@ -317,6 +290,13 @@ export function DesktopCanvas({ openFile }: DesktopCanvasProp) {
     <ReactFlowProvider>
       <div className="workspace">
         <header className="top-bar">
+          <button
+            className="desktop-return-button"
+            onClick={onReturnToLab}
+            type="button"
+          >
+            {labels.lab.returnToLab}
+          </button>
           <div className="desktop-title">Neural BluePrint</div>
         </header>
 
@@ -349,7 +329,7 @@ export function DesktopCanvas({ openFile }: DesktopCanvasProp) {
         {settingsOpen && (
           <DesktopSettingsDialog
             onClose={() => setSettingsOpen(false)}
-            onExit={exitApp}
+            onExit={exitApplication}
             onResetAllFiles={resetAllFiles}
           />
         )}

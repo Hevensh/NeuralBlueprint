@@ -1,6 +1,38 @@
 import type { AppLabelSet } from './label.en';
 
 export const ZH_LABELS = {
+  lab: {
+    navigation: {
+      places: '可前往地点',
+      laboratory: '实验室',
+      current: '当前位置',
+      classroom: '教室',
+      comingSoon: '尚未开放',
+    },
+    title: '神经蓝图实验室',
+    subtitle: '科研实验室',
+    day: '第',
+    workstation: '研究工作站',
+    chooseWorkstation: '选择这个工位',
+    availableWorkstation: '空闲工位',
+    yourWorkstation: '你的工位',
+    enterDesktop: '打开科研桌面',
+    returnToLab: '返回实验室',
+    whiteboard: '研究白板',
+    whiteboardNote: '回顾当前任务，提出假设，并记录下一个实验。',
+    server: '训练服务器',
+    serverNote: '当前没有后台训练任务。',
+    bookshelf: '参考资料架',
+    bookshelfNote: '新论文和研究笔记会出现在这里。',
+    clock: '实验室日程',
+    talk: '交谈',
+    senior: '学长',
+    peer: '同门',
+    absent: '今日未到',
+    completed: '已交流',
+    reward: '已获得奖励',
+    close: '关闭',
+  },
   workspaceTabs: {
     neuralBlueprint: '神经蓝图',
     knowledgeGraph: '知识图谱',
