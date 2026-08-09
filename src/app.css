@@ -1,0 +1,64 @@
+.app-shell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  transition: background-color 0.22s cubic-bezier(0, 0, 0.2, 1);
+}
+
+.app-shell.theme-lab { background-color: #dce8ec; }
+.app-shell.theme-desktop { background-color: #020617; }
+
+.app-scene-content {
+  width: 100%;
+  height: 100%;
+  filter: brightness(1) saturate(1) contrast(1);
+  transition: filter 0.22s cubic-bezier(0, 0, 0.2, 1);
+}
+
+.app-shell.scene-transitioning .app-scene-content {
+  pointer-events: none;
+}
+
+.app-shell.transition-out,
+.app-shell.transition-out .app-scene-content {
+  transition-timing-function: cubic-bezier(0.4, 0, 1, 1);
+}
+
+.app-shell.transition-in,
+.app-shell.transition-in .app-scene-content {
+  transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
+}
+
+.app-shell.to-desktop {
+  background-color: #435a65;
+}
+
+.app-shell.transition-out.to-desktop .app-scene-content {
+  filter: brightness(0.58) saturate(0.74) contrast(1.04);
+  transition-duration: 0.22s;
+}
+
+.app-shell.transition-in.to-desktop .app-scene-content {
+  filter: brightness(1.32) saturate(0.82) contrast(0.96);
+}
+
+.app-shell.to-lab {
+  background-color: #9fb4ba;
+}
+
+.app-shell.transition-out.to-lab .app-scene-content {
+  filter: brightness(1.46) saturate(0.7) contrast(0.96);
+  transition-duration: 0.22s;
+}
+
+.app-shell.transition-in.to-lab .app-scene-content {
+  filter: brightness(0.74) saturate(0.82) contrast(1.02);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell,
+  .app-scene-content {
+    transition-duration: 0.01ms;
+  }
+}

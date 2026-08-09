@@ -4,6 +4,7 @@ import { resetAllFileStorage } from '../dataStorage/fileReset';
 import { loadLabProgress, saveLabProgress } from '../dataStorage/labStorage';
 import { DesktopSettingsDialog } from '../desktop/DesktopSettingsDialog';
 import { useLanguage } from '../i18n/LanguageContext';
+import { AcademicTimeIndicator } from '../time/AcademicTimeIndicator';
 import {
   createLabFloorTiles,
   createLabWorkstationGeometry,
@@ -90,17 +91,10 @@ export function LabWorkspace({ onOpenDesktop }: LabWorkspaceProps) {
           <div className="lab-subtitle">{labels.lab.subtitle}</div>
           <h1>{labels.lab.title}</h1>
         </div>
-        <div className="lab-day-indicator">
-          {labels.lab.day} {progress.day}
-        </div>
+        <AcademicTimeIndicator day={progress.day} />
       </header>
 
       <section className="lab-room">
-        <div aria-label={labels.lab.clock} className="lab-clock">
-          <span />
-          <span />
-        </div>
-
         <LabLeftPanel
           onOpenSettings={() => setSettingsOpen(true)}
         />

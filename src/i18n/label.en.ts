@@ -22,7 +22,6 @@ export const EN_LABELS = {
     serverNote: 'No background training jobs are running.',
     bookshelf: 'Reference Shelf',
     bookshelfNote: 'New papers and research notes will appear here.',
-    clock: 'Lab Schedule',
     talk: 'Talk',
     senior: 'Senior',
     peer: 'Labmate',
@@ -30,6 +29,19 @@ export const EN_LABELS = {
     completed: 'Discussed',
     reward: 'Reward received',
     close: 'Close',
+  },
+  academicTime: {
+    semester: 'Semester',
+    week: 'Week',
+    weekdays: {
+      monday: 'Monday',
+      tuesday: 'Tuesday',
+      wednesday: 'Wednesday',
+      thursday: 'Thursday',
+      friday: 'Friday',
+      saturday: 'Saturday',
+      sunday: 'Sunday',
+    },
   },
   workspaceTabs: {
     neuralBlueprint: 'Neural Blueprint',

@@ -22,9 +22,11 @@ import {
   clearDesktopFileRuntime,
   resetAllFileStorage,
 } from '../dataStorage/fileReset';
+import { loadLabProgress } from '../dataStorage/labStorage';
 import type { FileWorkspaceType, OpenFileType } from '../dataStorage/systemType';
 import { INITIAL_DESKTOP_FILES } from '../taskData/desktopDefaults';
 import { useLanguage } from '../i18n/LanguageContext';
+import { AcademicTimeIndicator } from '../time/AcademicTimeIndicator';
 import {
   isDesktopFileVisible,
   toDesktopFlowPosition,
@@ -47,6 +49,7 @@ export function DesktopCanvas({ openFile, onReturnToLab }: DesktopCanvasProp) {
   const [saveNotice, setSaveNotice] = useState('');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [initFiles] = useState<DesktopFile[]>(loadDesktopFiles);
+  const [academicDay] = useState(() => loadLabProgress().day);
   
   const [initViewport] = useState<Viewport>(loadDesktopView);
   const [canvas, setCanvas] =
@@ -288,7 +291,7 @@ export function DesktopCanvas({ openFile, onReturnToLab }: DesktopCanvasProp) {
 
   return (
     <ReactFlowProvider>
-      <div className="workspace">
+      <div className="workspace desktop-workspace">
         <header className="top-bar">
           <button
             className="desktop-return-button"
@@ -298,6 +301,7 @@ export function DesktopCanvas({ openFile, onReturnToLab }: DesktopCanvasProp) {
             {labels.lab.returnToLab}
           </button>
           <div className="desktop-title">Neural BluePrint</div>
+          <AcademicTimeIndicator day={academicDay} />
         </header>
 
         <DesktopLeftPanel

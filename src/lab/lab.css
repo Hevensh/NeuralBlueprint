@@ -36,17 +36,6 @@
   text-transform: uppercase;
 }
 
-.lab-day-indicator {
-  padding: 8px 18px;
-  border: 1px solid rgba(14, 116, 144, 0.28);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.66);
-  color: #155e75;
-  font-size: 13px;
-  font-weight: 800;
-  box-shadow: 0 8px 20px rgba(51, 78, 92, 0.1);
-}
-
 .lab-room {
   position: relative;
   min-height: 0;
@@ -181,35 +170,6 @@
 .lab-computer:hover,
 .lab-npc:hover {
   filter: brightness(1.05) drop-shadow(0 8px 10px rgba(29, 78, 96, 0.18));
-}
-
-.lab-clock {
-  position: absolute;
-  top: 7%;
-  right: 7%;
-  width: 64px;
-  height: 64px;
-  border: 5px solid #758b94;
-  border-radius: 50%;
-  background: #e2e8f0;
-  box-shadow: 0 8px 18px rgba(67, 91, 102, 0.2);
-}
-
-.lab-clock span {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 3px;
-  height: 21px;
-  border-radius: 3px;
-  background: #0f172a;
-  transform: translate(-50%, -100%) rotate(18deg);
-  transform-origin: bottom;
-}
-
-.lab-clock span + span {
-  height: 17px;
-  transform: translate(-50%, -100%) rotate(112deg);
 }
 
 .lab-furniture {

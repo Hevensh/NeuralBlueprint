@@ -1,0 +1,32 @@
+.academic-time-indicator {
+  display: flex;
+  align-items: center;
+  justify-self: end;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid rgba(14, 116, 144, 0.26);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.66);
+  color: #315363;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  box-shadow: 0 8px 20px rgba(51, 78, 92, 0.1);
+}
+
+.academic-time-indicator span + span::before {
+  content: '·';
+  margin: 0 8px;
+  color: rgba(14, 116, 144, 0.46);
+}
+
+.desktop-workspace .academic-time-indicator {
+  border-color: rgba(34, 211, 238, 0.28);
+  background: rgba(8, 47, 73, 0.42);
+  color: #cffafe;
+  box-shadow: 0 0 14px rgba(34, 211, 238, 0.1);
+}
+
+.desktop-workspace .academic-time-indicator span + span::before {
+  color: rgba(103, 232, 249, 0.46);
+}

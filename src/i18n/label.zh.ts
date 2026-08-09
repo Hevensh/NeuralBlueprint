@@ -24,7 +24,6 @@ export const ZH_LABELS = {
     serverNote: '当前没有后台训练任务。',
     bookshelf: '参考资料架',
     bookshelfNote: '新论文和研究笔记会出现在这里。',
-    clock: '实验室日程',
     talk: '交谈',
     senior: '学长',
     peer: '同门',
@@ -32,6 +31,19 @@ export const ZH_LABELS = {
     completed: '已交流',
     reward: '已获得奖励',
     close: '关闭',
+  },
+  academicTime: {
+    semester: '学期',
+    week: '周',
+    weekdays: {
+      monday: '周一',
+      tuesday: '周二',
+      wednesday: '周三',
+      thursday: '周四',
+      friday: '周五',
+      saturday: '周六',
+      sunday: '周日',
+    },
   },
   workspaceTabs: {
     neuralBlueprint: '神经蓝图',

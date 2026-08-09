@@ -1,7 +1,9 @@
+@import './app.css';
 @import './canvas.css';
 @import './modules.css';
 @import './buttons.css';
 @import './property.css';
 @import './desktop/desktop.css';
 @import './lab/lab.css';
+@import './time/academicTime.css';
 @import './blueprint/taskProgressBar.css';
