@@ -57,9 +57,10 @@ export function projectLabGridPoint(
   point: LabGridPoint,
   z = 0,
 ): CSSProperties {
+  const projected = projectLabPoint({ ...point, z });
   return {
-    left: `${LAB_ORIGIN_X + (point.x - point.y) * LAB_HALF_TILE_X}px`,
-    top: `${LAB_ORIGIN_Y + (point.x + point.y) * LAB_HALF_TILE_Y - z * LAB_HEIGHT_STEP}px`,
+    left: `${projected.x}px`,
+    top: `${projected.y}px`,
     zIndex: getLabDepthIndex(point, z),
   };
 }
@@ -281,7 +282,7 @@ export function createLabQuadFace(
   };
 }
 
-function projectLabPoint(point: LabSpatialPoint) {
+export function projectLabPoint(point: LabSpatialPoint) {
   return {
     x: LAB_ORIGIN_X + (point.x - point.y) * LAB_HALF_TILE_X,
     y: LAB_ORIGIN_Y + (point.x + point.y) * LAB_HALF_TILE_Y - point.z * LAB_HEIGHT_STEP,

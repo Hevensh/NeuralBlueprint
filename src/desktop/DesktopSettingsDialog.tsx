@@ -5,7 +5,10 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { PropertyDropdown } from '../PropertyDropdown';
 
 interface DesktopSettingsDialogProps {
+  developerActionDescription?: string;
+  developerActionLabel?: string;
   onClose: () => void;
+  onDeveloperAction?: () => void;
   onExit: () => void;
   onResetCurrent: () => void;
   resetDescription: string;
@@ -13,7 +16,10 @@ interface DesktopSettingsDialogProps {
 }
 
 export function DesktopSettingsDialog({
+  developerActionDescription,
+  developerActionLabel,
   onClose,
+  onDeveloperAction,
   onExit,
   onResetCurrent,
   resetDescription,
@@ -63,6 +69,18 @@ export function DesktopSettingsDialog({
           <strong className="desktop-settings-section-title">
             {dialogLabels.developerOptions}
           </strong>
+          {onDeveloperAction && developerActionLabel && (
+            <>
+              {developerActionDescription && <p>{developerActionDescription}</p>}
+              <button
+                className="action-button"
+                onClick={onDeveloperAction}
+                type="button"
+              >
+                {developerActionLabel}
+              </button>
+            </>
+          )}
           <p>{resetDescription}</p>
           <button
             className="action-button"

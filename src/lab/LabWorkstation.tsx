@@ -1,7 +1,7 @@
 import { memo, useMemo, type CSSProperties } from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
-import { createDeskDecorations } from './labDeskDecorationModel';
-import { LabDeskDecorations } from './LabDeskDecorations';
+import { LabDeskDecorations } from './decorations/LabDeskDecorations';
+import { createDeskDecorations } from './decorations/decorationPlacement';
 import { projectLabDepthGroup } from './labDepth';
 import {
   createComputerFaceStyles,
@@ -68,6 +68,9 @@ export const LabWorkstation = memo(function LabWorkstation({
     ),
     [geometry, placement.orientation, towerFaces],
   );
+  const towerTopDepthBase = Math.max(
+    ...towerFaces.map((face) => depthMap.get(face)!),
+  ) + 1;
   const decorations = useMemo(() => createDeskDecorations({
     seed: generationSeed,
     workstationId,
@@ -124,6 +127,14 @@ export const LabWorkstation = memo(function LabWorkstation({
           ...WORKSTATION_FACE_STYLES.desk,
         }}
       />
+      <span
+        aria-hidden="true"
+        className="lab-workstation-desk-thickness"
+        style={{
+          ...projectFace(geometry.deskThickness),
+          ...WORKSTATION_FACE_STYLES.deskThickness,
+        }}
+      />
       {geometry.dividers.map((divider, index) => (
         <span
           aria-hidden="true"
@@ -156,15 +167,6 @@ export const LabWorkstation = memo(function LabWorkstation({
           ...WORKSTATION_FACE_STYLES.seat,
         }}
       />
-
-      {isPlayer && (
-        <span
-          className="lab-player-workstation-hint"
-          style={projectLabGridPoint(geometry.playerHint, 2.7)}
-        >
-          {labels.lab.enterDesktop}
-        </span>
-      )}
 
       {hasComputer && (
         <>
@@ -250,6 +252,7 @@ export const LabWorkstation = memo(function LabWorkstation({
         decorations={decorations}
         placement={placement}
         towerTop={geometry.computerTowerTop}
+        towerTopDepthBase={towerTopDepthBase}
       />
 
       <div

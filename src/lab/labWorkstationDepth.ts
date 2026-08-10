@@ -32,7 +32,7 @@ export function createLabWorkstationDepthMap(
   );
   addFaces(
     depthMap,
-    [geometry.deskShadow, geometry.deskSurface],
+    [geometry.deskShadow, geometry.deskThickness, geometry.deskSurface],
     WORKSTATION_LAYER.desk,
   );
   addFaces(depthMap, towerFaces, getDeskSlotLayer(

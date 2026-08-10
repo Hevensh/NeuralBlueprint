@@ -10,6 +10,7 @@ import {
   type LabIsoFaceGeometry,
 } from './labIsometric';
 import { createLabFaceDepthMap, projectLabDepthGroup } from './labDepth';
+import { createSeededRandom } from './labRandom';
 import type { LabFurniturePlacement } from './labSceneLayout';
 import {
   BOOKSHELF_FACE_STYLES,
@@ -21,8 +22,8 @@ import {
   WHITEBOARD_FACE_STYLE,
   WHITEBOARD_SUPPORT_FACE_STYLES,
 } from './labFaceStyles';
-import { LabDeskDecorations } from './LabDeskDecorations';
-import type { LabDeskDecoration } from './labDeskDecorationModel';
+import { LabDeskDecorations } from './decorations/LabDeskDecorations';
+import type { LabDeskDecoration } from './decorations/decorationTypes';
 
 interface LabFurnitureProps {
   label: string;
@@ -33,11 +34,13 @@ interface LabFurnitureProps {
 interface LabCommonTableProps {
   placement: LabFurniturePlacement;
   decorations: LabDeskDecoration[];
+  getDecorationLabel?: (decoration: LabDeskDecoration) => string;
 }
 
 export function LabCommonTable({
   placement,
   decorations,
+  getDecorationLabel,
 }: LabCommonTableProps) {
   const surface = createLabCuboidFaces(
     createLabCuboid(placement, 5, 3, 0.14, 0.78),
@@ -87,6 +90,7 @@ export function LabCommonTable({
       ))}
       <LabDeskDecorations
         decorations={decorations}
+        getLabel={getDecorationLabel}
         placement={placement}
         surface="commonTable"
       />
@@ -137,8 +141,13 @@ export function LabBookshelf({ label, placement, onClick }: LabFurnitureProps) {
   const frontFace = faces.find((face) => face.role === 'front');
   const openings = frontFace ? createBookshelfOpenings(frontFace) : [];
   const shelves = frontFace ? createBookshelfShelves(frontFace) : [];
-  const books = frontFace ? createBookshelfBooks(frontFace) : [];
-  const depthMap = createLabFaceDepthMap([...faces, ...openings, ...shelves, ...books]);
+  const books = frontFace ? createBookshelfBooks(frontFace, placement) : [];
+  const depthMap = createLabFaceDepthMap([
+    ...faces,
+    ...openings,
+    ...shelves,
+    ...books.map((book) => book.face),
+  ]);
   const project = (face: LabIsoFaceGeometry) => (
     projectLabIsoFace(face, depthMap.get(face)!)
   );
@@ -183,11 +192,11 @@ export function LabBookshelf({ label, placement, onClick }: LabFurnitureProps) {
       {books.map((book, index) => (
         <span
           aria-hidden="true"
-          className={`lab-bookshelf-book color-${index % 4}`}
+          className={`lab-bookshelf-book color-${book.colorIndex}`}
           key={`book-${index}`}
           style={{
-            ...project(book),
-            ...FURNITURE_DETAIL_STYLES.bookshelfBooks[index % 4],
+            ...project(book.face),
+            ...FURNITURE_DETAIL_STYLES.bookshelfBooks[book.colorIndex],
           }}
         />
       ))}
@@ -279,29 +288,39 @@ function createBookshelfShelves(face: LabIsoFaceGeometry): LabIsoFaceGeometry[] 
   ));
 }
 
-function createBookshelfBooks(face: LabIsoFaceGeometry): LabIsoFaceGeometry[] {
+function createBookshelfBooks(
+  face: LabIsoFaceGeometry,
+  placement: LabFurniturePlacement,
+) {
   const shelfBottoms = [0.25, 0.99, 1.73];
-  const heights = [0.32, 0.42, 0.36, 0.46];
-  const offsets = [-0.58, -0.4, -0.22, -0.04];
   const center = getLabFaceCenter(face);
-  return shelfBottoms.flatMap((bottom, shelfIndex) => (
-    offsets.map((offset, bookIndex) => {
-      const verticalLength = heights[(bookIndex + shelfIndex) % heights.length];
-      return moveFaceTowardViewer(
-        createLabFaceAtCenter(
-          face.face,
-          {
-            ...offsetOnFace(face.face, center, offset),
-            z: bottom + verticalLength / 2,
-          },
-          0.13,
-          verticalLength,
-          face.role,
-        ),
-        0.35,
+  const random = createSeededRandom(
+    `bookshelf:${placement.x}:${placement.y}:${placement.orientation}`,
+  );
+  return shelfBottoms.flatMap((bottom) => {
+    const count = 3 + Math.floor(random() * 3);
+    let cursor = -0.68 + random() * 0.4;
+    return Array.from({ length: count }, () => {
+      const width = 0.1 + random() * 0.05;
+      const height = 0.3 + random() * 0.18;
+      const offset = cursor + width / 2;
+      cursor += width + 0.02 + random() * 0.045;
+      const bookFace = createLabFaceAtCenter(
+        face.face,
+        {
+          ...offsetAcrossFrontFace(face.face, center, offset),
+          z: bottom + height / 2,
+        },
+        width,
+        height,
+        face.role,
       );
-    })
-  ));
+      return {
+        colorIndex: Math.floor(random() * FURNITURE_DETAIL_STYLES.bookshelfBooks.length),
+        face: moveFaceTowardViewer(bookFace, 0.35),
+      };
+    });
+  });
 }
 
 function createServerVents(face: LabIsoFaceGeometry): LabIsoFaceGeometry[] {
@@ -310,7 +329,7 @@ function createServerVents(face: LabIsoFaceGeometry): LabIsoFaceGeometry[] {
     moveFaceTowardViewer(
       createLabFaceAtCenter(
         face.face,
-        offsetOnFace(face.face, center, offset),
+        offsetAcrossFrontFace(face.face, center, offset),
         0.045,
         0.13,
         face.role,
@@ -324,20 +343,20 @@ function createServerLights(face: LabIsoFaceGeometry) {
   const center = getLabFaceCenter(face);
   return [0.22, 0.34, 0.46].map((offset) => (
     movePointTowardViewer(
-      offsetOnFace(face.face, center, offset),
+      offsetAcrossFrontFace(face.face, center, offset),
       0.05,
     )
   ));
 }
 
-function offsetOnFace(
+function offsetAcrossFrontFace(
   face: LabIsoFaceGeometry['face'],
   center: { x: number; y: number; z: number },
   offset: number,
 ) {
   return face === 'r'
     ? { ...center, x: center.x + offset }
-    : { ...center, y: center.y + offset };
+    : { ...center, y: center.y - offset };
 }
 
 function moveFaceTowardViewer(face: LabIsoFaceGeometry, distance: number) {

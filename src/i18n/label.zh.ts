@@ -31,6 +31,10 @@ export const ZH_LABELS = {
     completed: '已交流',
     reward: '已获得奖励',
     close: '关闭',
+    showDecorationShowcase: '展示全部摆件',
+    hideDecorationShowcase: '返回实验室',
+    decorationShowcaseNote: '临时依次展示所有已注册的桌面摆件，便于检查样式与遮挡。',
+    decorationShowcaseTitle: '摆件陈列模式',
   },
   academicTime: {
     semester: '学期',

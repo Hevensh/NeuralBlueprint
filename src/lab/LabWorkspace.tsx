@@ -2,6 +2,7 @@ import {
   useCallback,
   useMemo,
   useState,
+  type CSSProperties,
   type Dispatch,
   type SetStateAction,
 } from 'react';
@@ -10,7 +11,11 @@ import { DesktopSettingsDialog } from '../desktop/DesktopSettingsDialog';
 import type { GameProgress } from '../game/gameTypes';
 import { useLanguage } from '../i18n/LanguageContext';
 import { AcademicTimeIndicator } from '../time/AcademicTimeIndicator';
-import { createCommonTableDecorations } from './labDeskDecorationModel';
+import { createCommonTableDecorations } from './decorations/decorationPlacement';
+import {
+  LabDecorationShowcase,
+  LabDecorationShowcaseLegend,
+} from './LabDecorationShowcase';
 import { FLOOR_FACE_STYLES } from './labFaceStyles';
 import {
   LabBookshelf,
@@ -18,7 +23,11 @@ import {
   LabServerRack,
   LabWhiteboard,
 } from './LabFurniture';
-import { createLabFloorTiles, projectLabIsoFace } from './labIsometric';
+import {
+  createLabFloorTiles,
+  projectLabIsoFace,
+  projectLabPoint,
+} from './labIsometric';
 import { LabLeftPanel } from './LabLeftPanel';
 import { LabNpcDialog } from './LabNpcDialog';
 import { DEFAULT_LAB_DAY_CONFIG } from './labNpcRegistry';
@@ -30,6 +39,7 @@ import {
 import { createLabSceneLayout } from './labSceneLayout';
 import type { LabNpcTopic } from './labTypes';
 import { LabWorkstation } from './LabWorkstation';
+import { createLabWorkstationGeometry } from './labWorkstationGeometry';
 import { useLabSceneViewport } from './useLabSceneViewport';
 
 interface LabWorkspaceProps {
@@ -50,6 +60,7 @@ export function LabWorkspace({
   const [selectedNpcId, setSelectedNpcId] = useState<string | null>(null);
   const [notice, setNotice] = useState<LabNotice>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [showDecorationShowcase, setShowDecorationShowcase] = useState(false);
   const {
     viewportRef,
     view,
@@ -90,6 +101,21 @@ export function LabWorkspace({
     () => new Set(progress.completedTopicIds),
     [progress.completedTopicIds],
   );
+  const playerHintStyle = useMemo(() => {
+    const placement = sceneLayout.workstations.find(
+      (workstation) => workstation.workstationId === progress.playerWorkstationId,
+    );
+    if (!placement || showDecorationShowcase) return undefined;
+    const point = projectLabPoint({
+      ...createLabWorkstationGeometry(placement).playerHint,
+      z: 2.7,
+    });
+    return {
+      left: view.x + point.x * view.zoom,
+      top: view.y + point.y * view.zoom,
+      '--lab-hint-scale': view.zoom,
+    } as CSSProperties;
+  }, [progress.playerWorkstationId, sceneLayout, showDecorationShowcase, view]);
 
   const completeTopicHandler = useCallback((npcId: string, topic: LabNpcTopic) => {
     setGameProgress((current) => ({
@@ -123,6 +149,13 @@ export function LabWorkspace({
     setNotice(null);
     setSettingsOpen(false);
   }, [setGameProgress]);
+
+  const toggleDecorationShowcase = useCallback(() => {
+    setShowDecorationShowcase((visible) => !visible);
+    setSelectedNpcId(null);
+    setNotice(null);
+    setSettingsOpen(false);
+  }, []);
 
   const noticeContent = notice ? {
     whiteboard: [labels.lab.whiteboard, labels.lab.whiteboardNote],
@@ -167,55 +200,69 @@ export function LabWorkspace({
               ))}
             </div>
 
-            <LabWhiteboard
-              label={labels.lab.whiteboard}
-              placement={sceneLayout.whiteboard}
-              onClick={() => setNotice('whiteboard')}
-            />
-            <LabBookshelf
-              label={labels.lab.bookshelf}
-              placement={sceneLayout.bookshelf}
-              onClick={() => setNotice('bookshelf')}
-            />
-            <LabCommonTable
-              decorations={commonTableDecorations}
-              placement={sceneLayout.commonTable}
-            />
-            {sceneLayout.servers.map((placement, index) => (
-              <LabServerRack
-                key={`server-${index}`}
-                label={labels.lab.server}
-                placement={placement}
-                onClick={() => setNotice('server')}
-              />
-            ))}
-
-            <div className="lab-office-grid">
-              {sceneLayout.workstations.map((placement) => {
-                const npc = npcByWorkstationId.get(placement.workstationId);
-                const canTalk = Boolean(npc?.topics.some((topic) => (
-                  !completedTopicIds.has(
-                    `${gameProgress.time.day}:${npc.id}:${topic.id}`,
-                  )
-                )));
-                return (
-                  <LabWorkstation
-                    canTalk={canTalk}
-                    generationSeed={progress.generationSeed}
-                    hasClaimedWorkstation={Boolean(progress.playerWorkstationId)}
-                    isPlayer={progress.playerWorkstationId === placement.workstationId}
-                    key={placement.workstationId}
-                    npc={npc}
+            {showDecorationShowcase ? (
+              <LabDecorationShowcase />
+            ) : (
+              <>
+                <LabWhiteboard
+                  label={labels.lab.whiteboard}
+                  placement={sceneLayout.whiteboard}
+                  onClick={() => setNotice('whiteboard')}
+                />
+                <LabBookshelf
+                  label={labels.lab.bookshelf}
+                  placement={sceneLayout.bookshelf}
+                  onClick={() => setNotice('bookshelf')}
+                />
+                <LabCommonTable
+                  decorations={commonTableDecorations}
+                  placement={sceneLayout.commonTable}
+                />
+                {sceneLayout.servers.map((placement, index) => (
+                  <LabServerRack
+                    key={`server-${index}`}
+                    label={labels.lab.server}
                     placement={placement}
-                    present={Boolean(npc && presentNpcIds.has(npc.id))}
-                    onChoose={chooseWorkstation}
-                    onOpenDesktop={onOpenDesktop}
-                    onSelectNpc={setSelectedNpcId}
+                    onClick={() => setNotice('server')}
                   />
-                );
-              })}
-            </div>
+                ))}
+
+                <div className="lab-office-grid">
+                  {sceneLayout.workstations.map((placement) => {
+                    const npc = npcByWorkstationId.get(placement.workstationId);
+                    const canTalk = Boolean(npc?.topics.some((topic) => (
+                      !completedTopicIds.has(
+                        `${gameProgress.time.day}:${npc.id}:${topic.id}`,
+                      )
+                    )));
+                    return (
+                      <LabWorkstation
+                        canTalk={canTalk}
+                        generationSeed={progress.generationSeed}
+                        hasClaimedWorkstation={Boolean(progress.playerWorkstationId)}
+                        isPlayer={progress.playerWorkstationId === placement.workstationId}
+                        key={placement.workstationId}
+                        npc={npc}
+                        placement={placement}
+                        present={Boolean(npc && presentNpcIds.has(npc.id))}
+                        onChoose={chooseWorkstation}
+                        onOpenDesktop={onOpenDesktop}
+                        onSelectNpc={setSelectedNpcId}
+                      />
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
+          {playerHintStyle && (
+            <span
+              className="lab-player-workstation-hint"
+              style={playerHintStyle}
+            >
+              {labels.lab.enterDesktop}
+            </span>
+          )}
         </div>
 
         <div className="lab-view-controls">
@@ -230,6 +277,8 @@ export function LabWorkspace({
           </button>
           <button onClick={() => zoomBy(1.19)} type="button">+</button>
         </div>
+
+        {showDecorationShowcase && <LabDecorationShowcaseLegend />}
 
         {noticeContent && (
           <button className="lab-notice" onClick={() => setNotice(null)} type="button">
@@ -252,7 +301,12 @@ export function LabWorkspace({
 
       {settingsOpen && (
         <DesktopSettingsDialog
+          developerActionDescription={labels.lab.decorationShowcaseNote}
+          developerActionLabel={showDecorationShowcase
+            ? labels.lab.hideDecorationShowcase
+            : labels.lab.showDecorationShowcase}
           onClose={() => setSettingsOpen(false)}
+          onDeveloperAction={toggleDecorationShowcase}
           onExit={exitApplication}
           onResetCurrent={resetLaboratory}
           resetDescription={labels.desktop.settingsDialog.resetLabDescription}

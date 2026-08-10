@@ -29,6 +29,10 @@ export const EN_LABELS = {
     completed: 'Discussed',
     reward: 'Reward received',
     close: 'Close',
+    showDecorationShowcase: 'Show All Decorations',
+    hideDecorationShowcase: 'Return to Laboratory',
+    decorationShowcaseNote: 'Temporarily display every registered desk decoration for visual inspection.',
+    decorationShowcaseTitle: 'Decoration Showcase',
   },
   academicTime: {
     semester: 'Semester',

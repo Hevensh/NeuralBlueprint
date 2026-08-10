@@ -47,6 +47,7 @@ export interface LabWorkstationDivider extends LabIsoFaceGeometry {
 
 export interface LabWorkstationGeometry {
   deskShadow: LabIsoFaceGeometry;
+  deskThickness: LabIsoFaceGeometry;
   deskSurface: LabIsoFaceGeometry;
   playerHint: LabGridPoint;
   seat: LabGridPoint;
@@ -114,13 +115,23 @@ export function createLabWorkstationGeometry(
   return {
     deskShadow: createLabQuadFace(
       [
-        { ...point(-0.5, 1.5), z: 0.98 },
-        { ...point(2.5, 1.5), z: 0.98 },
+        { ...point(-0.5, 1.5), z: 0.93 },
+        { ...point(2.5, 1.5), z: 0.93 },
         { ...point(2.5, 1), z: 0.08 },
         { ...point(-0.5, 1), z: 0.08 },
       ],
       placement.orientation === 'x' ? 'r' : 'l',
       'side',
+    ),
+    deskThickness: createLabQuadFace(
+      [
+        { ...point(-0.5, 1.5), z: 0.92 },
+        { ...point(2.5, 1.5), z: 0.92 },
+        { ...point(2.5, 1.5), z: 1 },
+        { ...point(-0.5, 1.5), z: 1 },
+      ],
+      placement.orientation === 'x' ? 'r' : 'l',
+      'front',
     ),
     deskSurface: createTopFace(1, 0.5, 3, 2, 1),
     playerHint: point(1, 1),

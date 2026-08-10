@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import type { LabDeskDecoration } from './labDeskDecorationModel';
+import type { LabDeskDecoration } from './decorations/decorationTypes';
 import type { LabIsoFaceGeometry } from './labIsometric';
 
 type FaceStyleConfig = {
@@ -105,6 +105,10 @@ export const WORKSTATION_FACE_STYLES = {
     background: '#a87552',
     filter: 'none',
   },
+  deskThickness: {
+    background: '#835b40',
+    filter: 'none',
+  },
   divider: {
     back: {
       background: '#9eaaa9',
@@ -195,32 +199,164 @@ export function getDecorationFaceStyle(
   }
 
   if (decoration.kind === 'books') {
-    style.background = partClassName.includes('layer-1')
-      ? `color-mix(in srgb, ${color} 42%, #92400e)`
-      : `color-mix(in srgb, ${color} 64%, #334155)`;
-  } else if (decoration.kind === 'papers' || partClassName === 'tray-paper') {
+    if (partClassName.includes('book-pages')) {
+      style.borderColor = 'rgba(100, 116, 139, 0.34)';
+      style.background = face.role === 'top'
+        ? '#f7f7f0'
+        : face.role === 'front' ? '#e9ebe3' : '#dce1da';
+    } else {
+      const layer = Number(partClassName.match(/layer-(\d+)/)?.[1] ?? 0);
+      const stack = Number(partClassName.match(/stack-(\d+)/)?.[1] ?? 0);
+      const bookTones = ['#334155', '#92400e', '#6d5a91', '#0f766e', '#9f1239'];
+      const bookTone = bookTones[(layer + stack * 2) % bookTones.length];
+      style.background = `color-mix(in srgb, ${color} 34%, ${bookTone})`;
+    }
+  } else if (partClassName === 'sheet' || partClassName.startsWith('tray-paper')) {
     style.borderColor = 'rgba(100, 116, 139, 0.46)';
     style.background = '#e8eff0';
-  } else if (partClassName === 'paper-line') {
+  } else if (partClassName === 'paper-title') {
     style.borderWidth = 0;
-    style.background = 'rgba(71, 85, 105, 0.42)';
+    style.background = `color-mix(in srgb, ${color} 72%, #334155)`;
+    style.filter = 'none';
+  } else if (
+    partClassName === 'paper-text'
+    || partClassName === 'paper-axis'
+    || partClassName === 'paper-divider'
+  ) {
+    style.borderWidth = 0;
+    style.background = partClassName === 'paper-divider'
+      ? 'rgba(100, 116, 139, 0.2)'
+      : 'rgba(71, 85, 105, 0.58)';
+    style.filter = 'none';
+  } else if (partClassName.startsWith('paper-bar')) {
+    style.borderWidth = 0;
+    style.background = `color-mix(in srgb, ${color} 68%, #38bdf8)`;
+    style.filter = 'none';
+  } else if (partClassName === 'paper-plot' || partClassName === 'paper-link') {
+    style.borderWidth = 0;
+    style.background = `color-mix(in srgb, ${color} 68%, #ef6461)`;
+    style.filter = 'none';
+  } else if (partClassName.startsWith('paper-node')) {
+    style.borderColor = `color-mix(in srgb, ${color} 70%, #334155)`;
+    style.background = `color-mix(in srgb, ${color} 42%, #dbe4e6)`;
     style.filter = 'none';
   } else if (decoration.kind === 'documentTray') {
-    style.borderColor = `color-mix(in srgb, ${color} 58%, #334155)`;
-    style.background = `color-mix(in srgb, ${color} 24%, #475569)`;
+    if (partClassName === 'tray-base') {
+      style.background = `color-mix(in srgb, ${color} 18%, #52646b)`;
+    } else {
+      style.borderColor = `color-mix(in srgb, ${color} 42%, #334155)`;
+      style.background = `color-mix(in srgb, ${color} 28%, #64748b)`;
+    }
   } else if (decoration.kind === 'equipmentCrate') {
-    const mix = face.role === 'top'
-      ? ['22%', '#9a6b4d']
-      : face.role === 'front'
-        ? ['18%', '#7b523b']
-        : ['12%', '#634435'];
-    style.background = `color-mix(in srgb, ${color} ${mix[0]}, ${mix[1]})`;
+    if (partClassName === 'crate-band') {
+      style.background = `color-mix(in srgb, ${color} 12%, #4b3b31)`;
+    } else if (partClassName === 'crate-label') {
+      style.background = '#d8ddd7';
+    } else {
+      const mix = face.role === 'top'
+        ? ['22%', '#9a6b4d']
+        : face.role === 'front'
+          ? ['18%', '#7b523b']
+          : ['12%', '#634435'];
+      style.background = `color-mix(in srgb, ${color} ${mix[0]}, ${mix[1]})`;
+    }
   } else if (decoration.kind === 'plant') {
     if (partClassName === 'pot') {
       style.background = `color-mix(in srgb, ${color} 22%, #9a6246)`;
     } else if (partClassName === 'leaves') {
       style.borderColor = '#2f7658';
       style.background = `color-mix(in srgb, ${color} 28%, #3f8f68)`;
+    }
+  } else if (decoration.kind === 'cactus') {
+    if (partClassName === 'pot') {
+      style.background = `color-mix(in srgb, ${color} 18%, #a16242)`;
+    } else {
+      style.borderColor = '#267354';
+      style.background = `color-mix(in srgb, ${color} 18%, #2f9b68)`;
+    }
+  } else if (decoration.kind === 'deskLamp') {
+    if (partClassName === 'lamp-base') {
+      style.background = `color-mix(in srgb, ${color} 20%, #475569)`;
+    } else if (partClassName === 'lamp-shade') {
+      style.background = `color-mix(in srgb, ${color} 42%, #f6c96b)`;
+      style.filter = 'drop-shadow(0 2px 3px rgba(245, 183, 68, 0.22))';
+    } else {
+      style.background = `color-mix(in srgb, ${color} 52%, #64748b)`;
+    }
+  } else if (decoration.kind === 'figurine') {
+    if (partClassName === 'figure-base') {
+      style.background = '#45545b';
+    } else if (partClassName === 'figure-head') {
+      style.background = `color-mix(in srgb, ${color} 32%, #f0d7bf)`;
+    } else {
+      style.background = `color-mix(in srgb, ${color} 72%, #475569)`;
+    }
+  } else if (decoration.kind === 'headphones') {
+    style.background = partClassName === 'headphone-pad'
+      ? `color-mix(in srgb, ${color} 18%, #26343b)`
+      : `color-mix(in srgb, ${color} 64%, #475569)`;
+  } else if (decoration.kind === 'printer') {
+    if (partClassName === 'printer-paper') {
+      style.borderColor = 'rgba(100, 116, 139, 0.42)';
+      style.background = '#edf3f2';
+    } else if (partClassName === 'printer-output') {
+      style.borderColor = '#3f5057';
+      style.background = '#465960';
+    } else if (partClassName === 'printer-base') {
+      style.borderColor = `color-mix(in srgb, ${color} 24%, #35464e)`;
+      style.background = `color-mix(in srgb, ${color} 12%, #4b5d64)`;
+    } else if (partClassName === 'printer-body') {
+      style.borderColor = `color-mix(in srgb, ${color} 18%, #607178)`;
+      style.background = `color-mix(in srgb, ${color} 10%, #b2bec0)`;
+      style.filter = 'drop-shadow(0 2px 1px rgba(40, 55, 60, 0.22))';
+    } else {
+      style.background = `color-mix(in srgb, ${color} 14%, #9ba9ac)`;
+    }
+  } else if (decoration.kind === 'oscilloscope') {
+    if (partClassName === 'scope-display') {
+      style.borderColor = '#37525a';
+      style.background = '#123640';
+      style.boxShadow = 'inset 0 0 0 1px rgba(45, 212, 191, 0.3)';
+    } else if (partClassName === 'scope-control') {
+      style.borderWidth = 0;
+      style.background = decoration.variant % 2 ? '#f59e0b' : '#34d399';
+    } else {
+      style.background = `color-mix(in srgb, ${color} 20%, #52646b)`;
+    }
+  } else if (decoration.kind === 'networkSwitch') {
+    if (partClassName.startsWith('switch-port')) {
+      style.borderWidth = 0;
+      style.background = '#182b32';
+      style.boxShadow = 'inset 0 0 0 1px rgba(125, 211, 252, 0.24)';
+    } else if (partClassName === 'switch-light') {
+      style.borderWidth = 0;
+      style.background = decoration.variant % 2 ? '#fbbf24' : '#34d399';
+      style.filter = 'drop-shadow(0 0 2px currentColor)';
+    } else {
+      style.background = `color-mix(in srgb, ${color} 18%, #52646b)`;
+    }
+  } else if (decoration.kind === 'gpuTestBench') {
+    if (partClassName === 'bench-mat') {
+      style.borderColor = '#314a48';
+      style.background = '#405d59';
+    } else if (partClassName === 'bench-board') {
+      style.background = '#33735e';
+    } else if (partClassName === 'bench-gpu') {
+      style.background = '#26343b';
+    } else if (partClassName === 'bench-heatsink') {
+      style.background = '#98a7aa';
+    } else if (partClassName === 'bench-chip') {
+      style.borderColor = '#a88132';
+      style.background = '#334155';
+    } else if (partClassName === 'bench-memory') {
+      style.background = `color-mix(in srgb, ${color} 58%, #475569)`;
+    } else if (partClassName === 'bench-light') {
+      style.borderWidth = 0;
+      style.background = decoration.variant % 2 ? '#f59e0b' : '#34d399';
+      style.filter = 'drop-shadow(0 0 2px currentColor)';
+    } else if (partClassName === 'bench-wire') {
+      style.borderWidth = 0;
+      style.background = decoration.variant % 2 ? '#f59e0b' : '#67e8f9';
     }
   } else if (decoration.kind === 'mug' || decoration.kind === 'penCup') {
     style.background = `color-mix(in srgb, ${color} 62%, #64748b)`;
