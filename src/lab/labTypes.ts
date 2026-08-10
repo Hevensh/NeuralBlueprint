@@ -45,8 +45,7 @@ export interface LabWorkstationAssignment {
 }
 
 export interface LabProgress {
-  day: number;
-  seed: string;
+  generationSeed: string;
   workstations: LabWorkstationAssignment[];
   playerWorkstationId: string | null;
   presentNpcIds: string[];

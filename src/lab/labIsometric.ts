@@ -5,66 +5,49 @@ import {
   type LabGridPoint,
   type LabFurniturePlacement,
   type LabWorkstationOrientation,
-  type LabWorkstationPlacement,
 } from './labSceneLayout';
 
-const LAB_HALF_TILE_X = 1.9;
-const LAB_HALF_TILE_Y = 1.75;
-const LAB_HEIGHT_STEP = 4.1;
+export const LAB_SCENE_WIDTH = 1280;
+export const LAB_SCENE_HEIGHT = 648;
 
-export interface LabFloorTile extends LabGridPoint {
+const LAB_HALF_TILE_X = 24.32;
+const LAB_HALF_TILE_Y = 11.34;
+const LAB_HEIGHT_STEP = 26.568;
+const LAB_ORIGIN_X = LAB_SCENE_WIDTH / 2;
+const LAB_ORIGIN_Y = 103.68;
+const LAB_DEPTH_BASE = 100_000;
+
+export interface LabSpatialPoint extends LabGridPoint {
+  z: number;
+}
+
+export interface LabBounds3D {
+  min: LabSpatialPoint;
+  max: LabSpatialPoint;
+}
+
+export interface LabIsoFaceGeometry {
+  bounds: LabBounds3D;
+  face: 't' | 'l' | 'r';
+  role: 'top' | 'front' | 'side';
+  vertices?: LabSpatialPoint[];
+}
+
+export interface LabCuboidGeometry {
+  bounds: LabBounds3D;
+  orientation: LabWorkstationOrientation;
+}
+
+export interface LabFloorTile extends LabIsoFaceGeometry {
   id: string;
   variant: number;
-}
-
-export interface LabWorkstationDivider extends LabGridPoint {
-  face: 'l' | 'r';
-  kind: 'back' | 'side' | 'front';
-  length: 2 | 3;
-  height: number;
-}
-
-export interface LabComputerTowerFace extends LabGridPoint {
-  face: 't' | 'l' | 'r';
-  height: number;
-  kind: 'top' | 'front' | 'side';
-  size: 'top' | 'short' | 'long';
-}
-
-export interface LabSeatSupportFace extends LabGridPoint {
-  face: 'l' | 'r';
-  height: number;
-}
-
-export interface LabIsoFaceGeometry extends LabGridPoint {
-  face: 't' | 'l' | 'r';
-  height: number;
-  role: 'top' | 'front' | 'side';
-  horizontalLength?: number;
-  verticalLength?: number;
-  xLength?: number;
-  yLength?: number;
-}
-
-export interface LabWorkstationGeometry {
-  deskCenter: LabGridPoint;
-  playerHint: LabGridPoint;
-  seat: LabGridPoint;
-  monitor: LabGridPoint;
-  monitorFace: 'l' | 'r';
-  keyboard: LabIsoFaceGeometry;
-  keyboardRows: LabIsoFaceGeometry[];
-  computerTower: LabComputerTowerFace[];
-  seatSupports: LabSeatSupportFace[];
-  dividers: LabWorkstationDivider[];
 }
 
 export function createLabFloorTiles(): LabFloorTile[] {
   return Array.from({ length: LAB_ROOM_DEPTH }, (_, y) => (
     Array.from({ length: LAB_ROOM_WIDTH }, (_, x) => ({
+      ...createLabFaceAtCenter('t', { x, y, z: 0 }, 1, 1, 'top'),
       id: `floor-${x}-${y}`,
-      x,
-      y,
       variant: (x + y) % 2,
     }))
   )).flat();
@@ -72,54 +55,73 @@ export function createLabFloorTiles(): LabFloorTile[] {
 
 export function projectLabGridPoint(
   point: LabGridPoint,
-  height = 0,
-  layerOffset = 0,
+  z = 0,
 ): CSSProperties {
   return {
-    left: `${50 + (point.x - point.y) * LAB_HALF_TILE_X}%`,
-    top: `${16 + (point.x + point.y) * LAB_HALF_TILE_Y - height * LAB_HEIGHT_STEP}%`,
-    zIndex: getLabDepthIndex(point, height) + layerOffset,
+    left: `${LAB_ORIGIN_X + (point.x - point.y) * LAB_HALF_TILE_X}px`,
+    top: `${LAB_ORIGIN_Y + (point.x + point.y) * LAB_HALF_TILE_Y - z * LAB_HEIGHT_STEP}px`,
+    zIndex: getLabDepthIndex(point, z),
   };
 }
 
-export function getLabDepthIndex(point: LabGridPoint, height = 0) {
-  return 100 + Math.round((point.x + point.y + height) * 100);
+export function getLabDepthIndex(point: LabGridPoint, z = 0) {
+  return LAB_DEPTH_BASE + Math.round((point.x + point.y + z) * 100);
 }
 
-export function createLabCuboidFaces(
+export function createLabCuboid(
   placement: LabFurniturePlacement,
   width: number,
   depth: number,
   height: number,
-): LabIsoFaceGeometry[] {
+  bottomZ = 0,
+): LabCuboidGeometry {
   const xLength = placement.orientation === 'x' ? width : depth;
   const yLength = placement.orientation === 'x' ? depth : width;
+  return {
+    bounds: {
+      min: {
+        x: placement.x - xLength / 2,
+        y: placement.y - yLength / 2,
+        z: bottomZ,
+      },
+      max: {
+        x: placement.x + xLength / 2,
+        y: placement.y + yLength / 2,
+        z: bottomZ + height,
+      },
+    },
+    orientation: placement.orientation,
+  };
+}
+
+export function createLabCuboidFaces(
+  cuboid: LabCuboidGeometry,
+): LabIsoFaceGeometry[] {
+  const { min, max } = cuboid.bounds;
   return [
     {
-      ...placement,
+      bounds: {
+        min: { x: min.x, y: min.y, z: max.z },
+        max: { x: max.x, y: max.y, z: max.z },
+      },
       face: 't',
-      height,
       role: 'top',
-      xLength,
-      yLength,
     },
     {
-      x: placement.x + xLength / 2,
-      y: placement.y,
+      bounds: {
+        min: { x: max.x, y: min.y, z: min.z },
+        max: { x: max.x, y: max.y, z: max.z },
+      },
       face: 'l',
-      height: height / 2,
-      role: placement.orientation === 'y' ? 'front' : 'side',
-      horizontalLength: yLength,
-      verticalLength: height,
+      role: cuboid.orientation === 'y' ? 'front' : 'side',
     },
     {
-      x: placement.x,
-      y: placement.y + yLength / 2,
+      bounds: {
+        min: { x: min.x, y: max.y, z: min.z },
+        max: { x: max.x, y: max.y, z: max.z },
+      },
       face: 'r',
-      height: height / 2,
-      role: placement.orientation === 'x' ? 'front' : 'side',
-      horizontalLength: xLength,
-      verticalLength: height,
+      role: cuboid.orientation === 'x' ? 'front' : 'side',
     },
   ];
 }
@@ -128,173 +130,160 @@ export function createLabVerticalFace(
   placement: LabFurniturePlacement,
   length: number,
   height: number,
-  bottomHeight = 0,
+  centerZ = height / 2,
 ): LabIsoFaceGeometry {
-  return {
-    ...placement,
-    face: placement.orientation === 'x' ? 'r' : 'l',
-    height: bottomHeight + height / 2,
-    role: 'front',
-    horizontalLength: length,
-    verticalLength: height,
-  };
+  return createLabFaceAtCenter(
+    placement.orientation === 'x' ? 'r' : 'l',
+    { x: placement.x, y: placement.y, z: centerZ },
+    length,
+    height,
+    'front',
+  );
 }
 
 export function projectLabIsoFace(
   face: LabIsoFaceGeometry,
-  layerOffset = 0,
+  zIndex: number,
 ): CSSProperties {
-  const baseStyle = projectLabGridPoint(face, face.height, layerOffset);
-  if (face.face === 't') {
-    const xLength = face.xLength ?? 1;
-    const yLength = face.yLength ?? 1;
-    const total = xLength + yLength;
-    const xShare = (xLength / total) * 100;
-    const yShare = (yLength / total) * 100;
+  const points = getLabFaceVertices(face).map(projectLabPoint);
+  const left = Math.min(...points.map((point) => point.x));
+  const top = Math.min(...points.map((point) => point.y));
+  const right = Math.max(...points.map((point) => point.x));
+  const bottom = Math.max(...points.map((point) => point.y));
+  return {
+    position: 'absolute',
+    boxSizing: 'border-box',
+    left: `${left}px`,
+    top: `${top}px`,
+    width: `${Math.max(right - left, 0.01)}px`,
+    height: `${Math.max(bottom - top, 0.01)}px`,
+    clipPath: `polygon(${points.map((point) => `${point.x - left}px ${point.y - top}px`).join(', ')})`,
+    transform: 'none',
+    zIndex,
+  };
+}
+
+export function createLabFaceAtCenter<F extends LabIsoFaceGeometry['face']>(
+  face: F,
+  center: LabSpatialPoint,
+  width: number,
+  height: number,
+  role: LabIsoFaceGeometry['role'],
+): LabIsoFaceGeometry & { face: F } {
+  const halfWidth = width / 2;
+  const halfHeight = height / 2;
+  if (face === 't') {
     return {
-      ...baseStyle,
-      width: `${total * LAB_HALF_TILE_X}%`,
-      height: `${total * LAB_HALF_TILE_Y}%`,
-      clipPath: `polygon(${yShare}% 0, 100% ${xShare}%, ${xShare}% 100%, 0 ${yShare}%)`,
-      transform: 'translate(-50%, -50%)',
+      face,
+      role,
+      bounds: {
+        min: { x: center.x - halfWidth, y: center.y - halfHeight, z: center.z },
+        max: { x: center.x + halfWidth, y: center.y + halfHeight, z: center.z },
+      },
     };
   }
-
-  const horizontalLength = face.horizontalLength ?? 1;
-  const verticalLength = face.verticalLength ?? 1;
-  const horizontalHeight = horizontalLength * LAB_HALF_TILE_Y;
-  const verticalHeight = verticalLength * LAB_HEIGHT_STEP;
-  const totalHeight = horizontalHeight + verticalHeight;
-  const horizontalShare = (horizontalHeight / totalHeight) * 100;
-  const verticalShare = (verticalHeight / totalHeight) * 100;
-  const clipPath = face.face === 'r'
-    ? `polygon(0 0, 100% ${horizontalShare}%, 100% 100%, 0 ${verticalShare}%)`
-    : `polygon(100% 0, 100% ${verticalShare}%, 0 100%, 0 ${horizontalShare}%)`;
+  if (face === 'l') {
+    return {
+      face,
+      role,
+      bounds: {
+        min: { x: center.x, y: center.y - halfWidth, z: center.z - halfHeight },
+        max: { x: center.x, y: center.y + halfWidth, z: center.z + halfHeight },
+      },
+    };
+  }
   return {
-    ...baseStyle,
-    width: `${horizontalLength * LAB_HALF_TILE_X}%`,
-    height: `${totalHeight}%`,
-    clipPath,
-    transform: 'translate(-50%, -50%)',
+    face,
+    role,
+    bounds: {
+      min: { x: center.x - halfWidth, y: center.y, z: center.z - halfHeight },
+      max: { x: center.x + halfWidth, y: center.y, z: center.z + halfHeight },
+    },
   };
 }
 
-export function createLabWorkstationGeometry(
-  placement: LabWorkstationPlacement,
-): LabWorkstationGeometry {
-  const point = (x: number, y: number) => transformLocalPoint(placement, x, y);
-  const localXAxis: LabWorkstationOrientation = placement.orientation;
-  const localYAxis: LabWorkstationOrientation = placement.orientation === 'x' ? 'y' : 'x';
-  const createDivider = (
-    dividerPoint: LabGridPoint,
-    axis: LabWorkstationOrientation,
-    kind: LabWorkstationDivider['kind'],
-    length: LabWorkstationDivider['length'],
-  ): LabWorkstationDivider => ({
-    ...dividerPoint,
-    face: axis === 'x' ? 'r' : 'l',
-    kind,
-    length,
-    height: 1,
-  });
-  const faceForAxis = (axis: LabWorkstationOrientation) => (
-    axis === 'x' ? 'r' as const : 'l' as const
-  );
-  const createTopFace = (
-    localX: number,
-    localY: number,
-    localWidth: number,
-    localDepth: number,
-    height: number,
-  ): LabIsoFaceGeometry => ({
-    ...point(localX, localY),
-    face: 't',
-    height,
-    role: 'top',
-    xLength: placement.orientation === 'x' ? localWidth : localDepth,
-    yLength: placement.orientation === 'x' ? localDepth : localWidth,
-  });
-  const towerX = -0.05;
-  const towerY = 0.55;
-
+export function getLabFaceCenter(face: LabIsoFaceGeometry): LabSpatialPoint {
+  const { min, max } = face.bounds;
   return {
-    deskCenter: point(1, 0.5),
-    playerHint: point(1, 1),
-    seat: point(1, 2),
-    monitor: point(1, 0.65),
-    monitorFace: localXAxis === 'x' ? 'r' : 'l',
-    keyboard: createTopFace(1, 1.16, 0.9, 0.38, 1.06),
-    keyboardRows: [1.05, 1.16, 1.27].map((localY) => (
-      createTopFace(1, localY, 0.72, 0.035, 1.075)
-    )),
-    computerTower: [
-      {
-        ...point(towerX, towerY),
-        face: 't',
-        height: 1.8,
-        kind: 'top',
-        size: 'top',
-      },
-      {
-        ...point(towerX + 0.25, towerY),
-        face: faceForAxis(localYAxis),
-        height: 1.4,
-        kind: 'side',
-        size: 'long',
-      },
-      {
-        ...point(towerX, towerY + 0.4),
-        face: faceForAxis(localXAxis),
-        height: 1.4,
-        kind: 'front',
-        size: 'short',
-      },
-    ],
-    seatSupports: [
-      {
-        ...point(1.125, 2),
-        face: placement.orientation === 'x' ? 'l' : 'r',
-        height: 0.25,
-      },
-      {
-        ...point(1, 2.125),
-        face: placement.orientation === 'x' ? 'r' : 'l',
-        height: 0.25,
-      },
-    ],
-    dividers: [
-      createDivider(
-        point(1, -0.5),
-        localXAxis,
-        'back',
-        3,
-      ),
-      createDivider(
-        point(-0.5, 0.5),
-        localYAxis,
-        'side',
-        2,
-      ),
-      ...(placement.indexInGroup === placement.groupLength - 1
-        ? [createDivider(point(2.5, 0.5), localYAxis, 'side', 2)]
-        : []),
-      {
-        ...point(1, 1.5),
-        face: faceForAxis(localXAxis),
-        kind: 'front',
-        length: 3,
-        height: 0.5,
-      },
-    ],
+    x: (min.x + max.x) / 2,
+    y: (min.y + max.y) / 2,
+    z: (min.z + max.z) / 2,
   };
 }
 
-function transformLocalPoint(
-  placement: LabWorkstationPlacement,
-  localX: number,
-  localY: number,
-) {
-  return placement.orientation === 'x'
-    ? { x: placement.x + localX, y: placement.y + localY }
-    : { x: placement.x + localY, y: placement.y + localX };
+export function translateLabFace(
+  face: LabIsoFaceGeometry,
+  offset: LabSpatialPoint,
+): LabIsoFaceGeometry {
+  const move = (point: LabSpatialPoint) => ({
+    x: point.x + offset.x,
+    y: point.y + offset.y,
+    z: point.z + offset.z,
+  });
+  return {
+    ...face,
+    vertices: face.vertices?.map(move),
+    bounds: {
+      min: move(face.bounds.min),
+      max: move(face.bounds.max),
+    },
+  };
+}
+
+function getLabFaceVertices(face: LabIsoFaceGeometry): LabSpatialPoint[] {
+  if (face.vertices) return face.vertices;
+  const { min, max } = face.bounds;
+  if (face.face === 't') {
+    return [
+      { x: min.x, y: min.y, z: min.z },
+      { x: max.x, y: min.y, z: min.z },
+      { x: max.x, y: max.y, z: max.z },
+      { x: min.x, y: max.y, z: max.z },
+    ];
+  }
+  if (face.face === 'l') {
+    return [
+      { x: min.x, y: min.y, z: min.z },
+      { x: max.x, y: max.y, z: min.z },
+      { x: min.x, y: max.y, z: max.z },
+      { x: min.x, y: min.y, z: max.z },
+    ];
+  }
+  return [
+    { x: min.x, y: min.y, z: min.z },
+    { x: max.x, y: max.y, z: min.z },
+    { x: max.x, y: max.y, z: max.z },
+    { x: min.x, y: min.y, z: max.z },
+  ];
+}
+
+export function createLabQuadFace(
+  vertices: LabSpatialPoint[],
+  face: LabIsoFaceGeometry['face'],
+  role: LabIsoFaceGeometry['role'],
+): LabIsoFaceGeometry {
+  return {
+    face,
+    role,
+    vertices,
+    bounds: {
+      min: {
+        x: Math.min(...vertices.map((point) => point.x)),
+        y: Math.min(...vertices.map((point) => point.y)),
+        z: Math.min(...vertices.map((point) => point.z)),
+      },
+      max: {
+        x: Math.max(...vertices.map((point) => point.x)),
+        y: Math.max(...vertices.map((point) => point.y)),
+        z: Math.max(...vertices.map((point) => point.z)),
+      },
+    },
+  };
+}
+
+function projectLabPoint(point: LabSpatialPoint) {
+  return {
+    x: LAB_ORIGIN_X + (point.x - point.y) * LAB_HALF_TILE_X,
+    y: LAB_ORIGIN_Y + (point.x + point.y) * LAB_HALF_TILE_Y - point.z * LAB_HEIGHT_STEP,
+  };
 }

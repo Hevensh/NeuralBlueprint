@@ -22,9 +22,9 @@ import {
   clearDesktopFileRuntime,
   resetAllFileStorage,
 } from '../dataStorage/fileReset';
-import { loadLabProgress } from '../dataStorage/labStorage';
+import type { GameTime } from '../game/gameTypes';
 import type { FileWorkspaceType, OpenFileType } from '../dataStorage/systemType';
-import { INITIAL_DESKTOP_FILES } from '../taskData/desktopDefaults';
+import { createInitialDesktopFiles } from '../taskData/desktopDefaults';
 import { useLanguage } from '../i18n/LanguageContext';
 import { AcademicTimeIndicator } from '../time/AcademicTimeIndicator';
 import {
@@ -39,17 +39,21 @@ import { DesktopSettingsDialog } from './DesktopSettingsDialog';
 import type { DesktopFile, DesktopIconNodeType } from './desktopTypes';
 
 interface DesktopCanvasProp {
+  gameTime: GameTime;
   openFile: OpenFileType;
   onReturnToLab: () => void;
 }
 
-export function DesktopCanvas({ openFile, onReturnToLab }: DesktopCanvasProp) {
+export function DesktopCanvas({
+  gameTime,
+  openFile,
+  onReturnToLab,
+}: DesktopCanvasProp) {
   const { labels } = useLanguage();
   const [selectedFile, setSelectedFile] = useState<DesktopFile | null>(null);
   const [saveNotice, setSaveNotice] = useState('');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [initFiles] = useState<DesktopFile[]>(loadDesktopFiles);
-  const [academicDay] = useState(() => loadLabProgress().day);
   
   const [initViewport] = useState<Viewport>(loadDesktopView);
   const [canvas, setCanvas] =
@@ -149,7 +153,7 @@ export function DesktopCanvas({ openFile, onReturnToLab }: DesktopCanvasProp) {
     resetAllFileStorage(canvas?.getNodes().map((node) => node.data.file));
 
     pushHistory();
-    const initialNodes = toDesktopNodes(INITIAL_DESKTOP_FILES);
+    const initialNodes = toDesktopNodes(createInitialDesktopFiles());
     canvas?.setNodes(initialNodes);
     void canvas?.setViewport(INITIAL_DESKTOP_VIEWPORT, { duration: 300 });
     setSelectedFile(null);
@@ -168,14 +172,15 @@ export function DesktopCanvas({ openFile, onReturnToLab }: DesktopCanvasProp) {
   const resetDesktopFilePositions = useCallback(() => {
     if (!canvas) return;
 
+    const initialFilesList = createInitialDesktopFiles();
     const initialPositions = new Map(
-      INITIAL_DESKTOP_FILES.map((file) => [
+      initialFilesList.map((file) => [
         file.id,
         toDesktopFlowPosition(file.position),
       ]),
     );
     const initialFiles = new Map(
-      INITIAL_DESKTOP_FILES.map((file) => [file.id, file]),
+      initialFilesList.map((file) => [file.id, file]),
     );
 
     const startNodes = canvas.getNodes();
@@ -301,7 +306,7 @@ export function DesktopCanvas({ openFile, onReturnToLab }: DesktopCanvasProp) {
             {labels.lab.returnToLab}
           </button>
           <div className="desktop-title">Neural BluePrint</div>
-          <AcademicTimeIndicator day={academicDay} />
+          <AcademicTimeIndicator time={gameTime} />
         </header>
 
         <DesktopLeftPanel
@@ -334,7 +339,9 @@ export function DesktopCanvas({ openFile, onReturnToLab }: DesktopCanvasProp) {
           <DesktopSettingsDialog
             onClose={() => setSettingsOpen(false)}
             onExit={exitApplication}
-            onResetAllFiles={resetAllFiles}
+            onResetCurrent={resetAllFiles}
+            resetDescription={labels.desktop.settingsDialog.resetDesktopDescription}
+            resetLabel={labels.desktop.settingsDialog.resetDesktop}
           />
         )}
       </div>

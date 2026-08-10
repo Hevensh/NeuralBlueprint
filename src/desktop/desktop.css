@@ -221,3 +221,10 @@ body,
   font-size: 12px;
   line-height: 1.5;
 }
+
+.desktop-settings-section-title {
+  color: #67e8f9;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}

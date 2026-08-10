@@ -1,17 +1,44 @@
 import type { Viewport } from "@xyflow/react";
-import { INITIAL_DESKTOP_FILES } from "../taskData/desktopDefaults";
-import type { DesktopFile, DesktopIconNodeType } from "../desktop/desktopTypes";
+import {
+  createDesktopFileFromDefinition,
+  createInitialDesktopFiles,
+  DESKTOP_FILE_DEFINITIONS,
+} from "../taskData/desktopDefaults";
+import type {
+  DesktopFile,
+  DesktopIconNodeType,
+  StoredDesktopFile,
+} from "../desktop/desktopTypes";
 import { toDesktopGridPosition } from "../desktop/desktopFileLayout";
 import { appStorage } from "./storageAdapter";
 
 
-const DESKTOP_DATA_STORAGE_KEY = 'neural-blueprint:desktop:v1';
+const DESKTOP_DATA_STORAGE_KEY = 'neural-blueprint:desktop:v2';
 const DESKTOP_VIEW_STORAGE_KEY = 'neural-blueprint:desktop-view:v1';
 
 
 export function loadDesktopFiles(): DesktopFile[] {
   const raw = appStorage.getItem(DESKTOP_DATA_STORAGE_KEY);
-  return raw ? JSON.parse(raw) as DesktopFile[] : INITIAL_DESKTOP_FILES;
+  if (!raw) return createInitialDesktopFiles();
+
+  const storedFiles = JSON.parse(raw) as StoredDesktopFile[];
+  const definedProgress = new Map(
+    storedFiles
+      .filter((file) => file.kind === 'defined')
+      .map((file) => [file.id, file]),
+  );
+  const definedFiles = DESKTOP_FILE_DEFINITIONS.map((definition) => {
+    const progress = definedProgress.get(definition.id);
+    return progress
+      ? toDesktopFile(progress) as DesktopFile
+      : createDesktopFileFromDefinition(definition);
+  });
+  const customFiles = storedFiles
+    .filter((file) => file.kind === 'custom')
+    .map(toDesktopFile)
+    .filter((file): file is DesktopFile => Boolean(file));
+
+  return [...definedFiles, ...customFiles];
 }
 
 export function saveDesktopFiles(nodes: DesktopIconNodeType[]): void {
@@ -33,7 +60,68 @@ export function updateDesktopFile(
 }
 
 function saveDesktopFileList(files: DesktopFile[]): void {
-  appStorage.setItem(DESKTOP_DATA_STORAGE_KEY, JSON.stringify(files));
+  appStorage.setItem(
+    DESKTOP_DATA_STORAGE_KEY,
+    JSON.stringify(files.map(toStoredDesktopFile)),
+  );
+}
+
+const definitionById = new Map(
+  DESKTOP_FILE_DEFINITIONS.map((definition) => [definition.id, definition]),
+);
+
+function toStoredDesktopFile(file: DesktopFile): StoredDesktopFile {
+  const definition = definitionById.get(file.id);
+  const progress = {
+    id: file.id,
+    position: file.position,
+    completed: file.completed,
+    guideCompletedStepCount: file.guideCompletedStepCount ?? 0,
+  };
+
+  return definition
+    ? {
+        ...progress,
+        kind: 'defined',
+        nameOverride: file.localizedNames ? undefined : file.name,
+      }
+    : {
+        ...progress,
+        kind: 'custom',
+        name: file.name,
+        type: file.type,
+      };
+}
+
+function toDesktopFile(stored: StoredDesktopFile): DesktopFile | null {
+  if (stored.kind === 'custom') {
+    return {
+      id: stored.id,
+      name: stored.name,
+      type: stored.type,
+      deletable: true,
+      completed: stored.completed,
+      visible: true,
+      dependencyFileIds: [],
+      position: stored.position,
+      guideCompletedStepCount: stored.guideCompletedStepCount,
+    };
+  }
+
+  const definition = definitionById.get(stored.id);
+  if (!definition) return null;
+  const { initialPosition: _, ...fileDefinition } = definition;
+
+  return {
+    ...fileDefinition,
+    name: stored.nameOverride ?? definition.name,
+    localizedNames: stored.nameOverride
+      ? undefined
+      : definition.localizedNames,
+    position: stored.position,
+    completed: stored.completed,
+    guideCompletedStepCount: stored.guideCompletedStepCount,
+  };
 }
 
 

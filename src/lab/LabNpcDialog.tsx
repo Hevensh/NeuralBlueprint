@@ -6,6 +6,7 @@ import type { LabNpcDefinition, LabNpcTopic, LabProgress } from './labTypes';
 interface LabNpcDialogProps {
   npc: LabNpcDefinition;
   progress: LabProgress;
+  day: number;
   onCompleteTopic: (npcId: string, topic: LabNpcTopic) => void;
   onClose: () => void;
 }
@@ -13,6 +14,7 @@ interface LabNpcDialogProps {
 export function LabNpcDialog({
   npc,
   progress,
+  day,
   onCompleteTopic,
   onClose,
 }: LabNpcDialogProps) {
@@ -20,7 +22,7 @@ export function LabNpcDialog({
   const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
   const selectedTopic = npc.topics.find((topic) => topic.id === selectedTopicId);
   const encounterId = selectedTopic
-    ? getTopicEncounterId(progress, npc.id, selectedTopic.id)
+    ? getTopicEncounterId(day, npc.id, selectedTopic.id)
     : null;
   const rewardReceipt = progress.rewards.find(
     (receipt) => receipt.encounterId === encounterId,
@@ -60,7 +62,7 @@ export function LabNpcDialog({
           <div className="lab-dialog-topics">
             {npc.topics.map((topic) => {
               const topicEncounterId = getTopicEncounterId(
-                progress,
+                day,
                 npc.id,
                 topic.id,
               );

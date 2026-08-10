@@ -57,10 +57,13 @@ export const EN_LABELS = {
     settingsDialog: {
       title: 'Settings',
       language: 'Language',
+      developerOptions: 'Developer Options',
       exit: 'Exit',
       close: 'Close',
-      resetAll: 'Reset',
-      resetAllDescription: 'Reset every desktop file and restore the initial desktop state.',
+      resetDesktop: 'Reset Desktop',
+      resetDesktopDescription: 'Reset every desktop file and restore the initial desktop state.',
+      resetLab: 'Regenerate Laboratory',
+      resetLabDescription: 'Create a new random laboratory layout, roster, and attendance state.',
       exitDescription: 'Close the app window and stop the desktop process.',
     },
     rightPanel: {

@@ -7,13 +7,17 @@ import { PropertyDropdown } from '../PropertyDropdown';
 interface DesktopSettingsDialogProps {
   onClose: () => void;
   onExit: () => void;
-  onResetAllFiles: () => void;
+  onResetCurrent: () => void;
+  resetDescription: string;
+  resetLabel: string;
 }
 
 export function DesktopSettingsDialog({
   onClose,
   onExit,
-  onResetAllFiles,
+  onResetCurrent,
+  resetDescription,
+  resetLabel,
 }: DesktopSettingsDialogProps) {
   const {
     language,
@@ -56,13 +60,16 @@ export function DesktopSettingsDialog({
         </div>
 
         <div className="desktop-settings-exit">
-          <p>{dialogLabels.resetAllDescription}</p>
+          <strong className="desktop-settings-section-title">
+            {dialogLabels.developerOptions}
+          </strong>
+          <p>{resetDescription}</p>
           <button
             className="action-button"
-            onClick={onResetAllFiles}
+            onClick={onResetCurrent}
             type="button"
           >
-            {dialogLabels.resetAll}
+            {resetLabel}
           </button>
 
           <p>{dialogLabels.exitDescription}</p>

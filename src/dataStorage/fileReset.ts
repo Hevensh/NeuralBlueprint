@@ -1,5 +1,5 @@
 import type { DesktopFile } from '../desktop/desktopTypes';
-import { INITIAL_DESKTOP_FILES } from '../taskData/desktopDefaults';
+import { createInitialDesktopFiles } from '../taskData/desktopDefaults';
 import { clearWorkspace, loadDesktopFiles } from './desktopStorage';
 import { clearKnowledgeGraphSession } from './knowledgeGraphStorage';
 import { clearNeuralBlueprintGraph } from './neuralBlueprintStorage';
@@ -16,7 +16,7 @@ export function clearDesktopFileRuntime(file: DesktopFile) {
 
 export function resetAllFileStorage(currentFiles: DesktopFile[] = []) {
   const files = new Map<string, DesktopFile>();
-  [...loadDesktopFiles(), ...currentFiles, ...INITIAL_DESKTOP_FILES]
+  [...loadDesktopFiles(), ...currentFiles, ...createInitialDesktopFiles()]
     .forEach((file) => files.set(file.id, file));
   files.forEach(clearDesktopFileRuntime);
   clearWorkspace();

@@ -7,16 +7,18 @@ import type {
 import { createSeededRandom, shuffleWith } from './labRandom';
 import { createLabSceneLayout } from './labSceneLayout';
 
-export function createInitialLabProgress(config: LabDayConfig): LabProgress {
-  const seed = String(Date.now());
+export function createInitialLabProgress(
+  config: LabDayConfig,
+  seed: string,
+  day: number,
+): LabProgress {
   const workstationIds = getWorkstationIds(config, seed);
   const workstations = selectRoster(config, seed, workstationIds);
   return {
-    day: 1,
-    seed,
+    generationSeed: seed,
     workstations,
     playerWorkstationId: null,
-    presentNpcIds: selectAttendance(config, workstations, `${seed}:day:1`),
+    presentNpcIds: selectAttendance(config, workstations, `${seed}:day:${day}`),
     completedTopicIds: [],
     rewards: [],
   };
@@ -32,7 +34,7 @@ export function claimLabWorkstation(
     return progress;
   }
 
-  const workstationIds = new Set(getWorkstationIds(config, progress.seed));
+  const workstationIds = new Set(getWorkstationIds(config, progress.generationSeed));
   if (!workstationIds.has(workstationId)) return progress;
 
   return { ...progress, playerWorkstationId: workstationId };
@@ -41,15 +43,14 @@ export function claimLabWorkstation(
 export function advanceLabDay(
   progress: LabProgress,
   config: LabDayConfig,
+  day: number,
 ): LabProgress {
-  const day = progress.day + 1;
   return {
     ...progress,
-    day,
     presentNpcIds: selectAttendance(
       config,
       progress.workstations,
-      `${progress.seed}:day:${day}`,
+      `${progress.generationSeed}:day:${day}`,
     ),
   };
 }
@@ -57,6 +58,7 @@ export function advanceLabDay(
 export function graduateLabSenior(
   progress: LabProgress,
   config: LabDayConfig,
+  day: number,
   npcId: string,
 ): LabProgress {
   const graduatingNpc = config.npcPool.find((npc) => npc.id === npcId);
@@ -67,7 +69,7 @@ export function graduateLabSenior(
   if (candidates.length === 0) return progress;
 
   const random = createSeededRandom(
-    `${progress.seed}:graduate:${progress.day}:${npcId}`,
+    `${progress.generationSeed}:graduate:${day}:${npcId}`,
   );
   const replacement = candidates[Math.floor(random() * candidates.length)];
   const workstations = progress.workstations.map((desk) => (
@@ -80,22 +82,23 @@ export function graduateLabSenior(
     presentNpcIds: selectAttendance(
       config,
       workstations,
-      `${progress.seed}:day:${progress.day}:replacement:${replacement.id}`,
+      `${progress.generationSeed}:day:${day}:replacement:${replacement.id}`,
     ),
   };
 }
 
 export function completeLabTopic(
   progress: LabProgress,
+  day: number,
   npcId: string,
   topic: LabNpcTopic,
 ): LabProgress {
-  const encounterId = `${progress.day}:${npcId}:${topic.id}`;
+  const encounterId = `${day}:${npcId}:${topic.id}`;
   if (progress.completedTopicIds.includes(encounterId)) return progress;
 
   const reward = pickWeighted(
     topic.rewards ?? [],
-    `${progress.seed}:${encounterId}`,
+    `${progress.generationSeed}:${encounterId}`,
   );
 
   return {
@@ -108,11 +111,11 @@ export function completeLabTopic(
 }
 
 export function getTopicEncounterId(
-  progress: LabProgress,
+  day: number,
   npcId: string,
   topicId: string,
 ) {
-  return `${progress.day}:${npcId}:${topicId}`;
+  return `${day}:${npcId}:${topicId}`;
 }
 
 function selectRoster(

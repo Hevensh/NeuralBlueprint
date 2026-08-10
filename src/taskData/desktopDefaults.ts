@@ -1,7 +1,10 @@
-import type { DesktopFile } from '../desktop/desktopTypes';
+import type {
+  DesktopFile,
+  DesktopFileDefinition,
+} from '../desktop/desktopTypes';
 import { configFileTask1, configFileTask2 } from './configs';
 
-export const INITIAL_DESKTOP_FILES: DesktopFile[] = [
+export const DESKTOP_FILE_DEFINITIONS: DesktopFileDefinition[] = [
   {
     id: 'experimental_nbp',
     name: 'Experimental Blueprint',
@@ -11,10 +14,9 @@ export const INITIAL_DESKTOP_FILES: DesktopFile[] = [
     },
     type: 'nbp',
     deletable: false,
-    completed: false,
     visible: true,
     dependencyFileIds: [],
-    position: { x: 0, y: 1 },
+    initialPosition: { x: 0, y: 1 },
   },
   {
     id: 'task1',
@@ -25,10 +27,9 @@ export const INITIAL_DESKTOP_FILES: DesktopFile[] = [
     },
     type: 'nbp',
     deletable: false,
-    completed: false,
     visible: true,
     dependencyFileIds: [],
-    position: { x: 1, y: 1 },
+    initialPosition: { x: 1, y: 1 },
     config: configFileTask1,
   },
   {
@@ -40,10 +41,25 @@ export const INITIAL_DESKTOP_FILES: DesktopFile[] = [
     },
     type: 'nbp',
     deletable: false,
-    completed: false,
     visible: true,
     dependencyFileIds: [],
-    position: { x: 2, y: 1 },
+    initialPosition: { x: 2, y: 1 },
     config: configFileTask2,
   },
 ];
+
+export function createInitialDesktopFiles(): DesktopFile[] {
+  return DESKTOP_FILE_DEFINITIONS.map(createDesktopFileFromDefinition);
+}
+
+export function createDesktopFileFromDefinition(
+  definition: DesktopFileDefinition,
+): DesktopFile {
+  const { initialPosition, ...file } = definition;
+  return {
+    ...file,
+    position: initialPosition,
+    completed: false,
+    guideCompletedStepCount: 0,
+  };
+}

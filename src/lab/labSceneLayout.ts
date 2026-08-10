@@ -3,7 +3,8 @@ import type { LabWorkstationLayoutConfig } from './labTypes';
 
 export const LAB_ROOM_WIDTH = 24;
 export const LAB_ROOM_DEPTH = 16;
-export const LAB_WORKSTATION_SIZE = 3;
+export const LAB_WORKSTATION_FOOTPRINT_SIZE = 3;
+export const LAB_MIN_FURNITURE_GAP = 2;
 
 export interface LabGridPoint {
   x: number;
@@ -26,11 +27,15 @@ export interface LabFurniturePlacement extends LabGridPoint {
 
 export interface LabSceneLayout {
   workstations: LabWorkstationPlacement[];
+  commonTable: LabFurniturePlacement;
   whiteboard: LabFurniturePlacement;
   bookshelf: LabFurniturePlacement;
   servers: LabFurniturePlacement[];
   trainingCapacity: number;
 }
+
+const LAYOUT_CACHE_LIMIT = 12;
+const layoutCache = new Map<string, LabSceneLayout>();
 
 interface WorkstationGroupCandidate {
   orientation: LabWorkstationOrientation;
@@ -52,29 +57,26 @@ export function createLabSceneLayout(
   seed: string,
   config: LabWorkstationLayoutConfig,
 ): LabSceneLayout {
+  const cacheKey = JSON.stringify([
+    seed,
+    config.allowedGroupLengths,
+    config.minTotalWorkstations,
+    config.maxTotalWorkstations,
+  ]);
+  const cached = layoutCache.get(cacheKey);
+  if (cached) return cached;
+
   const random = createSeededRandom(`${seed}:scene`);
   const groupLengths = pickGroupLengths(config, random);
-  const groups = placeGroups(groupLengths, random);
-  const occupied = groups.flatMap((group) => group.occupiedTiles);
   const serverCount = 2 + Math.floor(random() * 3);
-  const servers = pickServerGroup(
-    createServerGroupCandidates(serverCount),
-    occupied,
-    random,
-  );
-  const whiteboard = pickFurniture(
-    createEdgeCandidates(4),
-    [...occupied, ...servers.occupiedTiles],
-    random,
-  );
-  const bookshelf = pickFurniture(
-    createEdgeCandidates(2),
-    [...occupied, ...servers.occupiedTiles, ...whiteboard.occupiedTiles],
+  const { groups, commonTable, servers, whiteboard, bookshelf } = placeScene(
+    groupLengths,
+    serverCount,
     random,
   );
 
   let workstationIndex = 0;
-  return {
+  const layout: LabSceneLayout = {
     workstations: groups.flatMap((group, groupIndex) => (
       group.workstationOrigins.map((origin, indexInGroup) => ({
         ...origin,
@@ -85,11 +87,18 @@ export function createLabSceneLayout(
         orientation: group.orientation,
       }))
     )),
+    commonTable: commonTable.placement,
     whiteboard: whiteboard.placement,
     bookshelf: bookshelf.placement,
     servers: servers.placements,
     trainingCapacity: servers.placements.length,
   };
+  if (layoutCache.size >= LAYOUT_CACHE_LIMIT) {
+    const oldestKey = layoutCache.keys().next().value;
+    if (oldestKey) layoutCache.delete(oldestKey);
+  }
+  layoutCache.set(cacheKey, layout);
+  return layout;
 }
 
 function pickGroupLengths(
@@ -134,14 +143,67 @@ function createLengthCombinations(
   return combinations;
 }
 
-function placeGroups(lengths: number[], random: () => number) {
+function placeScene(
+  groupLengths: number[],
+  serverCount: number,
+  random: () => number,
+) {
+  const serverCandidates = shuffleWith(
+    createServerGroupCandidates(serverCount),
+    random,
+  );
+  const whiteboardCandidates = shuffleWith(createEdgeCandidates(4), random);
+  const bookshelfCandidates = shuffleWith(createEdgeCandidates(2), random);
+  const commonTableCandidates = shuffleWith(
+    createInteriorFurnitureCandidates(5, 3),
+    random,
+  );
+
+  for (const servers of serverCandidates) {
+    for (const whiteboard of whiteboardCandidates) {
+      if (!hasRequiredGap(whiteboard.occupiedTiles, servers.occupiedTiles)) continue;
+      for (const bookshelf of bookshelfCandidates) {
+        const furnitureTiles = [
+          ...servers.occupiedTiles,
+          ...whiteboard.occupiedTiles,
+        ];
+        if (!hasRequiredGap(bookshelf.occupiedTiles, furnitureTiles)) continue;
+        const blockedTiles = [...furnitureTiles, ...bookshelf.occupiedTiles];
+        for (const commonTable of commonTableCandidates) {
+          if (!hasRequiredGap(commonTable.occupiedTiles, blockedTiles)) continue;
+          const groups = placeGroups(
+            groupLengths,
+            [...blockedTiles, ...commonTable.occupiedTiles],
+            random,
+          );
+          if (groups) {
+            return { groups, commonTable, servers, whiteboard, bookshelf };
+          }
+        }
+      }
+    }
+  }
+
+  throw new Error('Lab scene does not fit inside the room.');
+}
+
+function placeGroups(
+  lengths: number[],
+  blockedTiles: LabGridPoint[],
+  random: () => number,
+) {
   const placed: WorkstationGroupCandidate[] = [];
 
   const visit = (index: number): boolean => {
     if (index === lengths.length) return true;
     const candidates = shuffleWith(createGroupCandidates(lengths[index]), random);
     for (const candidate of candidates) {
-      if (placed.every((group) => minimumGroupDistance(group, candidate) >= 2)) {
+      if (
+        hasRequiredGap(candidate.occupiedTiles, blockedTiles)
+        && placed.every((group) => (
+        minimumGroupGap(group, candidate) >= LAB_MIN_FURNITURE_GAP
+        ))
+      ) {
         placed.push(candidate);
         if (visit(index + 1)) return true;
         placed.pop();
@@ -150,20 +212,17 @@ function placeGroups(lengths: number[], random: () => number) {
     return false;
   };
 
-  if (!visit(0)) {
-    throw new Error('Lab workstation groups do not fit inside the room.');
-  }
-  return placed;
+  return visit(0) ? placed : undefined;
 }
 
 function createGroupCandidates(length: number) {
   const candidates: WorkstationGroupCandidate[] = [];
-  const groupSize = length * LAB_WORKSTATION_SIZE;
+  const groupSize = length * LAB_WORKSTATION_FOOTPRINT_SIZE;
 
-  for (let y = 2; y <= LAB_ROOM_DEPTH - LAB_WORKSTATION_SIZE - 2; y += 1) {
+  for (let y = 2; y <= LAB_ROOM_DEPTH - LAB_WORKSTATION_FOOTPRINT_SIZE - 2; y += 1) {
     for (let x = 2; x <= LAB_ROOM_WIDTH - groupSize - 2; x += 1) {
       const workstationOrigins = Array.from({ length }, (_, offset) => ({
-        x: x + offset * LAB_WORKSTATION_SIZE,
+        x: x + offset * LAB_WORKSTATION_FOOTPRINT_SIZE,
         y,
       }));
       candidates.push({
@@ -174,11 +233,11 @@ function createGroupCandidates(length: number) {
     }
   }
 
-  for (let x = 2; x <= LAB_ROOM_WIDTH - LAB_WORKSTATION_SIZE - 2; x += 1) {
+  for (let x = 2; x <= LAB_ROOM_WIDTH - LAB_WORKSTATION_FOOTPRINT_SIZE - 2; x += 1) {
     for (let y = 2; y <= LAB_ROOM_DEPTH - groupSize - 2; y += 1) {
       const workstationOrigins = Array.from({ length }, (_, offset) => ({
         x,
-        y: y + offset * LAB_WORKSTATION_SIZE,
+        y: y + offset * LAB_WORKSTATION_FOOTPRINT_SIZE,
       }));
       candidates.push({
         orientation: 'y',
@@ -192,8 +251,8 @@ function createGroupCandidates(length: number) {
 }
 
 function createWorkstationFootprint(origin: LabGridPoint) {
-  return Array.from({ length: LAB_WORKSTATION_SIZE }, (_, y) => (
-    Array.from({ length: LAB_WORKSTATION_SIZE }, (_, x) => ({
+  return Array.from({ length: LAB_WORKSTATION_FOOTPRINT_SIZE }, (_, y) => (
+    Array.from({ length: LAB_WORKSTATION_FOOTPRINT_SIZE }, (_, x) => ({
       x: origin.x + x,
       y: origin.y + y,
     }))
@@ -257,32 +316,41 @@ function createServerGroupCandidates(count: number) {
   return candidates;
 }
 
-function pickFurniture(
-  candidates: FurnitureCandidate[],
-  blockedTiles: LabGridPoint[],
-  random: () => number,
-) {
-  const candidate = shuffleWith(candidates, random).find(({ occupiedTiles }) => (
-    occupiedTiles.every((tile) => (
-      blockedTiles.every((blockedTile) => gridDistance(tile, blockedTile) >= 2)
-    ))
-  ));
-  if (!candidate) throw new Error('Lab furniture does not fit inside the room.');
-  return candidate;
+function createInteriorFurnitureCandidates(width: number, depth: number) {
+  const candidates: FurnitureCandidate[] = [];
+  const addCandidates = (
+    candidateWidth: number,
+    candidateDepth: number,
+    orientation: LabWorkstationOrientation,
+  ) => {
+    for (let y = 2; y <= LAB_ROOM_DEPTH - candidateDepth - 2; y += 1) {
+      for (let x = 2; x <= LAB_ROOM_WIDTH - candidateWidth - 2; x += 1) {
+        candidates.push({
+          placement: {
+            x: x + (candidateWidth - 1) / 2,
+            y: y + (candidateDepth - 1) / 2,
+            orientation,
+          },
+          occupiedTiles: createRectangleFootprint(
+            x,
+            y,
+            candidateWidth,
+            candidateDepth,
+          ),
+        });
+      }
+    }
+  };
+
+  addCandidates(width, depth, 'x');
+  if (width !== depth) addCandidates(depth, width, 'y');
+  return candidates;
 }
 
-function pickServerGroup(
-  candidates: ServerGroupCandidate[],
-  blockedTiles: LabGridPoint[],
-  random: () => number,
-) {
-  const candidate = shuffleWith(candidates, random).find(({ occupiedTiles }) => (
-    occupiedTiles.every((tile) => (
-      blockedTiles.every((blockedTile) => gridDistance(tile, blockedTile) >= 2)
-    ))
-  ));
-  if (!candidate) throw new Error('Lab servers do not fit inside the room.');
-  return candidate;
+function hasRequiredGap(tiles: LabGridPoint[], blockedTiles: LabGridPoint[]) {
+  return tiles.every((tile) => blockedTiles.every((blockedTile) => (
+    gridGap(tile, blockedTile) >= LAB_MIN_FURNITURE_GAP
+  )));
 }
 
 function createRectangleFootprint(
@@ -299,20 +367,20 @@ function createRectangleFootprint(
   )).flat();
 }
 
-function minimumGroupDistance(
+function minimumGroupGap(
   first: WorkstationGroupCandidate,
   second: WorkstationGroupCandidate,
 ) {
   return Math.min(...first.occupiedTiles.flatMap((firstTile) => (
-    second.occupiedTiles.map((secondTile) => gridDistance(firstTile, secondTile))
+    second.occupiedTiles.map((secondTile) => gridGap(firstTile, secondTile))
   )));
 }
 
-function gridDistance(first: LabGridPoint, second: LabGridPoint) {
+function gridGap(first: LabGridPoint, second: LabGridPoint) {
   return Math.max(
     Math.abs(first.x - second.x),
     Math.abs(first.y - second.y),
-  );
+  ) - 1;
 }
 
 function sum(values: number[]) {

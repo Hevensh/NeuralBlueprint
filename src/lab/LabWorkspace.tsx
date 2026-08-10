@@ -1,39 +1,63 @@
-import { useMemo, useState } from 'react';
+import {
+  useCallback,
+  useMemo,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from 'react';
 import { exitApplication } from '../appActions';
-import { resetAllFileStorage } from '../dataStorage/fileReset';
-import { loadLabProgress, saveLabProgress } from '../dataStorage/labStorage';
 import { DesktopSettingsDialog } from '../desktop/DesktopSettingsDialog';
+import type { GameProgress } from '../game/gameTypes';
 import { useLanguage } from '../i18n/LanguageContext';
 import { AcademicTimeIndicator } from '../time/AcademicTimeIndicator';
+import { createCommonTableDecorations } from './labDeskDecorationModel';
+import { FLOOR_FACE_STYLES } from './labFaceStyles';
 import {
-  createLabFloorTiles,
-  createLabWorkstationGeometry,
-  projectLabGridPoint,
-  projectLabIsoFace,
-} from './labIsometric';
-import { DEFAULT_LAB_DAY_CONFIG } from './labNpcRegistry';
-import { claimLabWorkstation, completeLabTopic } from './labProgress';
-import { createLabSceneLayout } from './labSceneLayout';
-import type { LabNpcTopic } from './labTypes';
-import { LabBookshelf, LabServerRack, LabWhiteboard } from './LabFurniture';
+  LabBookshelf,
+  LabCommonTable,
+  LabServerRack,
+  LabWhiteboard,
+} from './LabFurniture';
+import { createLabFloorTiles, projectLabIsoFace } from './labIsometric';
 import { LabLeftPanel } from './LabLeftPanel';
 import { LabNpcDialog } from './LabNpcDialog';
+import { DEFAULT_LAB_DAY_CONFIG } from './labNpcRegistry';
+import {
+  claimLabWorkstation,
+  completeLabTopic,
+  createInitialLabProgress,
+} from './labProgress';
+import { createLabSceneLayout } from './labSceneLayout';
+import type { LabNpcTopic } from './labTypes';
+import { LabWorkstation } from './LabWorkstation';
+import { useLabSceneViewport } from './useLabSceneViewport';
 
 interface LabWorkspaceProps {
+  gameProgress: GameProgress;
+  setGameProgress: Dispatch<SetStateAction<GameProgress>>;
   onOpenDesktop: () => void;
 }
 
 type LabNotice = 'whiteboard' | 'server' | 'bookshelf' | null;
-type NpcScreenVariant = 'code' | 'chart' | 'graph';
 
-const NPC_SCREEN_VARIANTS: NpcScreenVariant[] = ['code', 'chart', 'graph'];
-
-export function LabWorkspace({ onOpenDesktop }: LabWorkspaceProps) {
-  const { labels, language } = useLanguage();
-  const [progress, setProgress] = useState(loadLabProgress);
+export function LabWorkspace({
+  gameProgress,
+  setGameProgress,
+  onOpenDesktop,
+}: LabWorkspaceProps) {
+  const { labels } = useLanguage();
+  const progress = gameProgress.lab;
   const [selectedNpcId, setSelectedNpcId] = useState<string | null>(null);
   const [notice, setNotice] = useState<LabNotice>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const {
+    viewportRef,
+    view,
+    dragging,
+    resetView,
+    zoomBy,
+    viewportEvents,
+  } = useLabSceneViewport();
   const npcById = useMemo(
     () => new Map(DEFAULT_LAB_DAY_CONFIG.npcPool.map((npc) => [npc.id, npc])),
     [],
@@ -41,42 +65,64 @@ export function LabWorkspace({ onOpenDesktop }: LabWorkspaceProps) {
   const selectedNpc = selectedNpcId ? npcById.get(selectedNpcId) : undefined;
   const sceneLayout = useMemo(
     () => createLabSceneLayout(
-      progress.seed,
+      progress.generationSeed,
       DEFAULT_LAB_DAY_CONFIG.workstationLayout,
     ),
-    [progress.seed],
+    [progress.generationSeed],
   );
   const floorTiles = useMemo(createLabFloorTiles, []);
-  const placementByWorkstationId = useMemo(
-    () => new Map(
-      sceneLayout.workstations.map((placement) => [placement.workstationId, placement]),
-    ),
-    [sceneLayout],
+  const commonTableDecorations = useMemo(
+    () => createCommonTableDecorations(progress.generationSeed),
+    [progress.generationSeed],
   );
-  const workstationIds = useMemo(
-    () => sceneLayout.workstations.map((placement) => placement.workstationId),
-    [sceneLayout],
+  const npcByWorkstationId = useMemo(
+    () => new Map(progress.workstations.map((assignment) => [
+      assignment.workstationId,
+      npcById.get(assignment.npcId),
+    ])),
+    [npcById, progress.workstations],
+  );
+  const presentNpcIds = useMemo(
+    () => new Set(progress.presentNpcIds),
+    [progress.presentNpcIds],
+  );
+  const completedTopicIds = useMemo(
+    () => new Set(progress.completedTopicIds),
+    [progress.completedTopicIds],
   );
 
-  const completeTopic = (npcId: string, topic: LabNpcTopic) => {
-    setProgress((current) => {
-      const next = completeLabTopic(current, npcId, topic);
-      saveLabProgress(next);
-      return next;
-    });
-  };
+  const completeTopicHandler = useCallback((npcId: string, topic: LabNpcTopic) => {
+    setGameProgress((current) => ({
+      ...current,
+      lab: completeLabTopic(current.lab, current.time.day, npcId, topic),
+    }));
+  }, [setGameProgress]);
 
-  const chooseWorkstation = (workstationId: string) => {
-    setProgress((current) => {
-      const next = claimLabWorkstation(
-        current,
+  const chooseWorkstation = useCallback((workstationId: string) => {
+    setGameProgress((current) => ({
+      ...current,
+      lab: claimLabWorkstation(
+        current.lab,
         DEFAULT_LAB_DAY_CONFIG,
         workstationId,
-      );
-      saveLabProgress(next);
-      return next;
-    });
-  };
+      ),
+    }));
+  }, [setGameProgress]);
+
+  const resetLaboratory = useCallback(() => {
+    const generationSeed = `${Date.now()}`;
+    setGameProgress((current) => ({
+      ...current,
+      lab: createInitialLabProgress(
+        DEFAULT_LAB_DAY_CONFIG,
+        `${current.seed}:lab:${generationSeed}`,
+        current.time.day,
+      ),
+    }));
+    setSelectedNpcId(null);
+    setNotice(null);
+    setSettingsOpen(false);
+  }, [setGameProgress]);
 
   const noticeContent = notice ? {
     whiteboard: [labels.lab.whiteboard, labels.lab.whiteboardNote],
@@ -91,228 +137,102 @@ export function LabWorkspace({ onOpenDesktop }: LabWorkspaceProps) {
           <div className="lab-subtitle">{labels.lab.subtitle}</div>
           <h1>{labels.lab.title}</h1>
         </div>
-        <AcademicTimeIndicator day={progress.day} />
+        <AcademicTimeIndicator time={gameProgress.time} />
       </header>
 
       <section className="lab-room">
-        <LabLeftPanel
-          onOpenSettings={() => setSettingsOpen(true)}
-        />
+        <LabLeftPanel onOpenSettings={() => setSettingsOpen(true)} />
 
-        <div className="lab-scene">
-          <div aria-hidden="true" className="lab-isometric-floor">
-          {floorTiles.map((tile) => (
-            <span
-              className={`lab-floor-tile variant-${tile.variant}`}
-              key={tile.id}
-              style={{ ...projectLabGridPoint(tile), zIndex: tile.x + tile.y }}
+        <div
+          className={`lab-scene-viewport ${dragging ? 'dragging' : ''}`}
+          ref={viewportRef}
+          {...viewportEvents}
+        >
+          <div
+            className="lab-scene"
+            style={{
+              transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})`,
+            }}
+          >
+            <div aria-hidden="true" className="lab-isometric-floor">
+              {floorTiles.map((tile) => (
+                <span
+                  className={`lab-floor-tile variant-${tile.variant}`}
+                  key={tile.id}
+                  style={{
+                    ...projectLabIsoFace(tile, 0),
+                    ...FLOOR_FACE_STYLES[tile.variant],
+                  }}
+                />
+              ))}
+            </div>
+
+            <LabWhiteboard
+              label={labels.lab.whiteboard}
+              placement={sceneLayout.whiteboard}
+              onClick={() => setNotice('whiteboard')}
             />
-          ))}
-        </div>
+            <LabBookshelf
+              label={labels.lab.bookshelf}
+              placement={sceneLayout.bookshelf}
+              onClick={() => setNotice('bookshelf')}
+            />
+            <LabCommonTable
+              decorations={commonTableDecorations}
+              placement={sceneLayout.commonTable}
+            />
+            {sceneLayout.servers.map((placement, index) => (
+              <LabServerRack
+                key={`server-${index}`}
+                label={labels.lab.server}
+                placement={placement}
+                onClick={() => setNotice('server')}
+              />
+            ))}
 
-          <LabWhiteboard
-          label={labels.lab.whiteboard}
-          placement={sceneLayout.whiteboard}
-          onClick={() => setNotice('whiteboard')}
-        />
-          <LabBookshelf
-          label={labels.lab.bookshelf}
-          placement={sceneLayout.bookshelf}
-          onClick={() => setNotice('bookshelf')}
-        />
-          {sceneLayout.servers.map((placement, index) => (
-          <LabServerRack
-            key={`server-${index}`}
-            label={labels.lab.server}
-            placement={placement}
-            onClick={() => setNotice('server')}
-          />
-        ))}
-
-          <div className="lab-office-grid">
-          {workstationIds.map((workstationId) => {
-            const placement = placementByWorkstationId.get(workstationId);
-            if (!placement) return null;
-            const geometry = createLabWorkstationGeometry(placement);
-            const assignment = progress.workstations.find(
-              (desk) => desk.workstationId === workstationId,
-            );
-            const npc = assignment ? npcById.get(assignment.npcId) : undefined;
-            const isPlayerWorkstation = progress.playerWorkstationId === workstationId;
-            const hasComputer = Boolean(npc || isPlayerWorkstation);
-            const present = npc ? progress.presentNpcIds.includes(npc.id) : false;
-            const screenOff = Boolean(npc && !present);
-            const screenVariant = isPlayerWorkstation
-              ? 'desktop'
-              : getNpcScreenVariant(npc?.id ?? '');
-            const workstationDisabled = npc
-              ? !present
-              : !isPlayerWorkstation && Boolean(progress.playerWorkstationId);
-            const useWorkstation = () => {
-              if (npc) setSelectedNpcId(npc.id);
-              else if (isPlayerWorkstation) onOpenDesktop();
-              else chooseWorkstation(workstationId);
-            };
-
-            const structure = (
-              <>
-                <span
-                  aria-hidden="true"
-                  className={`lab-workstation-desk-surface orientation-${placement.orientation}`}
-                  style={projectLabGridPoint(geometry.deskCenter, 1)}
-                />
-                {geometry.dividers.map((divider, dividerIndex) => (
-                  <span
-                    aria-hidden="true"
-                    className={`lab-workstation-divider face-${divider.face} ${divider.kind} length-${divider.length}`}
-                    key={`${workstationId}-divider-${dividerIndex}`}
-                    style={projectLabGridPoint(divider, divider.height)}
+            <div className="lab-office-grid">
+              {sceneLayout.workstations.map((placement) => {
+                const npc = npcByWorkstationId.get(placement.workstationId);
+                const canTalk = Boolean(npc?.topics.some((topic) => (
+                  !completedTopicIds.has(
+                    `${gameProgress.time.day}:${npc.id}:${topic.id}`,
+                  )
+                )));
+                return (
+                  <LabWorkstation
+                    canTalk={canTalk}
+                    generationSeed={progress.generationSeed}
+                    hasClaimedWorkstation={Boolean(progress.playerWorkstationId)}
+                    isPlayer={progress.playerWorkstationId === placement.workstationId}
+                    key={placement.workstationId}
+                    npc={npc}
+                    placement={placement}
+                    present={Boolean(npc && presentNpcIds.has(npc.id))}
+                    onChoose={chooseWorkstation}
+                    onOpenDesktop={onOpenDesktop}
+                    onSelectNpc={setSelectedNpcId}
                   />
-                ))}
-                {geometry.seatSupports.map((support, supportIndex) => (
-                  <span
-                    aria-hidden="true"
-                    className={`lab-workstation-seat-support face-${support.face}`}
-                    key={`${workstationId}-seat-support-${supportIndex}`}
-                    style={projectLabGridPoint(support, support.height)}
-                  />
-                ))}
-                <span
-                  aria-hidden="true"
-                  className="lab-workstation-seat"
-                  style={projectLabGridPoint(geometry.seat, 0.5)}
-                />
-                {isPlayerWorkstation && (
-                  <span
-                    className="lab-player-workstation-hint"
-                    style={projectLabGridPoint(geometry.playerHint, 2.7, 300)}
-                  >
-                    {labels.lab.enterDesktop}
-                  </span>
-                )}
-                {hasComputer && (
-                  <>
-                    <span
-                      aria-hidden="true"
-                      className="lab-workstation-keyboard"
-                      style={projectLabIsoFace(geometry.keyboard, 100)}
-                    />
-                    {geometry.keyboardRows.map((row, rowIndex) => (
-                      <span
-                        aria-hidden="true"
-                        className="lab-workstation-keyboard-row"
-                        key={`${workstationId}-keyboard-row-${rowIndex}`}
-                        style={projectLabIsoFace(row, 101)}
-                      />
-                    ))}
-                    <button
-                      aria-label={npc?.name[language] ?? labels.lab.enterDesktop}
-                      className={`lab-workstation-screen face-${geometry.monitorFace} ${isPlayerWorkstation ? 'active' : ''} ${screenOff ? 'off' : ''}`}
-                      disabled={workstationDisabled}
-                      onClick={useWorkstation}
-                      style={projectLabGridPoint(geometry.monitor, 1.5, 100)}
-                      type="button"
-                    >
-                      {!screenOff && (
-                        <span
-                          aria-hidden="true"
-                          className={`lab-screen-ui ${screenVariant}`}
-                        >
-                          <i /><i /><i />
-                        </span>
-                      )}
-                    </button>
-                    {geometry.computerTower.map((face, faceIndex) => (
-                      <span
-                        aria-hidden="true"
-                        className={`lab-computer-tower-face face-${face.face} size-${face.size} ${face.kind} orientation-${placement.orientation}`}
-                        key={`${workstationId}-tower-${faceIndex}`}
-                        style={projectLabGridPoint(face, face.height, 100)}
-                      >
-                        {face.kind === 'front' && (
-                          <>
-                            <i /><i /><i />
-                            <b />
-                          </>
-                        )}
-                      </span>
-                    ))}
-                  </>
-                )}
-              </>
-            );
-
-            if (npc) {
-              const canTalk = npc.topics.some((topic) => (
-                !progress.completedTopicIds.includes(
-                  `${progress.day}:${npc.id}:${topic.id}`,
-                )
-              ));
-
-              return (
-                <div className="lab-workstation" key={workstationId}>
-                  {structure}
-                  <div
-                    className={`lab-cubicle npc-cubicle orientation-${placement.orientation}`}
-                    style={projectLabGridPoint(geometry.seat, 0.75, 120)}
-                  >
-                    <div className={`lab-npc-station ${present ? 'present' : 'absent'}`}>
-                      {present ? (
-                        <button
-                          className="lab-npc"
-                          onClick={() => setSelectedNpcId(npc.id)}
-                          style={{ '--npc-color': npc.color } as React.CSSProperties}
-                          type="button"
-                        >
-                          <span className="lab-npc-head">{npc.name[language].slice(0, 1)}</span>
-                          <span className="lab-npc-body" />
-                          {canTalk && <span className="lab-npc-talk-marker">?</span>}
-                        </button>
-                      ) : (
-                        <div aria-hidden="true" className="lab-empty-chair" />
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            }
-
-            return (
-              <div className="lab-workstation" key={workstationId}>
-                {structure}
-                <div
-                  className={`lab-cubicle orientation-${placement.orientation} ${isPlayerWorkstation ? 'player-cubicle' : 'available-cubicle'}`}
-                  style={projectLabGridPoint(geometry.seat)}
-                >
-                  {isPlayerWorkstation ? (
-                    <button
-                      aria-label={labels.lab.enterDesktop}
-                      className="lab-computer"
-                      onClick={onOpenDesktop}
-                      type="button"
-                    />
-                  ) : (
-                    <button
-                      className="lab-empty-workstation"
-                      disabled={Boolean(progress.playerWorkstationId)}
-                      onClick={() => chooseWorkstation(workstationId)}
-                      type="button"
-                    >
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+                );
+              })}
+            </div>
           </div>
         </div>
 
-        {noticeContent && (
+        <div className="lab-view-controls">
+          <button onClick={() => zoomBy(0.84)} type="button">−</button>
           <button
-            className="lab-notice"
-            onClick={() => setNotice(null)}
+            aria-label={labels.desktop.leftPanel.centerView}
+            className="lab-view-reset"
+            onClick={resetView}
             type="button"
           >
+            {Math.round(view.zoom * 100)}%
+          </button>
+          <button onClick={() => zoomBy(1.19)} type="button">+</button>
+        </div>
+
+        {noticeContent && (
+          <button className="lab-notice" onClick={() => setNotice(null)} type="button">
             <strong>{noticeContent[0]}</strong>
             <span>{noticeContent[1]}</span>
           </button>
@@ -321,11 +241,12 @@ export function LabWorkspace({ onOpenDesktop }: LabWorkspaceProps) {
 
       {selectedNpc && (
         <LabNpcDialog
+          day={gameProgress.time.day}
           key={selectedNpc.id}
           npc={selectedNpc}
           progress={progress}
           onClose={() => setSelectedNpcId(null)}
-          onCompleteTopic={completeTopic}
+          onCompleteTopic={completeTopicHandler}
         />
       )}
 
@@ -333,20 +254,11 @@ export function LabWorkspace({ onOpenDesktop }: LabWorkspaceProps) {
         <DesktopSettingsDialog
           onClose={() => setSettingsOpen(false)}
           onExit={exitApplication}
-          onResetAllFiles={() => {
-            resetAllFileStorage();
-            setSettingsOpen(false);
-          }}
+          onResetCurrent={resetLaboratory}
+          resetDescription={labels.desktop.settingsDialog.resetLabDescription}
+          resetLabel={labels.desktop.settingsDialog.resetLab}
         />
       )}
     </main>
   );
-}
-
-function getNpcScreenVariant(npcId: string): NpcScreenVariant {
-  const variantIndex = [...npcId].reduce(
-    (total, character) => total + character.charCodeAt(0),
-    0,
-  ) % NPC_SCREEN_VARIANTS.length;
-  return NPC_SCREEN_VARIANTS[variantIndex];
 }
