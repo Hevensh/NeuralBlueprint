@@ -656,30 +656,405 @@ button.lab-furniture-face:hover {
   position: absolute;
   left: 50%;
   top: 0;
-  width: 39.5%;
-  height: 38.5%;
-  display: grid;
-  place-items: center;
-  border: 0.23em solid color-mix(in srgb, var(--npc-color), white 25%);
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--npc-color) 36%, #07101f);
-  color: #f8fafc;
-  font-weight: 900;
+  width: 42%;
+  height: 41%;
   transform: translateX(-50%);
-  box-shadow: 0 0 1.08em color-mix(in srgb, var(--npc-color) 36%, transparent);
   animation: lab-npc-idle 2.4s ease-in-out infinite alternate;
 }
 
+.lab-npc-head-shape,
+.lab-npc-face {
+  position: absolute;
+}
+
+.lab-npc-head-shape {
+  inset: 0;
+  z-index: 1;
+  background: color-mix(in srgb, var(--npc-color), white 18%);
+  filter: drop-shadow(0 0 0.45em color-mix(in srgb, var(--npc-color) 34%, transparent));
+  transform: rotate(var(--npc-head-tilt)) skewX(var(--npc-head-skew));
+  transform-origin: 50% 55%;
+}
+
+.lab-npc-face {
+  inset: 0.18em;
+  background: var(--npc-shell);
+}
+
+.head-round .lab-npc-head-shape,
+.head-round .lab-npc-face {
+  border-radius: 58% 42% 54% 46% / 44% 56% 43% 57%;
+}
+
+.head-square .lab-npc-head-shape,
+.head-square .lab-npc-face {
+  clip-path: polygon(
+    var(--npc-head-top-left-x) 0,
+    100% calc(100% - var(--npc-head-top-right-x)),
+    var(--npc-head-bottom-right-x) 100%,
+    0 calc(100% - var(--npc-head-bottom-left-x))
+  );
+}
+
+.head-triangle .lab-npc-head-shape,
+.head-triangle .lab-npc-face {
+  clip-path: polygon(
+    var(--npc-head-apex) 0,
+    100% var(--npc-head-right-base),
+    0 var(--npc-head-left-base)
+  );
+}
+
+.head-hex .lab-npc-head-shape,
+.head-hex .lab-npc-face {
+  clip-path: polygon(
+    var(--npc-head-top-left-x) 0,
+    var(--npc-head-top-right-x) 4%,
+    100% var(--npc-head-right-y),
+    var(--npc-head-bottom-right-x) 100%,
+    var(--npc-head-bottom-left-x) 94%,
+    0 var(--npc-head-left-y)
+  );
+}
+
+.head-diamond .lab-npc-head-shape,
+.head-diamond .lab-npc-face {
+  clip-path: polygon(
+    var(--npc-head-apex) 0,
+    100% var(--npc-head-right-y),
+    var(--npc-head-bottom-right-x) 100%,
+    0 var(--npc-head-left-y)
+  );
+}
+
+.lab-npc-eye,
+.lab-npc-mouth,
+.lab-npc-mouth i,
+.lab-npc-module,
+.lab-npc-module i {
+  position: absolute;
+  display: block;
+}
+
+.lab-npc-eye {
+  z-index: 2;
+  width: 0.4em;
+  height: 0.4em;
+  background: var(--npc-signal);
+  filter: drop-shadow(0 0 0.12em color-mix(in srgb, var(--npc-signal), transparent 35%));
+  transform: rotate(var(--npc-eye-tilt)) scale(var(--npc-eye-scale));
+}
+
+.lab-npc-eye.left {
+  --npc-eye-tilt: var(--npc-eye-left-tilt);
+  --npc-eye-scale: var(--npc-eye-left-scale);
+  left: var(--npc-eye-left-x);
+  top: var(--npc-eye-left-y);
+}
+
+.lab-npc-eye.right {
+  --npc-eye-tilt: var(--npc-eye-right-tilt);
+  --npc-eye-scale: var(--npc-eye-right-scale);
+  right: var(--npc-eye-right-x);
+  top: var(--npc-eye-right-y);
+}
+.eyes-round .lab-npc-eye { border-radius: 50%; }
+.eyes-square .lab-npc-eye { border-radius: 0.04em; }
+.eyes-diamond .lab-npc-eye {
+  transform: rotate(calc(45deg + var(--npc-eye-tilt))) scale(var(--npc-eye-scale));
+}
+
+.eyes-slit .lab-npc-eye {
+  width: 0.62em;
+  height: 0.14em;
+}
+
+.eyes-mixed .lab-npc-eye.left {
+  border-radius: 50%;
+  transform: rotate(var(--npc-eye-tilt)) scale(var(--npc-eye-scale));
+}
+
+.eyes-mixed .lab-npc-eye.right {
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  transform: translateY(-0.04em) rotate(var(--npc-eye-tilt)) scale(var(--npc-eye-scale));
+}
+
+.lab-npc-mouth {
+  left: var(--npc-mouth-x);
+  top: var(--npc-mouth-y);
+  z-index: 2;
+  width: 0.84em;
+  height: 0.5em;
+  transform:
+    translateX(-50%)
+    rotate(var(--npc-mouth-tilt))
+    scale(var(--npc-mouth-scale));
+}
+
+.lab-npc-mouth i { background: var(--npc-module); }
+
+.mouth-bar .lab-npc-mouth i:first-child {
+  left: 8%;
+  top: 40%;
+  width: 84%;
+  height: 0.14em;
+}
+
+.mouth-grille .lab-npc-mouth i {
+  top: 12%;
+  width: 0.14em;
+  height: 0.44em;
+}
+
+.mouth-grille .lab-npc-mouth i:first-child { left: 15%; }
+.mouth-grille .lab-npc-mouth i:nth-child(2) { left: 43%; }
+.mouth-grille .lab-npc-mouth i:nth-child(3) { right: 12%; }
+
+.mouth-triangle .lab-npc-mouth i:first-child {
+  left: 24%;
+  width: 52%;
+  height: 90%;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+.mouth-square .lab-npc-mouth i:first-child {
+  left: 31%;
+  top: 6%;
+  width: 38%;
+  height: 74%;
+  box-shadow: inset 0 0 0 0.08em var(--npc-signal);
+}
+
+.mouth-chevron .lab-npc-mouth i:first-child,
+.mouth-chevron .lab-npc-mouth i:nth-child(2) {
+  top: 36%;
+  width: 55%;
+  height: 0.1em;
+}
+
+.mouth-chevron .lab-npc-mouth i:first-child { left: 2%; transform: rotate(18deg); }
+.mouth-chevron .lab-npc-mouth i:nth-child(2) { right: 2%; transform: rotate(-18deg); }
+
+.lab-npc-module {
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  transform: rotate(var(--npc-head-tilt)) skewX(var(--npc-head-skew));
+  transform-origin: 50% 55%;
+}
+
+.lab-npc-module i { background: var(--npc-module); }
+
+.module-vents .lab-npc-module i {
+  left: 18%;
+  width: 36%;
+  height: 0.09em;
+  transform: rotate(-8deg);
+}
+
+.module-vents .lab-npc-module i:first-child { top: 13%; }
+.module-vents .lab-npc-module i:nth-child(2) { top: 25%; left: 24%; }
+.module-vents .lab-npc-module i:nth-child(3) { top: 37%; left: 30%; }
+
+.module-antenna .lab-npc-module i:first-child,
+.module-antenna .lab-npc-module i:nth-child(2) {
+  bottom: 88%;
+  width: 0.12em;
+  height: 0.78em;
+  transform-origin: bottom;
+}
+
+.module-antenna .lab-npc-module i:first-child {
+  left: 35%;
+  transform: rotate(-22deg);
+  box-shadow: 0 -0.14em 0 0.11em var(--npc-signal);
+}
+
+.module-antenna .lab-npc-module i:nth-child(2) {
+  right: 35%;
+  transform: rotate(22deg);
+  box-shadow: 0 -0.14em 0 0.11em var(--npc-signal);
+}
+
+.module-beacons .lab-npc-module i {
+  top: -9%;
+  width: 0.3em;
+  height: 0.3em;
+  background: var(--npc-signal);
+  box-shadow: 0 0 0.3em color-mix(in srgb, var(--npc-signal), transparent 25%);
+}
+
+.module-beacons .lab-npc-module i:first-child { left: 12%; clip-path: circle(50%); }
+.module-beacons .lab-npc-module i:nth-child(2) { left: 44%; transform: rotate(45deg); }
+.module-beacons .lab-npc-module i:nth-child(3) { right: 8%; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+
+.module-fins .lab-npc-module i {
+  bottom: 92%;
+  width: 18%;
+  border-left: 0.08em solid color-mix(in srgb, var(--npc-module), white 24%);
+}
+
+.module-fins .lab-npc-module i:first-child { left: 12%; height: 42%; }
+.module-fins .lab-npc-module i:nth-child(2) { left: 41%; height: 62%; }
+.module-fins .lab-npc-module i:nth-child(3) { right: 10%; height: 34%; }
+
+.module-sensor .lab-npc-module i:first-child {
+  left: 47%;
+  bottom: 88%;
+  width: 0.12em;
+  height: 0.72em;
+}
+
+.module-sensor .lab-npc-module i:nth-child(2) {
+  left: 35%;
+  bottom: 138%;
+  width: 34%;
+  height: 34%;
+  border: 0.08em solid var(--npc-signal);
+  border-radius: 50%;
+  background: var(--npc-module);
+}
+
+.module-sensor .lab-npc-module i:nth-child(3) {
+  right: 2%;
+  top: 42%;
+  width: 0.24em;
+  height: 0.24em;
+  background: var(--npc-signal);
+  transform: rotate(45deg);
+}
+
+.module-ports .lab-npc-module i {
+  right: -7%;
+  width: 0.27em;
+  height: 0.27em;
+  box-shadow: inset 0 0 0 0.07em var(--npc-signal);
+}
+
+.module-ports .lab-npc-module i:first-child { top: 14%; }
+.module-ports .lab-npc-module i:nth-child(2) { top: 40%; }
+.module-ports .lab-npc-module i:nth-child(3) { top: 66%; }
+
 .lab-npc-body {
   position: absolute;
-  left: 50%;
-  top: 39.7%;
-  width: 50%;
-  height: 38.5%;
-  border-radius: 1.15em 1.15em 0.46em 0.46em;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--npc-color) 46%, #172033), #111827);
-  transform: translateX(-50%);
+  left: var(--npc-body-x);
+  top: 38%;
+  width: var(--npc-body-width);
+  height: var(--npc-body-height);
+  transform:
+    translateX(-50%)
+    rotate(var(--npc-body-tilt))
+    skewX(var(--npc-body-skew));
+  transform-origin: 50% 20%;
 }
+
+.lab-npc-torso,
+.lab-npc-torso i,
+.lab-npc-core,
+.lab-npc-base,
+.lab-npc-base i {
+  position: absolute;
+  display: block;
+}
+
+.lab-npc-torso {
+  inset: 8% 0 10%;
+  z-index: 2;
+}
+
+.lab-npc-torso .top {
+  inset: 0;
+  background: color-mix(in srgb, var(--npc-color), white 24%);
+  clip-path: polygon(
+    var(--npc-body-apex) 0,
+    100% var(--npc-body-right-shoulder),
+    var(--npc-body-apex) 40%,
+    0 var(--npc-body-left-shoulder)
+  );
+}
+
+.lab-npc-torso .light {
+  inset: 0;
+  background: color-mix(in srgb, var(--npc-color) 72%, var(--npc-shell));
+  clip-path: polygon(
+    0 var(--npc-body-left-shoulder),
+    var(--npc-body-apex) 40%,
+    var(--npc-body-apex) 100%,
+    var(--npc-body-left-foot) 78%
+  );
+}
+
+.lab-npc-torso .dark {
+  inset: 0;
+  background: color-mix(in srgb, var(--npc-color) 34%, #14232c);
+  clip-path: polygon(
+    var(--npc-body-apex) 40%,
+    100% var(--npc-body-right-shoulder),
+    var(--npc-body-right-foot) 78%,
+    var(--npc-body-apex) 100%
+  );
+}
+
+.lab-npc-core {
+  left: 50%;
+  top: 51%;
+  z-index: 3;
+  width: 0.42em;
+  height: 0.42em;
+  background: var(--npc-signal);
+  box-shadow: 0 0 0.32em color-mix(in srgb, var(--npc-signal), transparent 30%);
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.lab-npc-base {
+  left: 26%;
+  bottom: 0;
+  z-index: 1;
+  width: 48%;
+  height: 20%;
+}
+
+.lab-npc-base i { inset-block: 0; width: 50%; }
+.lab-npc-base i:first-child {
+  left: 0;
+  background: color-mix(in srgb, var(--npc-color) 52%, var(--npc-shell));
+  clip-path: polygon(0 0, 100% 22%, 100% 100%, 12% 72%);
+}
+
+.lab-npc-base i:nth-child(2) {
+  right: 0;
+  background: color-mix(in srgb, var(--npc-color) 25%, #14232c);
+  clip-path: polygon(0 22%, 100% 0, 88% 72%, 0 100%);
+}
+
+.body-wedge .lab-npc-torso { inset: 4% -8% 5% 6%; transform: skewX(-9deg); }
+.body-wedge .lab-npc-torso .top { transform: scaleY(0.72); transform-origin: top; }
+.body-wedge .lab-npc-core { left: 42%; top: 58%; }
+
+.body-stack .lab-npc-torso { inset: 8% 7% 23%; }
+.body-stack .lab-npc-base { left: 8%; width: 74%; height: 32%; transform: translateX(12%); }
+
+.body-crystal .lab-npc-torso { inset: -2% 7% 1%; }
+.body-crystal .lab-npc-torso .top {
+  clip-path: polygon(var(--npc-body-apex) 0, 100% 50%, var(--npc-body-apex) 100%, 0 50%);
+}
+.body-crystal .lab-npc-torso .light {
+  clip-path: polygon(0 50%, var(--npc-body-apex) 0, var(--npc-body-apex) 100%);
+}
+.body-crystal .lab-npc-torso .dark {
+  clip-path: polygon(var(--npc-body-apex) 0, 100% 50%, var(--npc-body-apex) 100%);
+}
+.body-crystal .lab-npc-core {
+  width: 0.68em;
+  height: 0.68em;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+.body-crystal .lab-npc-base { width: 32%; left: 34%; }
+
+.body-offset .lab-npc-torso { inset: 2% -5% 12% 10%; transform: rotate(7deg); }
+.body-offset .lab-npc-base { left: 12%; width: 56%; transform: translateX(24%); }
+.body-offset .lab-npc-core { left: 61%; top: 46%; }
 
 .lab-npc-talk-marker {
   position: absolute;

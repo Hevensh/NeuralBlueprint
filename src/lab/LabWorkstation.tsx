@@ -16,6 +16,7 @@ import {
 } from './labIsometric';
 import type { LabWorkstationPlacement } from './labSceneLayout';
 import type { LabNpcDefinition } from './labTypes';
+import { LabNpcAvatar } from './LabNpcAvatar';
 import { createLabWorkstationDepthMap } from './labWorkstationDepth';
 import { createLabWorkstationGeometry } from './labWorkstationGeometry';
 
@@ -262,16 +263,12 @@ export const LabWorkstation = memo(function LabWorkstation({
         {npc ? (
           <div className={`lab-npc-station ${present ? 'present' : 'absent'}`}>
             {present ? (
-              <button
-                className="lab-npc"
+              <LabNpcAvatar
+                canTalk={canTalk}
+                label={npc.name[language]}
+                npc={npc}
                 onClick={() => onSelectNpc(npc.id)}
-                style={{ '--npc-color': npc.color } as CSSProperties}
-                type="button"
-              >
-                <span className="lab-npc-head">{npc.name[language].slice(0, 1)}</span>
-                <span className="lab-npc-body" />
-                {canTalk && <span className="lab-npc-talk-marker">?</span>}
-              </button>
+              />
             ) : (
               <div aria-hidden="true" className="lab-empty-chair" />
             )}
