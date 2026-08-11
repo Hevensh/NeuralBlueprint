@@ -38,6 +38,31 @@
   gap: 8px;
 }
 
+.property-field-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.dimension-field-input {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 32px;
+  gap: 5px;
+}
+
+.dimension-state-button {
+  border: 1px solid rgba(34, 211, 238, 0.28);
+  border-radius: 8px;
+  background: rgba(8, 47, 73, 0.54);
+  color: #67e8f9;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.dimension-number-field .property-label {
+  display: none;
+}
+
 .property-label {
   font-size: 12px;
   font-weight: 800;

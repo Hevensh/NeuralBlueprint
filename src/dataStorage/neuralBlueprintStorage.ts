@@ -2,6 +2,7 @@ import type { Edge } from '@xyflow/react';
 import { PageType } from '../blueprint/PageTypes';
 import type {
   BiasInitializationMode,
+  CNNNodeData,
   DropoutNodeData,
   InputNodeData,
   InputNormalizationMode,
@@ -10,9 +11,13 @@ import type {
   ModuleAnalysisDirection,
   ModuleBaseNode,
   ModuleBaseNodeKind,
+  ModuleDimension,
   ModuleNodeData,
   ModuleNodeLock,
   OutputNodeData,
+  PoolMode,
+  PoolingNodeData,
+  ThreeDInputNodeData,
 } from '../blueprint/neuralBlueprint/ModuleBaseNodeTypes';
 import {
   createModuleNodeData,
@@ -37,6 +42,14 @@ export interface StoredInputNode extends StoredModuleBaseNode<'Input'> {
   normalizationMode?: InputNormalizationMode;
 }
 
+export interface StoredThreeDInputNode extends StoredModuleBaseNode<'3DInput'> {
+  outputDim: number;
+  effectiveRank: number;
+  normalizationMode?: InputNormalizationMode;
+  height: Exclude<ModuleDimension, 'absent'>;
+  width: Exclude<ModuleDimension, 'absent'>;
+}
+
 export interface StoredLinearNode extends StoredModuleBaseNode<'Linear'> {
   outputDim: number;
   inFeatures?: number;
@@ -49,13 +62,43 @@ export interface StoredDropoutNode extends StoredModuleBaseNode<'Dropout'> {
   dropoutRate?: number;
 }
 
+export interface StoredCNNNode extends StoredModuleBaseNode<'CNN'> {
+  outputDim: number;
+  kernelSize: number;
+  stride: number;
+  padding: number;
+  dilation: number;
+  useBias: boolean;
+  initializationMode: LinearInitializationMode;
+  biasInitializationMode: BiasInitializationMode;
+}
+
+export interface StoredPoolingNode extends StoredModuleBaseNode<'Pooling'> {
+  poolMode: PoolMode;
+  kernelSize: number;
+  stride: number;
+  padding: number;
+}
+
+export interface StoredGlobalPoolingNode extends StoredModuleBaseNode<'GlobalPooling'> {
+  poolMode: PoolMode;
+}
+
 export interface StoredOutputNode extends StoredModuleBaseNode<'Output'> {
   neededOutputDim?: number;
+  neededTime: ModuleDimension;
+  neededHeight: ModuleDimension;
+  neededWidth: ModuleDimension;
 }
 
 export type StoredModuleNode =
   | StoredInputNode
+  | StoredThreeDInputNode
   | StoredLinearNode
+  | StoredCNNNode
+  | StoredPoolingNode
+  | StoredModuleBaseNode<'Flatten'>
+  | StoredGlobalPoolingNode
   | StoredDropoutNode
   | StoredModuleBaseNode<'ReLU'>
   | StoredModuleBaseNode<'Sum'>
@@ -74,6 +117,7 @@ export interface StoredNeuralBlueprintGraph {
     analysisDirection?: ModuleAnalysisDirection;
     showRankAnalysis: boolean;
     showVarianceAnalysis: boolean;
+    showRepetitionAnalysis?: boolean;
   };
 }
 
@@ -92,11 +136,14 @@ export function loadNeuralBlueprintGraph(
     ? JSON.parse(raw) as StoredNeuralBlueprintGraph
     : initialGraph;
   const nodes = buildNodes(graph.nodes, graph.edges);
-  const edges = graph.edges.map((edge) => ({
-    id: edge.id,
-    source: edge.source,
-    target: edge.target,
-  }));
+  const nodeIds = new Set(nodes.map((node) => node.id));
+  const edges = graph.edges
+    .filter((edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target))
+    .map((edge) => ({
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+    }));
 
   return { nodes, edges };
 }
@@ -109,6 +156,7 @@ export function loadNeuralBlueprintUi(fileId: string) {
         analysisDirection: 'forward' as const,
         showRankAnalysis: false,
         showVarianceAnalysis: false,
+        showRepetitionAnalysis: false,
       };
     }
 
@@ -117,12 +165,14 @@ export function loadNeuralBlueprintUi(fileId: string) {
       analysisDirection: parsed.ui?.analysisDirection ?? 'forward',
       showRankAnalysis: parsed.ui?.showRankAnalysis ?? false,
       showVarianceAnalysis: parsed.ui?.showVarianceAnalysis ?? false,
+      showRepetitionAnalysis: parsed.ui?.showRepetitionAnalysis ?? false,
     };
   } catch {
     return {
       analysisDirection: 'forward' as const,
       showRankAnalysis: false,
       showVarianceAnalysis: false,
+      showRepetitionAnalysis: false,
     };
   }
 }
@@ -135,6 +185,7 @@ export function saveNeuralBlueprintGraph(
     analysisDirection: ModuleAnalysisDirection;
     showRankAnalysis: boolean;
     showVarianceAnalysis: boolean;
+    showRepetitionAnalysis: boolean;
   },
 ) {
   const graph: StoredNeuralBlueprintGraph = {
@@ -180,6 +231,38 @@ function buildNodes(
           inputEffectiveRank: node.effectiveRank ?? 32,
         });
         break;
+      case '3DInput':
+        dataById.set(node.id, {
+          ...createModuleNodeData('3DInput', common),
+          normalizationMode: node.normalizationMode ?? '0-1',
+          outFeatures: node.outputDim,
+          inputEffectiveRank: node.effectiveRank,
+          height: node.height,
+          width: node.width,
+        });
+        break;
+      case 'CNN':
+        dataById.set(node.id, {
+          ...createModuleNodeData('CNN', common),
+          initializationMode: node.initializationMode,
+          biasInitializationMode: node.biasInitializationMode,
+          outFeatures: node.outputDim,
+          kernelSize: node.kernelSize,
+          stride: node.stride,
+          padding: node.padding,
+          dilation: node.dilation,
+          useBias: node.useBias,
+        });
+        break;
+      case 'Pooling':
+        dataById.set(node.id, {
+          ...createModuleNodeData('Pooling', common),
+          poolMode: node.poolMode,
+          kernelSize: node.kernelSize,
+          stride: node.stride,
+          padding: node.padding,
+        });
+        break;
       case 'Linear':
         dataById.set(node.id, {
           ...createModuleNodeData('Linear', common),
@@ -190,6 +273,12 @@ function buildNodes(
           useBias: node.useBias ?? true,
         });
         break;
+      case 'GlobalPooling':
+        dataById.set(node.id, {
+          ...createModuleNodeData('GlobalPooling', common),
+          poolMode: node.poolMode,
+        });
+        break;
       case 'Dropout':
         dataById.set(node.id, {
           ...createModuleNodeData('Dropout', common),
@@ -198,12 +287,16 @@ function buildNodes(
         break;
       case 'ReLU':
       case 'Sum':
+      case 'Flatten':
         dataById.set(node.id, createModuleNodeData(node.kind, common));
         break;
       case 'Output':
         dataById.set(node.id, {
           ...createModuleNodeData('Output', common),
           neededOutputDim: node.neededOutputDim ?? DEFAULT_OUTPUT_DIM,
+          neededTime: node.neededTime,
+          neededHeight: node.neededHeight,
+          neededWidth: node.neededWidth,
         });
         break;
     }
@@ -218,15 +311,19 @@ function buildNodes(
     target.predecessors = [...target.predecessors, source];
   });
 
-  return storedNodes.map((node) => ({
-    id: node.id,
-    type: PageType.NeuralBlueprint,
-    position: node.position,
-    data: dataById.get(node.id) as ModuleNodeData,
-    draggable: true,
-    deletable: !dataById.get(node.id)?.locked?.deletion,
-    selectable: true,
-  }));
+  return storedNodes.flatMap((node) => {
+    const data = dataById.get(node.id);
+    if (!data) return [];
+    return [{
+      id: node.id,
+      type: PageType.NeuralBlueprint,
+      position: node.position,
+      data,
+      draggable: true,
+      deletable: !data.locked?.deletion,
+      selectable: true,
+    }];
+  });
 }
 
 function toStoredNode(node: ModuleBaseNode): StoredModuleNode {
@@ -240,12 +337,25 @@ function toStoredNode(node: ModuleBaseNode): StoredModuleNode {
   switch (node.data.kind) {
     case 'Input':
       return toStoredInputNode(base, node.data);
+    case '3DInput':
+      return toStoredThreeDInputNode(base, node.data);
     case 'Linear':
       return toStoredLinearNode(base, node.data);
+    case 'CNN':
+      return toStoredCNNNode(base, node.data);
+    case 'Pooling':
+      return toStoredPoolingNode(base, node.data);
+    case 'GlobalPooling':
+      return {
+        ...base,
+        kind: 'GlobalPooling',
+        poolMode: node.data.poolMode,
+      };
     case 'Dropout':
       return toStoredDropoutNode(base, node.data);
     case 'ReLU':
     case 'Sum':
+    case 'Flatten':
       return {
         ...base,
         kind: node.data.kind,
@@ -265,6 +375,53 @@ function toStoredInputNode(
     outputDim: data.outFeatures,
     effectiveRank: data.inputEffectiveRank,
     normalizationMode: data.normalizationMode,
+  };
+}
+
+function toStoredThreeDInputNode(
+  base: Omit<StoredModuleBaseNode<'3DInput'>, 'kind'>,
+  data: ThreeDInputNodeData,
+): StoredThreeDInputNode {
+  return {
+    ...base,
+    kind: '3DInput',
+    outputDim: data.outFeatures,
+    effectiveRank: data.inputEffectiveRank,
+    normalizationMode: data.normalizationMode,
+    height: data.height,
+    width: data.width,
+  };
+}
+
+function toStoredCNNNode(
+  base: Omit<StoredModuleBaseNode<'CNN'>, 'kind'>,
+  data: CNNNodeData,
+): StoredCNNNode {
+  return {
+    ...base,
+    kind: 'CNN',
+    outputDim: data.outFeatures,
+    kernelSize: data.kernelSize,
+    stride: data.stride,
+    padding: data.padding,
+    dilation: data.dilation,
+    useBias: data.useBias,
+    initializationMode: data.initializationMode,
+    biasInitializationMode: data.biasInitializationMode,
+  };
+}
+
+function toStoredPoolingNode(
+  base: Omit<StoredModuleBaseNode<'Pooling'>, 'kind'>,
+  data: PoolingNodeData,
+): StoredPoolingNode {
+  return {
+    ...base,
+    kind: 'Pooling',
+    poolMode: data.poolMode,
+    kernelSize: data.kernelSize,
+    stride: data.stride,
+    padding: data.padding,
   };
 }
 
@@ -295,12 +452,15 @@ function toStoredDropoutNode(
 }
 
 function toStoredOutputNode(
-  base: Omit<StoredOutputNode, 'kind'>,
+  base: Omit<StoredModuleBaseNode<'Output'>, 'kind'>,
   data: OutputNodeData,
 ): StoredOutputNode {
   return {
     ...base,
     kind: 'Output',
     neededOutputDim: data.neededOutputDim,
+    neededTime: data.neededTime,
+    neededHeight: data.neededHeight,
+    neededWidth: data.neededWidth,
   };
 }

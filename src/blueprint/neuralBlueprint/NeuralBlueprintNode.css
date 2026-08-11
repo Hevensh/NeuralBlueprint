@@ -51,6 +51,20 @@
   line-height: 1.25;
 }
 
+.neural-blueprint-node-shape-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px;
+}
+
+.neural-blueprint-node-shape-grid .neural-blueprint-node-preview-item {
+  gap: 4px;
+}
+
+.neural-blueprint-node-shape-grid .shape-leading-item {
+  grid-column: 1 / -1;
+}
+
 .neural-blueprint-node-preview-item span {
   color: rgba(125, 211, 252, 0.78);
   font-weight: 700;
@@ -63,12 +77,14 @@
 }
 
 .neural-blueprint-node-preview-item.rank-analysis-preview,
-.neural-blueprint-node-preview-item.variance-analysis-preview {
+.neural-blueprint-node-preview-item.variance-analysis-preview,
+.neural-blueprint-node-preview-item.repetition-analysis-preview {
   display: none;
 }
 
 .canvas-wrap[data-rank-analysis="true"] .neural-blueprint-node-preview-item.rank-analysis-preview,
-.canvas-wrap[data-variance-analysis="true"] .neural-blueprint-node-preview-item.variance-analysis-preview {
+.canvas-wrap[data-variance-analysis="true"] .neural-blueprint-node-preview-item.variance-analysis-preview,
+.canvas-wrap[data-repetition-analysis="true"] .neural-blueprint-node-preview-item.repetition-analysis-preview {
   display: flex;
 }
 
@@ -77,9 +93,34 @@
   background: rgba(6, 78, 59, 0.72);
 }
 
+.neural-blueprint-node[class~="3DInput"] {
+  border-color: rgba(74, 222, 128, 0.58);
+  background: rgba(20, 83, 45, 0.72);
+}
+
 .neural-blueprint-node.Linear {
   border-color: rgba(34, 211, 238, 0.52);
   background: rgba(8, 47, 73, 0.78);
+}
+
+.neural-blueprint-node.CNN {
+  border-color: rgba(167, 139, 250, 0.62);
+  background: rgba(76, 29, 149, 0.68);
+}
+
+.neural-blueprint-node.Pooling {
+  border-color: rgba(244, 114, 182, 0.58);
+  background: rgba(131, 24, 67, 0.62);
+}
+
+.neural-blueprint-node.Flatten {
+  border-color: rgba(251, 191, 36, 0.58);
+  background: rgba(120, 53, 15, 0.64);
+}
+
+.neural-blueprint-node.GlobalPooling {
+  border-color: rgba(251, 146, 60, 0.58);
+  background: rgba(124, 45, 18, 0.64);
 }
 
 .neural-blueprint-node.ReLU {
@@ -236,6 +277,7 @@
 }
 
 .neural-blueprint-node.Input .input-handle,
+.neural-blueprint-node[class~="3DInput"] .input-handle,
 .neural-blueprint-node.Output .output-handle {
   display: none;
 }

@@ -37,6 +37,7 @@ export function NeuralBlueprintWorkspace({
     useState<InferenceMemoryFocus | null>(null);
   const [showVarianceAnalysis, setShowVarianceAnalysis] = useState(initialUi.showVarianceAnalysis);
   const [showRankAnalysis, setShowRankAnalysis] = useState(initialUi.showRankAnalysis);
+  const [showRepetitionAnalysis, setShowRepetitionAnalysis] = useState(initialUi.showRepetitionAnalysis);
   const [analysisDirection, setAnalysisDirection] = useState<ModuleAnalysisDirection>(
     initialUi.analysisDirection,
   );
@@ -55,6 +56,8 @@ export function NeuralBlueprintWorkspace({
     && showVarianceAnalysis;
   const effectiveShowRankAnalysis = features.showRankAnalysisToggle
     && showRankAnalysis;
+  const effectiveShowRepetitionAnalysis = features.showRepetitionAnalysisToggle
+    && showRepetitionAnalysis;
 
   return (
     <>
@@ -73,6 +76,7 @@ export function NeuralBlueprintWorkspace({
         activeInferenceNodeIds={activeInferenceFocus?.nodeIds ?? []}
         showRankAnalysis={effectiveShowRankAnalysis}
         showVarianceAnalysis={effectiveShowVarianceAnalysis}
+        showRepetitionAnalysis={effectiveShowRepetitionAnalysis}
         setSelectedNode={setSelectedNode}
         onTaskSnapshotChange={onTaskSnapshotChange}
       />
@@ -83,8 +87,10 @@ export function NeuralBlueprintWorkspace({
         selectedInferenceModelId={selectedInferenceModelId}
         showRankAnalysis={effectiveShowRankAnalysis}
         showVarianceAnalysis={effectiveShowVarianceAnalysis}
+        showRepetitionAnalysis={effectiveShowRepetitionAnalysis}
         setShowRankAnalysis={setShowRankAnalysis}
         setShowVarianceAnalysis={setShowVarianceAnalysis}
+        setShowRepetitionAnalysis={setShowRepetitionAnalysis}
         setAnalysisDirection={setAnalysisDirection}
         setSelectedInferenceModelId={setSelectedInferenceModelId}
         setSelectedNode={setSelectedNode}

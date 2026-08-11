@@ -5,6 +5,11 @@ import type {
 import { backwardDropoutStats } from './dropout';
 import { backwardLinearStats } from './linear';
 import { backwardReLUStats } from './relu';
+import { backwardCNNStats } from './cnn';
+import {
+  backwardGlobalPoolingStats,
+  backwardPoolingStats,
+} from './pooling';
 
 export function backwardModuleStats(
   node: ModuleNodeData,
@@ -13,11 +18,39 @@ export function backwardModuleStats(
   switch (node.kind) {
     case 'Linear':
       return backwardLinearStats(node, gradient);
+    case 'CNN':
+      return backwardCNNStats(node, gradient);
+    case 'Pooling':
+      return backwardPoolingStats(node, gradient);
     case 'ReLU':
       return backwardReLUStats(node, gradient);
     case 'Dropout':
       return backwardDropoutStats(node, gradient);
+    case 'Flatten':
+      return restoreInputChannelRank(node, gradient);
+    case 'GlobalPooling':
+      return restoreInputChannelRank(
+        node,
+        backwardGlobalPoolingStats(node, gradient),
+      );
     default:
       return gradient;
   }
+}
+
+function restoreInputChannelRank(
+  node: ModuleNodeData,
+  gradient: ModuleStatsBackward,
+): ModuleStatsBackward {
+  const inputRank = node.predecessors[0]?.stats?.rank;
+  if (!Number.isFinite(inputRank)) return gradient;
+  const rank = inputRank as number;
+  const effectiveRank = Math.min(gradient.effectiveRank, rank);
+  return {
+    ...gradient,
+    rank,
+    effectiveRank,
+    saturation: rank > 0 ? effectiveRank / rank : 0,
+    minRank: Math.min(gradient.minRank ?? gradient.rank, rank),
+  };
 }

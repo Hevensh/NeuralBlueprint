@@ -167,6 +167,14 @@ function nodeConfigSignature(data: ModuleNodeData) {
   switch (data.kind) {
     case 'Input':
       return [data.outFeatures, data.inputEffectiveRank, data.normalizationMode];
+    case '3DInput':
+      return [
+        data.outFeatures,
+        data.inputEffectiveRank,
+        data.normalizationMode,
+        data.height,
+        data.width,
+      ];
     case 'Linear':
       return [
         data.inFeatures ?? '',
@@ -177,8 +185,27 @@ function nodeConfigSignature(data: ModuleNodeData) {
       ];
     case 'Dropout':
       return [data.dropoutRate];
+    case 'CNN':
+      return [
+        data.outFeatures,
+        data.kernelSize,
+        data.stride,
+        data.padding,
+        data.dilation,
+        data.initializationMode,
+        data.biasInitializationMode,
+      ];
+    case 'Pooling':
+      return [data.poolMode, data.kernelSize, data.stride, data.padding];
+    case 'GlobalPooling':
+      return [data.poolMode];
     case 'Output':
-      return [data.neededOutputDim];
+      return [
+        data.neededTime,
+        data.neededOutputDim,
+        data.neededHeight,
+        data.neededWidth,
+      ];
     default:
       return [];
   }

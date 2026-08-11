@@ -2,6 +2,7 @@ import type {
   ModuleNodeData,
   ModuleStats,
 } from '../../ModuleBaseNodeTypes';
+import { preserveRepetitionRank } from '../repetitionRank';
 import { EPS } from './utils/constants';
 import {
   getGateLinearCorr,
@@ -51,6 +52,8 @@ export function forwardReLUStats(
     dimLabel: 'normal',
     effectiveRank,
     saturation,
+    shape: input.shape,
+    repetitionRank: preserveRepetitionRank(input, effectiveRank),
     minRank: input.minRank,
     mean: outputMoments.mean,
     variance: outputMoments.variance,

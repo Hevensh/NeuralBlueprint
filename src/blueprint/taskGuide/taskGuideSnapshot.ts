@@ -39,7 +39,12 @@ export interface TrainingProcessTaskSnapshot {
 
 const MODULE_KINDS: ModuleBaseNodeKind[] = [
   'Input',
+  '3DInput',
   'Linear',
+  'CNN',
+  'Pooling',
+  'Flatten',
+  'GlobalPooling',
   'ReLU',
   'Dropout',
   'Sum',

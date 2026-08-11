@@ -3,6 +3,7 @@ import type {
   ModuleNodeData,
   ModuleStats,
 } from '../../ModuleBaseNodeTypes';
+import { preserveRepetitionRank } from '../repetitionRank';
 import { EPS } from './utils/constants';
 import {
   clamp01,
@@ -25,6 +26,8 @@ export function forwardDropoutStats(
       dimLabel: 'normal',
       effectiveRank: input.rank,
       saturation: 1,
+      shape: input.shape,
+      repetitionRank: { high: 0, medium: 0, low: 0 },
       minRank: input.minRank,
       mean: 0,
       variance: 0,
@@ -48,6 +51,8 @@ export function forwardDropoutStats(
     dimLabel: 'normal',
     effectiveRank,
     saturation,
+    shape: input.shape,
+    repetitionRank: preserveRepetitionRank(input, effectiveRank),
     minRank: input.minRank,
     mean: outputMoments.mean,
     variance: outputMoments.variance,

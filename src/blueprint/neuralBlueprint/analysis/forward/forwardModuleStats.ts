@@ -7,13 +7,18 @@ import { forwardInputStats } from './input';
 import { forwardLinearStats } from './linear';
 import { forwardReLUStats } from './relu';
 import { forwardDropoutStats } from './dropout';
+import { forwardCNNStats } from './cnn';
+import { forwardPoolingStats } from './pool';
+import { readTensorShape, sameTensorShape } from './spatial';
+import { forwardFlattenStats } from './flatten';
+import { forwardGlobalPoolingStats } from './globalPooling';
 import { aggregateForwardStats } from '../aggregation/forward';
 import { getInvalidInferenceStats } from './utils/moduleStats';
 
 export function forwardModuleStats(
   context: ModuleStatsForwardContext,
 ): ModuleStatsForwardResult {
-  if (context.node.kind === 'Input') {
+  if (context.node.kind === 'Input' || context.node.kind === '3DInput') {
     return {
       stats: forwardInputStats(context.node),
     };
@@ -28,6 +33,28 @@ export function forwardModuleStats(
       return {
         stats: forwardLinearStats(context.node, input, inputNode),
       };
+    case 'CNN': {
+      const stats = forwardCNNStats(context.node, input);
+      return {
+        stats: stats ?? getInvalidInferenceStats(context.node, 'not the same'),
+      };
+    }
+    case 'Pooling': {
+      const stats = forwardPoolingStats(context.node, input);
+      return {
+        stats: stats ?? getInvalidInferenceStats(context.node, 'not the same'),
+      };
+    }
+    case 'Flatten':
+      return {
+        stats: forwardFlattenStats(input),
+      };
+    case 'GlobalPooling': {
+      const stats = forwardGlobalPoolingStats(context.node, input);
+      return {
+        stats: stats ?? getInvalidInferenceStats(context.node, 'not the same'),
+      };
+    }
     case 'ReLU':
       return {
         stats: forwardReLUStats(input, inputNode),
@@ -57,8 +84,14 @@ function forwardOutputStats(
   input: ModuleStatsForwardResult['stats'],
 ) {
   const neededOutputDim = Math.round(node.neededOutputDim);
+  const neededShape = {
+    time: node.neededTime,
+    channels: neededOutputDim,
+    height: node.neededHeight,
+    width: node.neededWidth,
+  };
 
-  if (input.rank !== neededOutputDim) {
+  if (!sameTensorShape(readTensorShape(input), neededShape)) {
     return getInvalidInferenceStats(node, 'not the same');
   }
 

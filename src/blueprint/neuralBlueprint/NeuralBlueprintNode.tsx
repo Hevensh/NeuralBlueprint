@@ -1,7 +1,11 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import './NeuralBlueprintNode.css';
 import './NeuralBlueprintNodeBackward.css';
-import type { ModuleBaseNode } from './ModuleBaseNodeTypes';
+import type {
+  ModuleBaseNode,
+  ModuleDimension,
+  ModuleTensorShape,
+} from './ModuleBaseNodeTypes';
 
 export function NeuralBlueprintNode({
   data,
@@ -37,17 +41,53 @@ export function NeuralBlueprintNode({
       <div className="neural-blueprint-node-kind">{data.kind}</div>
       <div className="neural-blueprint-node-name">{data.name}</div>
       <div className="neural-blueprint-node-preview">
-        <NodePreviewItem label="dim" value={outputDim} />
+        <ShapePreview fallback={outputDim} shape={data.stats?.shape} />
         <NodePreviewItem className="rank-analysis-preview" label="rank" value={effectiveRank} />
         <NodePreviewItem className="rank-analysis-preview" label="sat" value={saturation} />
         <NodePreviewItem className="variance-analysis-preview" label="mean" value={mean} />
         <NodePreviewItem className="variance-analysis-preview" label="std" value={standardDeviation} />
+        <NodePreviewItem className="repetition-analysis-preview" label="rep-H" value={formatFixed(data.stats?.repetitionRank?.high, 2)} />
+        <NodePreviewItem className="repetition-analysis-preview" label="rep-M" value={formatFixed(data.stats?.repetitionRank?.medium, 2)} />
+        <NodePreviewItem className="repetition-analysis-preview" label="rep-L" value={formatFixed(data.stats?.repetitionRank?.low, 2)} />
       </div>
       <Handle
         className="module-base-node-handle output-handle"
         position={Position.Right}
         type="source"
       />
+    </div>
+  );
+}
+
+function ShapePreview({
+  fallback,
+  shape,
+}: {
+  fallback: string;
+  shape: ModuleTensorShape | undefined;
+}) {
+  const dimensions = shape
+    ? ([
+      ['T', shape.time],
+      ['dim', shape.channels],
+      ['H', shape.height],
+      ['W', shape.width],
+    ] as const).filter(([, value]) => value !== 'absent')
+    : [];
+  if (dimensions.length === 0) {
+    return <NodePreviewItem label="dim" value={fallback} />;
+  }
+  const hasLeadingDimension = dimensions.length % 2 === 1;
+  return (
+    <div className="neural-blueprint-node-shape-grid">
+      {dimensions.map(([label, value], index) => (
+        <NodePreviewItem
+          className={hasLeadingDimension && index === 0 ? 'shape-leading-item' : ''}
+          key={label}
+          label={label}
+          value={formatDimension(value)}
+        />
+      ))}
     </div>
   );
 }
@@ -71,6 +111,12 @@ function NodePreviewItem({
 
 function formatInteger(value: number | undefined) {
   return Number.isFinite(value) ? String(Math.round(value as number)) : '---';
+}
+
+function formatDimension(value: ModuleDimension) {
+  if (value === 'unknown') return '?';
+  if (value === 'absent') return '—';
+  return formatInteger(value);
 }
 
 function getOutputDimLabel(

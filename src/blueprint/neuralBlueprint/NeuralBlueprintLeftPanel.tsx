@@ -10,7 +10,12 @@ interface ModuleBaseNodeTemplate {
 
 const moduleBaseNodeTemplates: ModuleBaseNodeTemplate[] = [
   { kind: 'Input' },
+  { kind: '3DInput' },
   { kind: 'Linear' },
+  { kind: 'CNN' },
+  { kind: 'Pooling' },
+  { kind: 'Flatten' },
+  { kind: 'GlobalPooling' },
   { kind: 'ReLU' },
   { kind: 'Dropout' },
   { kind: 'Sum' },
@@ -20,6 +25,14 @@ const moduleBaseNodeTemplates: ModuleBaseNodeTemplate[] = [
 function getModuleBaseNodeIcon(kind: ModuleBaseNodeKind) {
   return kind === 'Linear'
     ? 'W'
+    : kind === 'CNN'
+      ? 'C'
+      : kind === 'Pooling'
+        ? 'P'
+        : kind === 'Flatten'
+          ? 'F'
+          : kind === 'GlobalPooling'
+            ? 'GP'
     : kind === 'ReLU'
       ? 'R'
       : kind === 'Dropout'
@@ -28,7 +41,9 @@ function getModuleBaseNodeIcon(kind: ModuleBaseNodeKind) {
           ? '+'
           : kind === 'Output'
             ? 'Y'
-            : 'X';
+            : kind === '3DInput'
+              ? '3D'
+              : 'X';
 }
 
 function handleDragStart(

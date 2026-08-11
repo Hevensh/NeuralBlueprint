@@ -5,6 +5,12 @@ import type {
   ModuleStatsForwardResult,
 } from '../../ModuleBaseNodeTypes';
 import { getLinearCorrBetweenNodes } from '../correlation';
+import { maxRepetitionRank } from '../repetitionRank';
+import {
+  mergeTensorShapes,
+  readTensorShape,
+  sameTensorShape,
+} from '../forward/spatial';
 import { DEFAULT_INPUT_STATS, EPS } from '../forward/utils/constants';
 import { estimateSumNegativeRate, isNonNegative } from '../forward/utils/math';
 import {
@@ -44,7 +50,7 @@ function aggregateForwardSumStats({
     : [DEFAULT_INPUT_STATS];
   const validInputNodes = flattened.inputNodes;
 
-  if (!hasSameInputRank(validInputs)) {
+  if (!hasSameInputShape(validInputs)) {
     return {
       stats: getInvalidInferenceStats(node, 'not the same'),
     };
@@ -75,6 +81,8 @@ function aggregateForwardSumStats({
     stats: {
       ...sumRankState,
       dimLabel: 'normal',
+      shape: mergeTensorShapes(validInputs.map(readTensorShape)),
+      repetitionRank: maxRepetitionRank(validInputs),
       mean,
       variance,
       zeroRate: allNonNegative
@@ -95,16 +103,15 @@ function aggregateForwardSumStats({
   };
 }
 
-function hasSameInputRank(inputs: ModuleStats[]) {
-  if (inputs.some((input) => !Number.isFinite(input.rank))) {
-    return false;
-  }
-
+function hasSameInputShape(inputs: ModuleStats[]) {
   if (inputs.length < 2) {
     return true;
   }
 
-  return inputs.every((input) => input.rank === inputs[0].rank);
+  const firstShape = readTensorShape(inputs[0]);
+  return inputs.every((input) => (
+    sameTensorShape(readTensorShape(input), firstShape)
+  ));
 }
 
 function computeSumRankStats(

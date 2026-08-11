@@ -23,6 +23,8 @@ import type {
   ModuleBaseNode,
   ModuleLockedProperty,
   ModuleNodeData,
+  ModuleTensorShape,
+  ModuleDimension,
 } from './ModuleBaseNodeTypes';
 
 interface NeuralBlueprintRightPanelProp {
@@ -32,8 +34,10 @@ interface NeuralBlueprintRightPanelProp {
   selectedInferenceModelId: string;
   showRankAnalysis: boolean;
   showVarianceAnalysis: boolean;
+  showRepetitionAnalysis: boolean;
   setShowRankAnalysis: Dispatch<SetStateAction<boolean>>;
   setShowVarianceAnalysis: Dispatch<SetStateAction<boolean>>;
+  setShowRepetitionAnalysis: Dispatch<SetStateAction<boolean>>;
   setAnalysisDirection: Dispatch<SetStateAction<ModuleAnalysisDirection>>;
   setSelectedInferenceModelId: (modelId: string) => void;
   setSelectedNode: Dispatch<SetStateAction<ModuleNodeData | null>>;
@@ -53,8 +57,10 @@ export function NeuralBlueprintRightPanel({
   selectedInferenceModelId,
   showRankAnalysis,
   showVarianceAnalysis,
+  showRepetitionAnalysis,
   setShowRankAnalysis,
   setShowVarianceAnalysis,
+  setShowRepetitionAnalysis,
   setAnalysisDirection,
   setSelectedInferenceModelId,
   setSelectedNode,
@@ -116,7 +122,9 @@ export function NeuralBlueprintRightPanel({
   const handleOutputDimChange = (value: number) => {
     if (!selectedNode || (
       selectedNode.kind !== 'Input'
+      && selectedNode.kind !== '3DInput'
       && selectedNode.kind !== 'Linear'
+      && selectedNode.kind !== 'CNN'
     )) return;
 
     const rank = Math.round(value);
@@ -185,6 +193,15 @@ export function NeuralBlueprintRightPanel({
             {analysisLabels.varianceAnalysis}
           </button>
         )}
+        {features.showRepetitionAnalysisToggle && (
+          <button
+            className={`toggle-button ${showRepetitionAnalysis ? 'active' : ''}`}
+            onClick={() => setShowRepetitionAnalysis((current) => !current)}
+            type="button"
+          >
+            {analysisLabels.repetitionAnalysis}
+          </button>
+        )}
       </div>
       {selectedNode ? (
         <div className="property-panel">
@@ -202,7 +219,7 @@ export function NeuralBlueprintRightPanel({
             <div className="property-value">{selectedNode.kind}</div>
           </div>
 
-          {selectedNode.kind === 'Input' || selectedNode.kind === 'Linear' ? (
+          {selectedNode.kind === 'Input' || selectedNode.kind === '3DInput' || selectedNode.kind === 'Linear' || selectedNode.kind === 'CNN' ? (
             <NumberField
               label={propertyLabels.outputDim}
               disabled={outputDimLocked}
@@ -227,6 +244,11 @@ export function NeuralBlueprintRightPanel({
               </div>
             </div>
           )}
+
+          <div className="property-field">
+            <span className="property-label">{propertyLabels.shape}</span>
+            <div className="property-value">{formatShape(selectedNode.stats?.shape)}</div>
+          </div>
 
           {showRankAnalysis && (
             analysisDirection === 'backward' || selectedNode.kind !== 'Input'
@@ -305,6 +327,25 @@ function getStandardDeviation(variance: number | undefined) {
   return typeof variance === 'number' && !Number.isNaN(variance)
     ? Math.sqrt(Math.max(variance, 0))
     : undefined;
+}
+
+function formatShape(shape: ModuleTensorShape | undefined) {
+  if (!shape) return '';
+  return ([
+    ['T', shape.time],
+    ['C', shape.channels],
+    ['H', shape.height],
+    ['W', shape.width],
+  ] as const)
+    .filter(([, value]) => value !== 'absent')
+    .map(([, value]) => formatShapeDimension(value))
+    .join(' × ');
+}
+
+function formatShapeDimension(dimension: ModuleDimension) {
+  if (dimension === 'unknown') return '?';
+  if (dimension === 'absent') return '';
+  return String(dimension);
 }
 
 function hasLockedPatch<TNode extends ModuleNodeData>(

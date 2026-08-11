@@ -325,6 +325,7 @@ export function computeModulePathCost(
 ) {
   switch (node.kind) {
     case 'Input':
+    case '3DInput':
       return 0;
     case 'Linear':
       return computeLinearPathCost(node, direction);

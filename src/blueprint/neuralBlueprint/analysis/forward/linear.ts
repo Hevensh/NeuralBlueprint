@@ -3,6 +3,8 @@ import type {
   ModuleNodeData,
   ModuleStats,
 } from '../../ModuleBaseNodeTypes';
+import { preserveRepetitionRank } from '../repetitionRank';
+import { readTensorShape } from './spatial';
 import { EPS, LINEAR_SATURATION_GAIN } from './utils/constants';
 import { negativeRateFromNormal } from './utils/math';
 import {
@@ -31,12 +33,20 @@ export function forwardLinearStats(
   const biasVariance = getBiasVariance(node);
   const outputMean = 0;
   const outputVariance = fanIn * weightVariance * (input.variance + input.mean ** 2) + biasVariance;
+  const inputShape = readTensorShape(input);
 
   return {
     rank: fanOut,
     dimLabel: 'normal',
     effectiveRank,
     saturation,
+    shape: {
+      time: inputShape.time,
+      channels: fanOut,
+      height: inputShape.height,
+      width: inputShape.width,
+    },
+    repetitionRank: preserveRepetitionRank(input, effectiveRank),
     minRank,
     mean: outputMean,
     variance: outputVariance,

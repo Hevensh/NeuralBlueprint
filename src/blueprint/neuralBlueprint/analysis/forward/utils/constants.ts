@@ -17,6 +17,13 @@ export const DEFAULT_INPUT_STATS: ModuleStats = {
   variance: 1,
   zeroRate: 0,
   negativeRate: 0.5,
+  shape: {
+    time: 'absent',
+    channels: DEFAULT_RANK,
+    height: 'absent',
+    width: 'absent',
+  },
+  repetitionRank: { high: 0, medium: 0, low: 0 },
 };
 
 export const EMPTY_STATS: ModuleStats = {
@@ -29,4 +36,11 @@ export const EMPTY_STATS: ModuleStats = {
   variance: Number.NaN,
   zeroRate: Number.NaN,
   negativeRate: Number.NaN,
+  shape: {
+    time: 'absent',
+    channels: 'unknown',
+    height: 'absent',
+    width: 'absent',
+  },
+  repetitionRank: { high: 0, medium: 0, low: 0 },
 };

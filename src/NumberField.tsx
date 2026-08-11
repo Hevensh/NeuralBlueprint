@@ -9,6 +9,7 @@ interface NumberFieldProps {
   className?: string;
   disabled?: boolean;
   guideTarget?: string;
+  placeholder?: string;
   onClear?: () => void;
   onChange: (value: number) => void;
 }
@@ -22,6 +23,7 @@ export function NumberField({
   className,
   disabled,
   guideTarget,
+  placeholder,
   onClear,
   onChange,
 }: NumberFieldProps) {
@@ -65,6 +67,7 @@ export function NumberField({
             if (draft !== '') setDraft(null);
           }}
           step={step}
+          placeholder={placeholder}
           type="number"
           value={draft ?? finiteValue ?? ''}
         />

@@ -41,7 +41,11 @@ export function runForwardStats(
       return;
     }
 
-    if (node.kind !== 'Input' && node.predecessors.length === 0) {
+    if (
+      node.kind !== 'Input'
+      && node.kind !== '3DInput'
+      && node.predecessors.length === 0
+    ) {
       const disconnectedStats = getDisconnectedStats(node);
       node.sumInputPairStats = undefined;
       node.stats = disconnectedStats;

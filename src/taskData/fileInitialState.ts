@@ -25,6 +25,10 @@ import {
   MODULE_LAYOUT_START_Y,
   getNodeHeight,
 } from '../blueprint/neuralBlueprint/utils/arrangeNodes';
+import {
+  DEFAULT_3D_INPUT_CHANNELS,
+  DEFAULT_3D_INPUT_SIZE,
+} from '../blueprint/neuralBlueprint/moduleNodeFactory';
 import { TASK_FILE_CONFIGS } from './configs';
 import { DEFAULT_DATASET_SPLIT_RATIO } from './knowledgeGraphDefaults';
 import type {
@@ -121,11 +125,64 @@ function toStoredModuleNodeConfig(
     };
   }
 
+  if (node.kind === '3DInput') {
+    return {
+      ...base,
+      kind: '3DInput',
+      outputDim: node.outputDim ?? DEFAULT_3D_INPUT_CHANNELS,
+      effectiveRank: node.effectiveRank ?? DEFAULT_3D_INPUT_CHANNELS,
+      normalizationMode: node.normalizationMode,
+      height: node.height === 'absent'
+        ? 'unknown'
+        : node.height ?? DEFAULT_3D_INPUT_SIZE,
+      width: node.width === 'absent'
+        ? 'unknown'
+        : node.width ?? DEFAULT_3D_INPUT_SIZE,
+    };
+  }
+
   if (node.kind === 'Linear') {
     return {
       ...base,
       kind: 'Linear',
       outputDim: node.outputDim ?? 64,
+      useBias: node.useBias,
+      initializationMode: node.initializationMode,
+      biasInitializationMode: node.biasInitializationMode,
+    };
+  }
+
+  if (node.kind === 'CNN') {
+    return {
+      ...base,
+      kind: 'CNN',
+      outputDim: node.outputDim ?? 32,
+      kernelSize: node.kernelSize ?? 3,
+      stride: node.stride ?? 1,
+      padding: node.padding ?? 1,
+      dilation: node.dilation ?? 1,
+      useBias: node.useBias ?? true,
+      initializationMode: node.initializationMode ?? 'xavier_normal',
+      biasInitializationMode: node.biasInitializationMode ?? 'zeros',
+    };
+  }
+
+  if (node.kind === 'Pooling') {
+    return {
+      ...base,
+      kind: 'Pooling',
+      poolMode: node.poolMode ?? 'max',
+      kernelSize: node.kernelSize ?? 2,
+      stride: node.stride ?? 2,
+      padding: node.padding ?? 0,
+    };
+  }
+
+  if (node.kind === 'GlobalPooling') {
+    return {
+      ...base,
+      kind: 'GlobalPooling',
+      poolMode: node.poolMode ?? 'average',
     };
   }
 
@@ -134,6 +191,9 @@ function toStoredModuleNodeConfig(
       ...base,
       kind: 'Output',
       neededOutputDim: node.neededOutputDim ?? 64,
+      neededTime: node.time ?? 'absent',
+      neededHeight: node.height ?? 'absent',
+      neededWidth: node.width ?? 'absent',
     };
   }
 

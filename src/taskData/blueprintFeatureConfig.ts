@@ -5,7 +5,12 @@ export type NetworkCapabilityMode = MemoryProfileSource | 'select';
 
 export const ALL_NEURAL_BLUEPRINT_MODULES: ModuleBaseNodeKind[] = [
   'Input',
+  '3DInput',
   'Linear',
+  'CNN',
+  'Pooling',
+  'Flatten',
+  'GlobalPooling',
   'ReLU',
   'Dropout',
   'Sum',
@@ -19,6 +24,7 @@ export type BlueprintTaskFeatureConfig = {
     showBackwardAnalysisControl?: boolean;
     showVarianceAnalysisToggle?: boolean;
     showRankAnalysisToggle?: boolean;
+    showRepetitionAnalysisToggle?: boolean;
   };
   knowledgeGraph: {
     canOpenTab: boolean;
@@ -39,6 +45,7 @@ export type ResolvedBlueprintTaskFeatureConfig = {
     showBackwardAnalysisControl: boolean;
     showVarianceAnalysisToggle: boolean;
     showRankAnalysisToggle: boolean;
+    showRepetitionAnalysisToggle: boolean;
   };
   knowledgeGraph: {
     canOpenTab: boolean;
@@ -59,6 +66,7 @@ export const DEFAULT_BLUEPRINT_TASK_FEATURES: ResolvedBlueprintTaskFeatureConfig
     showBackwardAnalysisControl: true,
     showVarianceAnalysisToggle: true,
     showRankAnalysisToggle: true,
+    showRepetitionAnalysisToggle: true,
   },
   knowledgeGraph: {
     canOpenTab: true,

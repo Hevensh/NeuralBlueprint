@@ -75,7 +75,12 @@ function normalizeFixedOutputRank(node: ModuleNodeData): ModuleNodeData {
     };
   }
 
-  if (node.kind !== 'Input' && node.kind !== 'Linear') return node;
+  if (
+    node.kind !== 'Input'
+    && node.kind !== '3DInput'
+    && node.kind !== 'Linear'
+    && node.kind !== 'CNN'
+  ) return node;
 
   const outFeatures = Number.isFinite(node.outFeatures)
     ? node.outFeatures

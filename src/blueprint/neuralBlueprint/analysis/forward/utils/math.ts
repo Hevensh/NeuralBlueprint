@@ -62,19 +62,26 @@ export function getConditionalPositiveRate(input: ModuleStats) {
 }
 
 export function getReluSaturation(input: ModuleStats) {
-  return Math.pow(
-    clamp01(input.saturation),
-    getConditionalPositiveRate(input),
+  return getNonZeroTransitionSaturation(
+    input,
+    clamp01(input.zeroRate + (input.negativeRate ?? 0)),
   );
 }
 
 export function getDropoutSaturation(input: ModuleStats, dropoutRate: number) {
-  const beforeNonZeroRate = clamp01(1 - input.zeroRate);
-  const afterNonZeroRate = beforeNonZeroRate * (1 - clamp01(dropoutRate));
-  if (beforeNonZeroRate <= EPS) {
-    return 0;
-  }
+  const removedRate = clamp01(dropoutRate);
+  const outputZeroRate = removedRate
+    + (1 - removedRate) * clamp01(input.zeroRate);
+  return getNonZeroTransitionSaturation(input, outputZeroRate);
+}
 
+export function getNonZeroTransitionSaturation(
+  input: Pick<ModuleStats, 'saturation' | 'zeroRate'>,
+  outputZeroRateInput: number,
+) {
+  const beforeNonZeroRate = clamp01(1 - input.zeroRate);
+  const afterNonZeroRate = clamp01(1 - outputZeroRateInput);
+  if (beforeNonZeroRate <= EPS) return 1;
   return Math.pow(
     clamp01(input.saturation),
     afterNonZeroRate / beforeNonZeroRate,

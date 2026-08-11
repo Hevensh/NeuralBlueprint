@@ -1,4 +1,5 @@
 import type {
+  BiasInitializationMode,
   LinearNodeData,
   ModuleDimLabel,
   ModuleNodeData,
@@ -31,6 +32,9 @@ export function getDisconnectedStats(node: ModuleNodeData): ModuleStats {
     || node.kind === 'ReLU'
     || node.kind === 'Dropout'
     || node.kind === 'Output'
+    || node.kind === 'Pooling'
+    || node.kind === 'Flatten'
+    || node.kind === 'GlobalPooling'
   ) {
     return EMPTY_STATS;
   }
@@ -60,6 +64,11 @@ export function getFanIn(
   node: LinearNodeData,
   input?: Pick<ModuleStats, 'rank'>,
 ) {
+  if (
+    input
+    && !Number.isFinite(input.rank)
+    && node.inFeatures === undefined
+  ) return Number.NaN;
   const inferredRank = input?.rank ?? node.predecessors.reduce(
     (sum, predecessor) => sum + (predecessor.stats?.rank ?? DEFAULT_RANK),
     0,
@@ -76,7 +85,7 @@ function getRetainedRank(node: ModuleNodeData) {
   const rank = node.kind === 'Output'
     ? node.neededOutputDim
     : (
-        node.kind === 'Input' || node.kind === 'Linear'
+        node.kind === 'Input' || node.kind === '3DInput' || node.kind === 'Linear' || node.kind === 'CNN'
       )
         ? node.outFeatures
         : node.stats?.rank;
@@ -97,7 +106,10 @@ export function getWeightVariance(
   return 1 / fanIn;
 }
 
-export function getBiasVariance(node: LinearNodeData) {
+export function getBiasVariance(node: {
+  useBias: boolean;
+  biasInitializationMode: BiasInitializationMode;
+}) {
   if (!node.useBias) {
     return 0;
   }

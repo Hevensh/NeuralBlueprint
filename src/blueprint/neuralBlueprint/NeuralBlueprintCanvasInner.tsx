@@ -94,6 +94,7 @@ interface NeuralBlueprintCanvasInnerProp {
   fileId: string;
   showRankAnalysis: boolean;
   showVarianceAnalysis: boolean;
+  showRepetitionAnalysis: boolean;
   setSelectedNode: Dispatch<SetStateAction<ModuleNodeData | null>>;
   onTaskSnapshotChange?: (snapshot: NeuralBlueprintTaskSnapshot) => void;
 }
@@ -107,6 +108,7 @@ export function NeuralBlueprintCanvasInner({
   fileId,
   showRankAnalysis,
   showVarianceAnalysis,
+  showRepetitionAnalysis,
   setSelectedNode,
   onTaskSnapshotChange,
 }: NeuralBlueprintCanvasInnerProp) {
@@ -393,7 +395,11 @@ export function NeuralBlueprintCanvasInner({
     const sourceNode = nodes.find((node) => node.id === connection.source);
     const targetNode = nodes.find((node) => node.id === connection.target);
     if (!sourceNode || !targetNode) return;
-    if (sourceNode.data.kind === 'Output' || targetNode.data.kind === 'Input') return;
+    if (
+      sourceNode.data.kind === 'Output'
+      || targetNode.data.kind === 'Input'
+      || targetNode.data.kind === '3DInput'
+    ) return;
     if (targetNode.data.kind !== 'Sum' && edges.some((edge) => edge.target === targetNode.id)) return;
     if (edges.some((edge) => edge.source === sourceNode.id && edge.target === targetNode.id)) return;
 
@@ -459,6 +465,7 @@ export function NeuralBlueprintCanvasInner({
         analysisDirection,
         showRankAnalysis,
         showVarianceAnalysis,
+        showRepetitionAnalysis,
       });
     }, 500);
     return () => window.clearTimeout(timer);
@@ -469,6 +476,7 @@ export function NeuralBlueprintCanvasInner({
     nodes,
     showRankAnalysis,
     showVarianceAnalysis,
+    showRepetitionAnalysis,
   ]);
 
   useEffect(() => {
@@ -535,6 +543,7 @@ export function NeuralBlueprintCanvasInner({
       data-guide-target="neural-blueprint-canvas"
       data-rank-analysis={showRankAnalysis}
       data-variance-analysis={showVarianceAnalysis}
+      data-repetition-analysis={showRepetitionAnalysis}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >

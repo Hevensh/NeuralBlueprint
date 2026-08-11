@@ -7,8 +7,12 @@ import type {
 } from '../blueprint/knowledgeGraph/model/types';
 import type {
   InputNormalizationMode,
+  LinearInitializationMode,
+  BiasInitializationMode,
   ModuleBaseNodeKind,
   ModuleLockedProperty,
+  ModuleDimension,
+  PoolMode,
 } from '../blueprint/neuralBlueprint/ModuleBaseNodeTypes';
 import type { StoredNeuralBlueprintGraph } from '../dataStorage/neuralBlueprintStorage';
 
@@ -42,6 +46,17 @@ export type TaskModuleNodeConfig = {
   effectiveRank?: number;
   neededOutputDim?: number;
   normalizationMode?: InputNormalizationMode;
+  time?: ModuleDimension;
+  height?: ModuleDimension;
+  width?: ModuleDimension;
+  kernelSize?: number;
+  stride?: number;
+  padding?: number;
+  dilation?: number;
+  poolMode?: PoolMode;
+  initializationMode?: LinearInitializationMode;
+  biasInitializationMode?: BiasInitializationMode;
+  useBias?: boolean;
   lockedProperties?: ModuleLockedProperty[];
   deletable?: boolean;
 };

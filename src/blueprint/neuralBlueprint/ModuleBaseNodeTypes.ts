@@ -1,12 +1,36 @@
 import type { Node } from '@xyflow/react';
 import type { NeuralBlueprintPageType } from '../PageTypes';
 
-export type ModuleBaseNodeKind = 'Input' | 'Linear' | 'ReLU' | 'Dropout' | 'Sum' | 'Output';
+export type ModuleBaseNodeKind =
+  | 'Input'
+  | '3DInput'
+  | 'Linear'
+  | 'CNN'
+  | 'Pooling'
+  | 'Flatten'
+  | 'GlobalPooling'
+  | 'ReLU'
+  | 'Dropout'
+  | 'Sum'
+  | 'Output';
 export type ModuleAnalysisDirection = 'forward' | 'backward';
 export type ModuleDimLabel = 'normal' | 'not the same' | '---';
 export type InputNormalizationMode = '0-1' | 'standard';
 export type LinearInitializationMode = 'standard_normal' | 'xavier_normal';
 export type BiasInitializationMode = 'zeros' | 'standard_normal';
+export type PoolMode = 'max' | 'average';
+export type ModuleDimension = number | 'unknown' | 'absent';
+export interface ModuleTensorShape {
+  time: ModuleDimension;
+  channels: ModuleDimension;
+  height: ModuleDimension;
+  width: ModuleDimension;
+}
+export interface RepetitionRank {
+  high: number;
+  medium: number;
+  low: number;
+}
 export type ModuleLockedProperty =
   | 'outputDim'
   | 'effectiveRank'
@@ -24,6 +48,10 @@ export interface ModuleStats {
   dimLabel: ModuleDimLabel;
   /** Estimated effective rank carried by the module output. */
   effectiveRank: number;
+  /** Tensor shape carried alongside channel-rank analysis. */
+  shape?: ModuleTensorShape;
+  /** High-, medium-, and low-frequency repetition adaptation ranks. */
+  repetitionRank?: RepetitionRank;
   /** effectiveRank / rank. This can exceed 1 after Sum composition. */
   saturation: number;
   /** Rank trace used only for linear-correlation rho estimation. */
@@ -121,6 +149,7 @@ export interface ModuleBaseNodeData<
   locked?: ModuleNodeLock;
   memoryPoint?: number;
   inferencePoint?: number;
+  showRepetitionAnalysis?: boolean;
   sumInputPairStats?: SumInputPairStats[];
   backwardOutputPairStats?: BackwardOutputPairStats[];
   position: {
@@ -135,12 +164,46 @@ export interface InputNodeData extends ModuleBaseNodeData<'Input'> {
   inputEffectiveRank: number;
 }
 
+export interface ThreeDInputNodeData extends ModuleBaseNodeData<'3DInput'> {
+  normalizationMode: InputNormalizationMode;
+  outFeatures: number;
+  inputEffectiveRank: number;
+  height: Exclude<ModuleDimension, 'absent'>;
+  width: Exclude<ModuleDimension, 'absent'>;
+}
+
 export interface LinearNodeData extends ModuleBaseNodeData<'Linear'> {
   initializationMode: LinearInitializationMode;
   biasInitializationMode: BiasInitializationMode;
   inFeatures?: number;
   outFeatures: number;
   useBias: boolean;
+}
+
+export interface CNNNodeData extends ModuleBaseNodeData<'CNN'> {
+  initializationMode: LinearInitializationMode;
+  biasInitializationMode: BiasInitializationMode;
+  outFeatures: number;
+  kernelSize: number;
+  stride: number;
+  padding: number;
+  dilation: number;
+  useBias: boolean;
+}
+
+export interface PoolingNodeData extends ModuleBaseNodeData<'Pooling'> {
+  poolMode: PoolMode;
+  kernelSize: number;
+  stride: number;
+  padding: number;
+}
+
+export interface FlattenNodeData extends ModuleBaseNodeData<'Flatten'> {
+  readonly kind: 'Flatten';
+}
+
+export interface GlobalPoolingNodeData extends ModuleBaseNodeData<'GlobalPooling'> {
+  poolMode: PoolMode;
 }
 
 export interface ReLUNodeData extends ModuleBaseNodeData<'ReLU'> {
@@ -158,11 +221,19 @@ export interface SumNodeData extends ModuleBaseNodeData<'Sum'> {
 export interface OutputNodeData extends ModuleBaseNodeData<'Output'> {
   readonly kind: 'Output';
   neededOutputDim: number;
+  neededTime: ModuleDimension;
+  neededHeight: ModuleDimension;
+  neededWidth: ModuleDimension;
 }
 
 export type ModuleNodeData =
   | InputNodeData
+  | ThreeDInputNodeData
   | LinearNodeData
+  | CNNNodeData
+  | PoolingNodeData
+  | FlattenNodeData
+  | GlobalPoolingNodeData
   | ReLUNodeData
   | DropoutNodeData
   | SumNodeData
