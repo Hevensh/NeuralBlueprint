@@ -5,7 +5,7 @@ import type {
   ModuleStatsForwardResult,
 } from '../../ModuleBaseNodeTypes';
 import { getLinearCorrBetweenNodes } from '../correlation';
-import { maxRepetitionRank } from '../repetitionRank';
+import { maxRepetitionStats } from '../repetitionRank';
 import {
   mergeTensorShapes,
   readTensorShape,
@@ -52,11 +52,14 @@ function aggregateForwardSumStats({
 
   if (!hasSameInputShape(validInputs)) {
     return {
-      stats: getInvalidInferenceStats(node, 'not the same'),
+      stats: getInvalidInferenceStats(node, 'shape-mismatch'),
     };
   }
 
-  const mean = validInputs.reduce((sum, input) => sum + input.mean, 0);
+  const mean = validInputs.reduce(
+    (sum, input) => sum + input.distribution.mean,
+    0,
+  );
   const covariance = computeSumCovariance(
     validInputs,
     validInputNodes,
@@ -64,7 +67,10 @@ function aggregateForwardSumStats({
     statsByNodeId,
   );
   const variance = Math.max(
-    validInputs.reduce((sum, input) => sum + input.variance, 0)
+    validInputs.reduce(
+      (sum, input) => sum + input.distribution.variance,
+      0,
+    )
       + covariance.total,
     0,
   );
@@ -80,17 +86,29 @@ function aggregateForwardSumStats({
   return {
     stats: {
       ...sumRankState,
-      dimLabel: 'normal',
+      status: 'valid',
       shape: mergeTensorShapes(validInputs.map(readTensorShape)),
-      repetitionRank: maxRepetitionRank(validInputs),
-      mean,
-      variance,
-      zeroRate: allNonNegative
-        ? validInputs.reduce((product, input) => product * input.zeroRate, 1)
-        : 0,
-      negativeRate: allNonNegative
-        ? 0
-        : estimateSumNegativeRate(mean, variance),
+      adaptation: {
+        repetition: maxRepetitionStats(
+          validInputs,
+          sumRankState.rank.effectiveRank,
+        ),
+      },
+      distribution: {
+        mean,
+        variance,
+        zeroRate: allNonNegative
+          ? validInputs.reduce(
+            (product, input) => (
+              product * input.distribution.zeroRate
+            ),
+            1,
+          )
+          : 0,
+        negativeRate: allNonNegative
+          ? 0
+          : estimateSumNegativeRate(mean, variance),
+      },
       inputElementCorr: computeSumInputCorr(
         validInputs,
         validInputNodes,
@@ -132,7 +150,7 @@ function computeSumRankStats(
   }
 
   const rank = inputs.reduce(
-    (maxRank, input) => Math.max(maxRank, input.rank),
+    (maxRank, input) => Math.max(maxRank, input.rank.outputRank),
     0,
   );
   const linearPairCorrelation = computeInputPairCorrelation(
@@ -148,10 +166,13 @@ function computeSumRankStats(
   const minRank = computeSumMinRank(inputs, linearPairCorrelation);
 
   return {
-    rank,
-    effectiveRank,
-    saturation: effectiveRank / Math.max(rank, EPS),
-    minRank,
+    rank: {
+      outputRank: rank,
+      basisRank: rank,
+      effectiveRank,
+      saturation: effectiveRank / Math.max(rank, EPS),
+      minRank,
+    },
     inputLinearCorr: computeSumInputLinearCorr(
       inputs,
       inputNodes,
@@ -165,7 +186,7 @@ function computeSumEffectiveRankByEvidence(
   inputPairCorrelation: Map<string, number>,
 ) {
   return inputs.reduce((sum, input, leftIndex) => {
-    const inputStd = Math.sqrt(input.variance);
+    const inputStd = Math.sqrt(input.distribution.variance);
     if (inputStd <= 0) return sum;
 
     const correlatedStd = inputs.reduce((stdSum, otherInput, rightIndex) => {
@@ -176,10 +197,12 @@ function computeSumEffectiveRankByEvidence(
           inputPairCorrelation,
           leftIndex,
           rightIndex,
-        ) * Math.sqrt(otherInput.variance);
+        ) * Math.sqrt(otherInput.distribution.variance);
     }, inputStd);
 
-    return sum + (input.effectiveRank * inputStd) / correlatedStd;
+    return sum + (
+      input.rank.effectiveRank * inputStd
+    ) / correlatedStd;
   }, 0);
 }
 
@@ -188,7 +211,9 @@ function computeSumMinRank(
   inputPairCorrelation: Map<string, number>,
 ) {
   let minRank = inputs.reduce(
-    (sum, input) => sum + (input.minRank ?? input.rank),
+    (sum, input) => sum + (
+      input.rank.minRank ?? input.rank.outputRank
+    ),
     0,
   );
 
@@ -198,8 +223,10 @@ function computeSumMinRank(
       rightIndex < inputs.length;
       rightIndex += 1
     ) {
-      const leftMinRank = inputs[leftIndex].minRank ?? inputs[leftIndex].rank;
-      const rightMinRank = inputs[rightIndex].minRank ?? inputs[rightIndex].rank;
+      const leftMinRank = inputs[leftIndex].rank.minRank
+        ?? inputs[leftIndex].rank.outputRank;
+      const rightMinRank = inputs[rightIndex].rank.minRank
+        ?? inputs[rightIndex].rank.outputRank;
       minRank -= getInputPairCorrelation(
         inputPairCorrelation,
         leftIndex,
@@ -219,8 +246,8 @@ function computeSumInputLinearCorr(
   const inputLinearCorr: Record<string, number> = {};
 
   inputNodes.forEach((inputNode, inputIndex) => {
-    const inputMinRank = inputs[inputIndex]?.minRank
-      ?? inputs[inputIndex]?.rank
+    const inputMinRank = inputs[inputIndex]?.rank.minRank
+      ?? inputs[inputIndex]?.rank.outputRank
       ?? 0;
     inputLinearCorr[inputNode.id] = inputMinRank > 0 && sumMinRank > 0
       ? Math.sqrt(inputMinRank / sumMinRank)

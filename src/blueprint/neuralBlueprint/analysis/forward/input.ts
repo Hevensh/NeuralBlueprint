@@ -3,6 +3,7 @@ import type {
   ThreeDInputNodeData,
   ModuleStats,
 } from '../../ModuleBaseNodeTypes';
+import { createEmptyRepetitionStats } from '../repetitionRank';
 import { EPS } from './utils/constants';
 
 export function forwardInputStats(
@@ -25,18 +26,22 @@ export function forwardInputStats(
     };
 
   return {
-    rank,
-    dimLabel: 'normal',
-    effectiveRank,
-    saturation: effectiveRank / Math.max(rank, EPS),
+    status: 'valid',
+    rank: {
+      outputRank: rank,
+      basisRank: rank,
+      effectiveRank,
+      saturation: effectiveRank / Math.max(rank, EPS),
+      minRank: rank,
+    },
     shape: {
       time: 'absent',
       channels: rank,
       height: node.kind === '3DInput' ? normalizeInputDimension(node.height) : 'absent',
       width: node.kind === '3DInput' ? normalizeInputDimension(node.width) : 'absent',
     },
-    repetitionRank: { high: 0, medium: 0, low: 0 },
-    ...inputDistribution,
+    adaptation: { repetition: createEmptyRepetitionStats() },
+    distribution: inputDistribution,
   };
 }
 

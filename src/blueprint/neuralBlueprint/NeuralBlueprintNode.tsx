@@ -12,11 +12,21 @@ export function NeuralBlueprintNode({
 }: NodeProps<ModuleBaseNode>) {
   const isBackward = data.analysisDirection === 'backward';
   const stats = isBackward ? data.statsBackward : data.stats;
-  const outputDim = getOutputDimLabel(data, isBackward, stats?.rank);
-  const effectiveRank = formatFixed(stats?.effectiveRank, 2);
-  const saturation = formatFixed(stats?.saturation, 3);
-  const mean = formatFixed(stats?.mean, 3);
-  const standardDeviation = formatStandardDeviation(stats?.variance);
+  const hasNoInputConnection = requiresInputConnection(data)
+    && data.links.predecessorIds.length === 0;
+  const needsSpatialInput = shouldShowSpatialInputRequirement(data, isBackward);
+  const outputDim = getOutputDimLabel(
+    data,
+    isBackward,
+    stats?.rank.outputRank,
+    needsSpatialInput,
+  );
+  const effectiveRank = formatFixed(stats?.rank.effectiveRank, 2);
+  const saturation = formatFixed(stats?.rank.saturation, 3);
+  const mean = formatFixed(stats?.distribution.mean, 3);
+  const standardDeviation = formatStandardDeviation(
+    stats?.distribution.variance,
+  );
   const className = [
     'neural-blueprint-node',
     data.kind,
@@ -29,8 +39,8 @@ export function NeuralBlueprintNode({
       className={className}
       data-guide-node-id={data.id}
       data-guide-node-kind={data.kind}
-      data-guide-predecessor-ids={data.predecessors.map((node) => node.id).join(' ')}
-      data-guide-successor-ids={data.successors.map((node) => node.id).join(' ')}
+      data-guide-predecessor-ids={data.links.predecessorIds.join(' ')}
+      data-guide-successor-ids={data.links.successorIds.join(' ')}
       data-guide-target={`module-node-${data.id}`}
     >
       <Handle
@@ -41,14 +51,22 @@ export function NeuralBlueprintNode({
       <div className="neural-blueprint-node-kind">{data.kind}</div>
       <div className="neural-blueprint-node-name">{data.name}</div>
       <div className="neural-blueprint-node-preview">
-        <ShapePreview fallback={outputDim} shape={data.stats?.shape} />
+        <ShapePreview
+          alwaysShowSpatial={data.kind === 'CNN' || data.kind === 'Pooling'}
+          fallback={outputDim}
+          preferFallback={!isBackward && data.stats?.status !== 'valid'}
+          shape={data.stats?.shape}
+          unavailableDimensions={!isBackward && hasNoInputConnection}
+        />
         <NodePreviewItem className="rank-analysis-preview" label="rank" value={effectiveRank} />
         <NodePreviewItem className="rank-analysis-preview" label="sat" value={saturation} />
         <NodePreviewItem className="variance-analysis-preview" label="mean" value={mean} />
         <NodePreviewItem className="variance-analysis-preview" label="std" value={standardDeviation} />
-        <NodePreviewItem className="repetition-analysis-preview" label="rep-H" value={formatFixed(data.stats?.repetitionRank?.high, 2)} />
-        <NodePreviewItem className="repetition-analysis-preview" label="rep-M" value={formatFixed(data.stats?.repetitionRank?.medium, 2)} />
-        <NodePreviewItem className="repetition-analysis-preview" label="rep-L" value={formatFixed(data.stats?.repetitionRank?.low, 2)} />
+        <NodePreviewItem className="repetition-analysis-preview" label="rep-S" value={formatFixed(hasNoInputConnection ? undefined : data.stats?.adaptation.repetition.effective.small, 2)} />
+        <NodePreviewItem className="repetition-analysis-preview" label="rep-M" value={formatFixed(hasNoInputConnection ? undefined : data.stats?.adaptation.repetition.effective.medium, 2)} />
+        <NodePreviewItem className="repetition-analysis-preview" label="rep-L" value={formatFixed(hasNoInputConnection ? undefined : data.stats?.adaptation.repetition.effective.large, 2)} />
+        <NodePreviewItem className="repetition-analysis-preview" label="rep-XL" value={formatFixed(hasNoInputConnection ? undefined : data.stats?.adaptation.repetition.effective.extraLarge, 2)} />
+        <NodePreviewItem className="repetition-analysis-preview" label="rep-G" value={formatFixed(hasNoInputConnection ? undefined : data.stats?.adaptation.repetition.effective.global, 2)} />
       </div>
       <Handle
         className="module-base-node-handle output-handle"
@@ -60,20 +78,39 @@ export function NeuralBlueprintNode({
 }
 
 function ShapePreview({
+  alwaysShowSpatial = false,
   fallback,
+  preferFallback = false,
   shape,
+  unavailableDimensions = false,
 }: {
+  alwaysShowSpatial?: boolean;
   fallback: string;
+  preferFallback?: boolean;
   shape: ModuleTensorShape | undefined;
+  unavailableDimensions?: boolean;
 }) {
-  const dimensions = shape
-    ? ([
-      ['T', shape.time],
-      ['dim', shape.channels],
-      ['H', shape.height],
-      ['W', shape.width],
-    ] as const).filter(([, value]) => value !== 'absent')
-    : [];
+  const dimensions: Array<readonly [string, string]> = [];
+  if (shape?.time !== undefined && shape.time !== 'absent') {
+    dimensions.push(['T', unavailableDimensions ? '---' : formatDimension(shape.time)]);
+  }
+  if (preferFallback) {
+    dimensions.push(['dim', fallback]);
+  } else if (shape?.channels !== undefined && shape.channels !== 'absent') {
+    dimensions.push(['dim', formatDimension(shape.channels)]);
+  }
+  if (alwaysShowSpatial || (shape?.height !== undefined && shape.height !== 'absent')) {
+    dimensions.push([
+      'H',
+      unavailableDimensions ? '---' : formatDimension(shape?.height ?? 'absent'),
+    ]);
+  }
+  if (alwaysShowSpatial || (shape?.width !== undefined && shape.width !== 'absent')) {
+    dimensions.push([
+      'W',
+      unavailableDimensions ? '---' : formatDimension(shape?.width ?? 'absent'),
+    ]);
+  }
   if (dimensions.length === 0) {
     return <NodePreviewItem label="dim" value={fallback} />;
   }
@@ -85,7 +122,7 @@ function ShapePreview({
           className={hasLeadingDimension && index === 0 ? 'shape-leading-item' : ''}
           key={label}
           label={label}
-          value={formatDimension(value)}
+          value={value}
         />
       ))}
     </div>
@@ -123,21 +160,49 @@ function getOutputDimLabel(
   data: ModuleBaseNode['data'],
   isBackward: boolean,
   rank: number | undefined,
+  needsSpatialInput: boolean,
 ) {
   if (isBackward) return formatInteger(rank);
+  if (requiresInputConnection(data) && data.links.predecessorIds.length === 0) {
+    return '---';
+  }
+  if (needsSpatialInput) return 'need H W';
 
   if (data.kind === 'Output') {
-    if (data.stats?.dimLabel === 'not the same') return 'not the same';
-    if (data.predecessors.length === 0) {
-      return `need ${formatInteger(data.neededOutputDim)}`;
-    }
-    if (data.stats?.dimLabel !== 'normal') return data.stats?.dimLabel ?? '---';
+    if (data.stats?.status === 'shape-mismatch') return 'not the same';
+    if (data.stats?.status !== 'valid') return '---';
     return formatInteger(rank);
   }
 
-  return data.stats?.dimLabel !== 'normal'
-    ? data.stats?.dimLabel ?? '---'
+  return data.stats?.status !== 'valid'
+    ? data.stats?.status === 'shape-mismatch' ? 'not the same' : '---'
     : formatInteger(rank);
+}
+
+function shouldShowSpatialInputRequirement(
+  data: ModuleBaseNode['data'],
+  isBackward: boolean,
+) {
+  if (isBackward || (data.kind !== 'CNN' && data.kind !== 'Pooling')) {
+    return false;
+  }
+
+  if (data.links.predecessorIds.length === 0) {
+    return false;
+  }
+
+  if (data.stats?.status !== 'shape-mismatch') {
+    return false;
+  }
+
+  const inputShape = data.predecessors[0]?.stats?.shape;
+  return !inputShape
+    || inputShape.height === 'absent'
+    || inputShape.width === 'absent';
+}
+
+function requiresInputConnection(data: ModuleBaseNode['data']) {
+  return data.kind !== 'Input' && data.kind !== '3DInput';
 }
 
 function formatFixed(value: number | undefined, digits: number) {

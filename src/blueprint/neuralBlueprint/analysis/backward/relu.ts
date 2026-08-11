@@ -10,8 +10,8 @@ export function backwardReLUStats(
 ): ModuleStatsBackward {
   const forwardInput = node.predecessors[0]?.stats;
   const keepRate = 1
-    - (forwardInput?.zeroRate ?? 0)
-    - (forwardInput?.negativeRate ?? 0.5);
+    - (forwardInput?.distribution.zeroRate ?? 0)
+    - (forwardInput?.distribution.negativeRate ?? 0.5);
 
   return applyBackwardGate(gradient, keepRate);
 }

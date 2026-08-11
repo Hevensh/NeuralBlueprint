@@ -1,7 +1,7 @@
 import type {
   BiasInitializationMode,
   LinearNodeData,
-  ModuleDimLabel,
+  ModuleAnalysisStatus,
   ModuleNodeData,
   ModuleStats,
 } from '../../../ModuleBaseNodeTypes';
@@ -15,14 +15,19 @@ export function getEmptyStats(node: ModuleNodeData): ModuleStats {
 
   return {
     ...EMPTY_STATS,
-    rank,
-    effectiveRank: 0,
-    saturation: 0,
-    minRank: rank,
-    mean: 0,
-    variance: 0,
-    zeroRate: 0,
-    negativeRate: 0,
+    rank: {
+      outputRank: rank,
+      basisRank: rank,
+      effectiveRank: 0,
+      saturation: 0,
+      minRank: rank,
+    },
+    distribution: {
+      mean: 0,
+      variance: 0,
+      zeroRate: 0,
+      negativeRate: 0,
+    },
   };
 }
 
@@ -36,27 +41,36 @@ export function getDisconnectedStats(node: ModuleNodeData): ModuleStats {
     || node.kind === 'Flatten'
     || node.kind === 'GlobalPooling'
   ) {
-    return EMPTY_STATS;
+    return { ...EMPTY_STATS, status: 'disconnected' };
   }
 
   return {
     ...EMPTY_STATS,
-    rank: node.outFeatures,
-    minRank: node.outFeatures,
+    status: 'disconnected',
+    rank: {
+      ...EMPTY_STATS.rank,
+      outputRank: node.outFeatures,
+      basisRank: node.outFeatures,
+      minRank: node.outFeatures,
+    },
   };
 }
 
 export function getInvalidInferenceStats(
   node: ModuleNodeData,
-  dimLabel: Exclude<ModuleDimLabel, 'normal'>,
+  status: Exclude<ModuleAnalysisStatus, 'valid'>,
 ): ModuleStats {
   const retainedRank = getRetainedRank(node);
 
   return {
     ...EMPTY_STATS,
-    rank: retainedRank,
-    minRank: retainedRank,
-    dimLabel,
+    status,
+    rank: {
+      ...EMPTY_STATS.rank,
+      outputRank: retainedRank,
+      basisRank: retainedRank,
+      minRank: retainedRank,
+    },
   };
 }
 
@@ -66,11 +80,13 @@ export function getFanIn(
 ) {
   if (
     input
-    && !Number.isFinite(input.rank)
+    && !Number.isFinite(input.rank.outputRank)
     && node.inFeatures === undefined
   ) return Number.NaN;
-  const inferredRank = input?.rank ?? node.predecessors.reduce(
-    (sum, predecessor) => sum + (predecessor.stats?.rank ?? DEFAULT_RANK),
+  const inferredRank = input?.rank.outputRank ?? node.predecessors.reduce(
+    (sum, predecessor) => sum + (
+      predecessor.stats?.rank.outputRank ?? DEFAULT_RANK
+    ),
     0,
   );
 
@@ -88,7 +104,7 @@ function getRetainedRank(node: ModuleNodeData) {
         node.kind === 'Input' || node.kind === '3DInput' || node.kind === 'Linear' || node.kind === 'CNN'
       )
         ? node.outFeatures
-        : node.stats?.rank;
+        : node.stats?.rank.outputRank;
   return Number.isFinite(rank) ? rank as number : Number.NaN;
 }
 

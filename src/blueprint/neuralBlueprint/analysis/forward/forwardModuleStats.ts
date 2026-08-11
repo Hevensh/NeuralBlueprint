@@ -36,13 +36,19 @@ export function forwardModuleStats(
     case 'CNN': {
       const stats = forwardCNNStats(context.node, input);
       return {
-        stats: stats ?? getInvalidInferenceStats(context.node, 'not the same'),
+        stats: stats ?? getInvalidInferenceStats(
+          context.node,
+          'shape-mismatch',
+        ),
       };
     }
     case 'Pooling': {
       const stats = forwardPoolingStats(context.node, input);
       return {
-        stats: stats ?? getInvalidInferenceStats(context.node, 'not the same'),
+        stats: stats ?? getInvalidInferenceStats(
+          context.node,
+          'shape-mismatch',
+        ),
       };
     }
     case 'Flatten':
@@ -52,7 +58,10 @@ export function forwardModuleStats(
     case 'GlobalPooling': {
       const stats = forwardGlobalPoolingStats(context.node, input);
       return {
-        stats: stats ?? getInvalidInferenceStats(context.node, 'not the same'),
+        stats: stats ?? getInvalidInferenceStats(
+          context.node,
+          'shape-mismatch',
+        ),
       };
     }
     case 'ReLU':
@@ -92,7 +101,7 @@ function forwardOutputStats(
   };
 
   if (!sameTensorShape(readTensorShape(input), neededShape)) {
-    return getInvalidInferenceStats(node, 'not the same');
+    return getInvalidInferenceStats(node, 'shape-mismatch');
   }
 
   return input;

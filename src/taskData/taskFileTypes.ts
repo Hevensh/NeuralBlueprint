@@ -38,28 +38,85 @@ export interface TaskNeuralBlueprintConfig {
   layout?: TaskLayoutConfig;
 }
 
-export type TaskModuleNodeConfig = {
+interface TaskModuleNodeBase<TKind extends ModuleBaseNodeKind> {
   id: string;
-  kind: ModuleBaseNodeKind;
+  kind: TKind;
   position: TaskGridPosition;
-  outputDim?: number;
-  effectiveRank?: number;
-  neededOutputDim?: number;
+  lockedProperties?: ModuleLockedProperty[];
+  deletable?: boolean;
+}
+
+interface TaskInputNodeConfig extends TaskModuleNodeBase<'Input'> {
+  outFeatures?: number;
+  inputEffectiveRank?: number;
   normalizationMode?: InputNormalizationMode;
-  time?: ModuleDimension;
+}
+
+interface TaskThreeDInputNodeConfig
+  extends TaskModuleNodeBase<'3DInput'> {
+  outFeatures?: number;
+  inputEffectiveRank?: number;
+  normalizationMode?: InputNormalizationMode;
   height?: ModuleDimension;
   width?: ModuleDimension;
+}
+
+interface TaskLinearNodeConfig extends TaskModuleNodeBase<'Linear'> {
+  outFeatures?: number;
+  initializationMode?: LinearInitializationMode;
+  biasInitializationMode?: BiasInitializationMode;
+  useBias?: boolean;
+}
+
+interface TaskCNNNodeConfig extends TaskModuleNodeBase<'CNN'> {
+  outFeatures?: number;
   kernelSize?: number;
   stride?: number;
   padding?: number;
   dilation?: number;
-  poolMode?: PoolMode;
   initializationMode?: LinearInitializationMode;
   biasInitializationMode?: BiasInitializationMode;
   useBias?: boolean;
-  lockedProperties?: ModuleLockedProperty[];
-  deletable?: boolean;
-};
+}
+
+interface TaskPoolingNodeConfig extends TaskModuleNodeBase<'Pooling'> {
+  kernelSize?: number;
+  stride?: number;
+  padding?: number;
+  poolMode?: PoolMode;
+}
+
+interface TaskGlobalPoolingNodeConfig
+  extends TaskModuleNodeBase<'GlobalPooling'> {
+  poolMode?: PoolMode;
+}
+
+interface TaskDropoutNodeConfig extends TaskModuleNodeBase<'Dropout'> {
+  dropoutRate?: number;
+}
+
+interface TaskOutputNodeConfig extends TaskModuleNodeBase<'Output'> {
+  neededOutputDim?: number;
+  time?: ModuleDimension;
+  height?: ModuleDimension;
+  width?: ModuleDimension;
+}
+
+type TaskParameterlessNodeConfig =
+  | TaskModuleNodeBase<'Flatten'>
+  | TaskModuleNodeBase<'ReLU'>
+  | TaskModuleNodeBase<'Sum'>;
+
+export type TaskModuleNodeConfig =
+  | TaskInputNodeConfig
+  | TaskThreeDInputNodeConfig
+  | TaskLinearNodeConfig
+  | TaskCNNNodeConfig
+  | TaskPoolingNodeConfig
+  | TaskGlobalPoolingNodeConfig
+  | TaskDropoutNodeConfig
+  | TaskOutputNodeConfig
+  | TaskParameterlessNodeConfig;
 
 export interface TaskModuleEdgeConfig {
   source: string;

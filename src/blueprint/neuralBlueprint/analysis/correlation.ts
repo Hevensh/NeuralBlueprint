@@ -360,8 +360,8 @@ export function computeSumPathCost() {
 
 export function getModuleInputSize(node: LinearNodeData): number {
   return node.inFeatures
-    ?? node.predecessors[0]?.stats?.rank
-    ?? node.stats?.rank
+    ?? node.predecessors[0]?.stats?.rank.outputRank
+    ?? node.stats?.rank.outputRank
     ?? 1;
 }
 
@@ -450,7 +450,7 @@ function getReluLostRatio(inputStats?: ModuleStats) {
     return 0;
   }
 
-  const negativeRate = inputStats.negativeRate ?? 0.5;
+  const negativeRate = inputStats.distribution.negativeRate ?? 0.5;
   return negativeRate / Math.max(1 - negativeRate, DISTANCE_EPSILON);
 }
 

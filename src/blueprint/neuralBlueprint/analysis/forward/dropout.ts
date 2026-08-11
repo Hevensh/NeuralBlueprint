@@ -3,13 +3,16 @@ import type {
   ModuleNodeData,
   ModuleStats,
 } from '../../ModuleBaseNodeTypes';
-import { preserveRepetitionRank } from '../repetitionRank';
+import {
+  createEmptyRepetitionStats,
+  preserveRepetitionStats,
+} from '../repetitionRank';
+import { dropoutDistribution } from './distributionSketch';
 import { EPS } from './utils/constants';
 import {
   clamp01,
-  getDropoutSaturation,
+  getDistributionTransitionSaturation,
   getGateLinearCorr,
-  statsFromMoments,
 } from './utils/math';
 
 export function forwardDropoutStats(
@@ -19,45 +22,48 @@ export function forwardDropoutStats(
 ): ModuleStats {
   const dropoutRate = clamp01(node.dropoutRate);
   const keepRate = 1 - dropoutRate;
+  const distribution = dropoutDistribution(
+    input.distribution,
+    dropoutRate,
+  );
 
   if (keepRate <= EPS) {
     return {
-      rank: input.rank,
-      dimLabel: 'normal',
-      effectiveRank: input.rank,
-      saturation: 1,
+      status: 'valid',
+      rank: {
+        ...input.rank,
+        basisRank: input.rank.outputRank,
+        effectiveRank: input.rank.outputRank,
+        saturation: 1,
+      },
       shape: input.shape,
-      repetitionRank: { high: 0, medium: 0, low: 0 },
-      minRank: input.minRank,
-      mean: 0,
-      variance: 0,
-      zeroRate: 1,
-      negativeRate: 0,
+      adaptation: { repetition: createEmptyRepetitionStats() },
+      distribution,
       inputElementCorr: inputNode ? { [inputNode.id]: 0 } : undefined,
       inputLinearCorr: inputNode ? { [inputNode.id]: 0 } : undefined,
     };
   }
 
-  const saturation = getDropoutSaturation(input, dropoutRate);
-  const effectiveRank = input.rank * saturation;
-  const rankCorr = getGateLinearCorr(input, saturation);
-  const outputMoments = statsFromMoments(
-    input.mean * keepRate,
-    (input.variance + input.mean ** 2) * keepRate,
+  const saturation = getDistributionTransitionSaturation(
+    input,
+    distribution,
   );
+  const effectiveRank = input.rank.outputRank * saturation;
+  const rankCorr = getGateLinearCorr(input, saturation);
 
   return {
-    rank: input.rank,
-    dimLabel: 'normal',
-    effectiveRank,
-    saturation,
+    status: 'valid',
+    rank: {
+      ...input.rank,
+      basisRank: input.rank.outputRank,
+      effectiveRank,
+      saturation,
+    },
     shape: input.shape,
-    repetitionRank: preserveRepetitionRank(input, effectiveRank),
-    minRank: input.minRank,
-    mean: outputMoments.mean,
-    variance: outputMoments.variance,
-    zeroRate: dropoutRate + keepRate * input.zeroRate,
-    negativeRate: keepRate * (input.negativeRate ?? 0),
+    adaptation: {
+      repetition: preserveRepetitionStats(input, effectiveRank),
+    },
+    distribution,
     inputElementCorr: inputNode ? { [inputNode.id]: Math.sqrt(keepRate) } : undefined,
     inputLinearCorr: inputNode ? { [inputNode.id]: rankCorr } : undefined,
   };

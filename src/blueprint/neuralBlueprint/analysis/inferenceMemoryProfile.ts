@@ -1,18 +1,24 @@
 import type {
+  CNNNodeData,
   LinearNodeData,
   ModuleBaseNode,
   ModuleNodeData,
 } from '../ModuleBaseNodeTypes';
 import type {
+  InferenceAdaptationPoints,
+  InferenceDistanceAdaptationPoints,
   InferenceMemoryGroup,
   InferenceMemoryModel,
   InferenceMemoryProfile,
+  InferenceRepetitionAdaptationPoints,
   InferenceMemoryStageSegment,
 } from '../../InferenceMemoryProfileTypes';
 import { computeVarianceLogDistance } from '../../InferenceMemoryVariance';
 import { buildArrangeReachabilityMaps } from '../utils/arrangeNodesUtils';
 
 export type {
+  InferenceAdaptationPoints,
+  InferenceDistanceAdaptationPoints,
   InferenceMemoryAggregationPair,
   InferenceMemoryGroup,
   InferenceMemoryModel,
@@ -20,7 +26,10 @@ export type {
   InferenceMemoryProfile,
   InferenceMemoryStage,
   InferenceMemoryStageSegment,
+  InferenceRepetitionAdaptationPoints,
 } from '../../InferenceMemoryProfileTypes';
+
+type TrainableNodeData = LinearNodeData | CNNNodeData;
 
 export function buildInferenceMemoryModels(
   nodes: ModuleBaseNode[],
@@ -49,12 +58,12 @@ export function buildInferenceMemoryProfile(
   const nodeData = nodes.map((node) => node.data);
   const groupById = new Map<string, {
     inferenceStages: number[];
-    nodes: LinearNodeData[];
+    nodes: TrainableNodeData[];
   }>();
 
   nodes.forEach(({ data }) => {
     if (
-      data.kind !== 'Linear'
+      !isTrainableNode(data)
       || !data.inferenceTopologyOrder?.size
       || !Number.isFinite(data.memoryPoint)
       || (data.memoryPoint as number) <= 0
@@ -85,6 +94,7 @@ export function buildInferenceMemoryProfile(
         nodeIds: group.nodes.map((node) => node.id),
         inferenceStages: group.inferenceStages,
         memoryPoint: Math.floor(stats.memoryPoint),
+        adaptationPoints: floorAdaptationPoints(stats.adaptationPoints),
         varianceLogDistance: stats.varianceLogDistance,
         nodeWeights: stats.nodeWeights,
         aggregationPairs: stats.aggregationPairs,
@@ -95,6 +105,10 @@ export function buildInferenceMemoryProfile(
   const totalMemoryPoint = baseGroups.reduce(
     (sum, group) => sum + group.memoryPoint,
     0,
+  );
+  const totalAdaptationPoints = baseGroups.reduce(
+    (total, group) => addAdaptationPoints(total, group.adaptationPoints),
+    emptyAdaptationPoints(),
   );
   const groups = baseGroups.map((group) => ({
     ...group,
@@ -110,6 +124,10 @@ export function buildInferenceMemoryProfile(
       segments.push({
         groupId: group.id,
         memoryPoint: allocatedMemoryPoint,
+        adaptationPoints: scaleAdaptationPoints(
+          group.adaptationPoints,
+          1 / group.inferenceStages.length,
+        ),
         ratio: getRatio(allocatedMemoryPoint, totalMemoryPoint),
       });
       stageSegments.set(stage, segments);
@@ -123,10 +141,18 @@ export function buildInferenceMemoryProfile(
         (sum, segment) => sum + segment.memoryPoint,
         0,
       );
+      const adaptationPoints = segments.reduce(
+        (total, segment) => addAdaptationPoints(
+          total,
+          segment.adaptationPoints,
+        ),
+        emptyAdaptationPoints(),
+      );
 
       return {
         stage,
         memoryPoint,
+        adaptationPoints,
         ratio: getRatio(memoryPoint, totalMemoryPoint),
         segments,
       };
@@ -135,6 +161,7 @@ export function buildInferenceMemoryProfile(
   return {
     networkSignature: createNetworkSignature(nodes),
     totalMemoryPoint,
+    totalAdaptationPoints,
     groups,
     stages,
   };
@@ -155,6 +182,7 @@ function nodeSignature(data: ModuleNodeData) {
     linkedNodeIds(data.successors),
     data.memoryPoint ?? '',
     data.inferencePoint ?? '',
+    ...repetitionSignature(data),
     ...nodeConfigSignature(data),
   ].join(':');
 }
@@ -232,8 +260,21 @@ function getRatio(value: number, total: number) {
   return total > 0 ? value / total : 0;
 }
 
+function repetitionSignature(data: ModuleNodeData) {
+  const memory = data.stats?.adaptation.repetition.memory;
+  return memory
+    ? [
+      memory.small,
+      memory.medium,
+      memory.large,
+      memory.extraLarge,
+      memory.global,
+    ]
+    : ['', '', '', '', ''];
+}
+
 export function computeInferenceGroupProfile(
-  nodes: LinearNodeData[],
+  nodes: TrainableNodeData[],
   allNodes: ModuleNodeData[],
 ) {
   const aggregation = computeGroupAggregation(nodes, allNodes);
@@ -242,6 +283,12 @@ export function computeInferenceGroupProfile(
 
   return {
     memoryPoint: weightedMemoryPoint(nodes, aggregation.weights),
+    adaptationPoints: {
+      repetition: weightedRepetitionAdaptationPoints(nodes, allNodes),
+      // Distance propagation has not been defined yet. Keep the resource
+      // explicit and truthfully empty instead of estimating it from repetition.
+      distance: emptyDistanceAdaptationPoints(),
+    },
     varianceLogDistance: weightedVarianceLogDistance(nodes, normalizedWeights),
     nodeWeights,
     aggregationPairs: aggregation.pairs,
@@ -249,7 +296,7 @@ export function computeInferenceGroupProfile(
 }
 
 function weightedMemoryPoint(
-  nodes: LinearNodeData[],
+  nodes: TrainableNodeData[],
   weights: Map<string, { weight: number }>,
 ) {
   return nodes.reduce((sum, node) => {
@@ -261,22 +308,50 @@ function weightedMemoryPoint(
   }, 0);
 }
 
+function weightedRepetitionAdaptationPoints(
+  nodes: TrainableNodeData[],
+  allNodes: ModuleNodeData[],
+) {
+  const providers = nodes.filter(
+    (node): node is CNNNodeData => node.kind === 'CNN',
+  );
+  const weights = computeGroupAggregation(providers, allNodes).weights;
+
+  return providers.reduce<InferenceRepetitionAdaptationPoints>(
+    (total, node) => {
+      const memory = node.stats?.adaptation.repetition.memory;
+      const weight = weights.get(node.id)?.weight ?? 1;
+      if (!memory) return total;
+
+      return {
+        small: total.small + sanitizePoint(memory.small) * weight,
+        medium: total.medium + sanitizePoint(memory.medium) * weight,
+        large: total.large + sanitizePoint(memory.large) * weight,
+        extraLarge: total.extraLarge
+          + sanitizePoint(memory.extraLarge) * weight,
+        global: total.global + sanitizePoint(memory.global) * weight,
+      };
+    },
+    emptyRepetitionAdaptationPoints(),
+  );
+}
+
 function weightedVarianceLogDistance(
-  nodes: LinearNodeData[],
+  nodes: TrainableNodeData[],
   normalizedWeights: Map<string, number>,
 ) {
   return nodes.reduce((sum, node) => (
     sum
     + computeVarianceLogDistance(
-      node.stats?.variance,
-      node.statsBackward?.variance,
+      node.stats?.distribution.variance,
+      node.statsBackward?.distribution.variance,
     )
     * (normalizedWeights.get(node.id) ?? 0)
   ), 0);
 }
 
 function normalizeNodeWeights(
-  nodes: LinearNodeData[],
+  nodes: TrainableNodeData[],
   weights: Map<string, { weight: number }>,
 ) {
   const rawWeights = nodes.map((node) => ({
@@ -396,7 +471,7 @@ function isFiniteNumber(value: unknown): value is number {
 }
 
 function computeGroupAggregation(
-  nodes: LinearNodeData[],
+  nodes: TrainableNodeData[],
   allNodes: ModuleNodeData[],
 ) {
   const groupNodeIds = new Set(nodes.map((node) => node.id));
@@ -479,6 +554,98 @@ function computeGroupAggregation(
     pairs,
     weights,
   };
+}
+
+function isTrainableNode(data: ModuleNodeData): data is TrainableNodeData {
+  return data.kind === 'Linear' || data.kind === 'CNN';
+}
+
+function emptyRepetitionAdaptationPoints(): InferenceRepetitionAdaptationPoints {
+  return {
+    small: 0,
+    medium: 0,
+    large: 0,
+    extraLarge: 0,
+    global: 0,
+  };
+}
+
+function emptyDistanceAdaptationPoints(): InferenceDistanceAdaptationPoints {
+  return {
+    none: 0,
+    short: 0,
+    medium: 0,
+    long: 0,
+    global: 0,
+  };
+}
+
+function emptyAdaptationPoints(): InferenceAdaptationPoints {
+  return {
+    repetition: emptyRepetitionAdaptationPoints(),
+    distance: emptyDistanceAdaptationPoints(),
+  };
+}
+
+function floorAdaptationPoints(
+  points: InferenceAdaptationPoints,
+): InferenceAdaptationPoints {
+  return mapAdaptationPoints(points, Math.floor);
+}
+
+function scaleAdaptationPoints(
+  points: InferenceAdaptationPoints,
+  scale: number,
+): InferenceAdaptationPoints {
+  return mapAdaptationPoints(points, (value) => value * scale);
+}
+
+function mapAdaptationPoints(
+  points: InferenceAdaptationPoints,
+  map: (value: number) => number,
+): InferenceAdaptationPoints {
+  return {
+    repetition: {
+      small: map(points.repetition.small),
+      medium: map(points.repetition.medium),
+      large: map(points.repetition.large),
+      extraLarge: map(points.repetition.extraLarge),
+      global: map(points.repetition.global),
+    },
+    distance: {
+      none: map(points.distance.none),
+      short: map(points.distance.short),
+      medium: map(points.distance.medium),
+      long: map(points.distance.long),
+      global: map(points.distance.global),
+    },
+  };
+}
+
+function addAdaptationPoints(
+  left: InferenceAdaptationPoints,
+  right: InferenceAdaptationPoints,
+): InferenceAdaptationPoints {
+  return {
+    repetition: {
+      small: left.repetition.small + right.repetition.small,
+      medium: left.repetition.medium + right.repetition.medium,
+      large: left.repetition.large + right.repetition.large,
+      extraLarge: left.repetition.extraLarge + right.repetition.extraLarge,
+      global: left.repetition.global + right.repetition.global,
+    },
+    distance: {
+      none: left.distance.none + right.distance.none,
+      short: left.distance.short + right.distance.short,
+      medium: left.distance.medium + right.distance.medium,
+      long: left.distance.long + right.distance.long,
+      global: left.distance.global + right.distance.global,
+    },
+  };
+}
+
+function sanitizePoint(value: number) {
+  return Math.max(Number.isFinite(value) ? value : 0, 0);
 }
 
 function collectConnectedGroup(

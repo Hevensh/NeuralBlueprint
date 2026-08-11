@@ -42,15 +42,21 @@ function restoreInputChannelRank(
   node: ModuleNodeData,
   gradient: ModuleStatsBackward,
 ): ModuleStatsBackward {
-  const inputRank = node.predecessors[0]?.stats?.rank;
+  const inputRank = node.predecessors[0]?.stats?.rank.outputRank;
   if (!Number.isFinite(inputRank)) return gradient;
   const rank = inputRank as number;
-  const effectiveRank = Math.min(gradient.effectiveRank, rank);
+  const effectiveRank = Math.min(gradient.rank.effectiveRank, rank);
   return {
     ...gradient,
-    rank,
-    effectiveRank,
-    saturation: rank > 0 ? effectiveRank / rank : 0,
-    minRank: Math.min(gradient.minRank ?? gradient.rank, rank),
+    rank: {
+      outputRank: rank,
+      basisRank: rank,
+      effectiveRank,
+      saturation: rank > 0 ? effectiveRank / rank : 0,
+      minRank: Math.min(
+        gradient.rank.minRank ?? gradient.rank.outputRank,
+        rank,
+      ),
+    },
   };
 }

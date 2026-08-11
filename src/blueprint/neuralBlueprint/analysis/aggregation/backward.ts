@@ -16,7 +16,10 @@ export function aggregateBackwardStats(
   }
 
   const rank = gradients.reduce(
-    (maxRank, gradient) => Math.max(maxRank, gradient.rank),
+    (maxRank, gradient) => Math.max(
+      maxRank,
+      gradient.rank.outputRank,
+    ),
     0,
   );
   const effectiveRank = computeAggregatedEffectiveRank(
@@ -25,29 +28,39 @@ export function aggregateBackwardStats(
     pairs,
   );
   const minRank = computeAggregatedMinRank(gradients, outputNodes, pairs);
-  const mean = gradients.reduce((sum, gradient) => sum + gradient.mean, 0);
+  const mean = gradients.reduce(
+    (sum, gradient) => sum + gradient.distribution.mean,
+    0,
+  );
   const variance = gradients.reduce(
-    (sum, gradient) => sum + gradient.variance,
+    (sum, gradient) => sum + gradient.distribution.variance,
     pairs.reduce((sum, pair) => sum + 2 * pair.covariance, 0),
   );
   const allNonNegative = gradients.every(isNonNegative);
 
   return {
-    rank,
-    effectiveRank,
-    saturation: effectiveRank / Math.max(rank, EPS),
-    minRank,
-    mean,
-    variance,
-    zeroRate: allNonNegative
-      ? gradients.reduce(
-        (product, gradient) => product * gradient.zeroRate,
-        1,
-      )
-      : 0,
-    negativeRate: allNonNegative
-      ? 0
-      : estimateSumNegativeRate(mean, variance),
+    rank: {
+      outputRank: rank,
+      basisRank: rank,
+      effectiveRank,
+      saturation: effectiveRank / Math.max(rank, EPS),
+      minRank,
+    },
+    distribution: {
+      mean,
+      variance,
+      zeroRate: allNonNegative
+        ? gradients.reduce(
+          (product, gradient) => (
+            product * gradient.distribution.zeroRate
+          ),
+          1,
+        )
+        : 0,
+      negativeRate: allNonNegative
+        ? 0
+        : estimateSumNegativeRate(mean, variance),
+    },
   };
 }
 
@@ -58,7 +71,10 @@ function computeAggregatedEffectiveRank(
 ) {
   const pairCorrelation = createPairCorrelationMap(pairs);
   return gradients.reduce((sum, gradient, leftIndex) => {
-    const gradientStd = Math.sqrt(Math.max(gradient.variance, 0));
+    const gradientStd = Math.sqrt(Math.max(
+      gradient.distribution.variance,
+      0,
+    ));
     if (gradientStd <= 0) return sum;
 
     const correlatedStd = gradients.reduce((
@@ -73,10 +89,10 @@ function computeAggregatedEffectiveRank(
           pairCorrelation,
           outputNodes[leftIndex]?.id,
           outputNodes[rightIndex]?.id,
-        ) * Math.sqrt(Math.max(otherGradient.variance, 0));
+        ) * Math.sqrt(Math.max(otherGradient.distribution.variance, 0));
     }, gradientStd);
 
-    return sum + gradient.effectiveRank * gradientStd / Math.max(
+    return sum + gradient.rank.effectiveRank * gradientStd / Math.max(
       correlatedStd,
       EPS,
     );
@@ -90,7 +106,9 @@ function computeAggregatedMinRank(
 ) {
   const pairCorrelation = createPairCorrelationMap(pairs);
   let minRank = gradients.reduce(
-    (sum, gradient) => sum + (gradient.minRank ?? gradient.rank),
+    (sum, gradient) => sum + (
+      gradient.rank.minRank ?? gradient.rank.outputRank
+    ),
     0,
   );
 
@@ -100,10 +118,10 @@ function computeAggregatedMinRank(
       rightIndex < gradients.length;
       rightIndex += 1
     ) {
-      const leftMinRank = gradients[leftIndex].minRank
-        ?? gradients[leftIndex].rank;
-      const rightMinRank = gradients[rightIndex].minRank
-        ?? gradients[rightIndex].rank;
+      const leftMinRank = gradients[leftIndex].rank.minRank
+        ?? gradients[leftIndex].rank.outputRank;
+      const rightMinRank = gradients[rightIndex].rank.minRank
+        ?? gradients[rightIndex].rank.outputRank;
       minRank -= readPairCorrelation(
         pairCorrelation,
         outputNodes[leftIndex]?.id,

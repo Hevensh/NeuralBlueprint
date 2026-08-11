@@ -6,6 +6,7 @@ import type {
 } from '../ModuleBaseNodeTypes';
 import { aggregateBackwardStats } from './aggregation/backward';
 import { backwardModuleStats } from './backward/backwardModuleStats';
+import { boundBackwardStats } from './backward/bounds';
 import { computeBackwardOutputPairStats } from './backward/correlation';
 import { flattenSumOutputs } from './backward/sum';
 import { getDefaultOutputGradient } from './backward/utils';
@@ -16,11 +17,22 @@ import {
   getInvalidInferenceStats,
 } from './forward/utils/moduleStats';
 import { EMPTY_STATS } from './forward/utils/constants';
+import { applyRepetitionMemory } from './repetitionRank';
 
 export function updateModuleStats(nodes: ModuleBaseNode[]): void {
   const nodeData = nodes.map((node) => node.data);
   runForwardStats(nodeData);
   runBackwardStats(nodeData);
+  nodeData.forEach((node) => {
+    if (
+      node.stats?.status !== 'valid'
+      || !Number.isFinite(node.statsBackward?.rank.effectiveRank)
+    ) return;
+    applyRepetitionMemory(
+      node.stats,
+      node.statsBackward?.rank.effectiveRank ?? 0,
+    );
+  });
 }
 
 export function runForwardStats(
@@ -65,8 +77,8 @@ export function runForwardStats(
       })
       .filter((inputStats): inputStats is ModuleStats => Boolean(inputStats));
 
-    if (inputs.some((input) => input.dimLabel !== 'normal')) {
-      const invalidStats = getInvalidInferenceStats(node, '---');
+    if (inputs.some((input) => input.status !== 'valid')) {
+      const invalidStats = getInvalidInferenceStats(node, 'unknown');
       node.sumInputPairStats = undefined;
       node.stats = invalidStats;
       stats.set(node.id, invalidStats);
@@ -156,7 +168,9 @@ export function runBackwardStats(
         flattened.outputNodes,
         outputPairStats,
       );
-    const result = backwardModuleStats(node, gradient);
+    const result = boundBackwardStats(
+      backwardModuleStats(node, gradient),
+    );
 
     node.backwardOutputPairStats = outputPairStats.length > 0
       ? outputPairStats
@@ -169,8 +183,8 @@ export function runBackwardStats(
 }
 
 function getOutputInitialGradient(node: ModuleNodeData): ModuleStatsBackward {
-  const rank = node.stats?.rank;
-  if (node.stats?.dimLabel !== 'normal' || !Number.isFinite(rank)) {
+  const rank = node.stats?.rank.outputRank;
+  if (node.stats?.status !== 'valid' || !Number.isFinite(rank)) {
     return EMPTY_STATS;
   }
 
@@ -178,9 +192,9 @@ function getOutputInitialGradient(node: ModuleNodeData): ModuleStatsBackward {
 }
 
 function isInvalidBackwardStats(stats: ModuleStatsBackward) {
-  return !Number.isFinite(stats.rank)
-    || !Number.isFinite(stats.effectiveRank)
-    || !Number.isFinite(stats.saturation)
-    || !Number.isFinite(stats.mean)
-    || !Number.isFinite(stats.variance);
+  return !Number.isFinite(stats.rank.outputRank)
+    || !Number.isFinite(stats.rank.effectiveRank)
+    || !Number.isFinite(stats.rank.saturation)
+    || !Number.isFinite(stats.distribution.mean)
+    || !Number.isFinite(stats.distribution.variance);
 }

@@ -43,10 +43,10 @@ export const configTask1: TaskFileConfig = {
         id: 'task1_input',
         kind: 'Input',
         position: { x: 0, y: 0 },
-        outputDim: TASK1_INPUT_OUTPUT_DIM,
-        effectiveRank: TASK1_INPUT_EFFECTIVE_RANK,
+        outFeatures: TASK1_INPUT_OUTPUT_DIM,
+        inputEffectiveRank: TASK1_INPUT_EFFECTIVE_RANK,
         normalizationMode: '0-1',
-        lockedProperties: ['outputDim', 'effectiveRank'],
+        lockedProperties: ['outFeatures', 'inputEffectiveRank'],
         deletable: false,
       },
       {
@@ -192,7 +192,7 @@ export function createGuideTask1(language: AppLanguage): TaskGuideConfig {
           type: 'moduleNodeExists',
           selector: {
             id: 'task1_output',
-            stats: { dimLabel: 'normal' },
+            stats: { status: 'valid' },
           },
         },
       },

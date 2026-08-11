@@ -62,7 +62,7 @@ export function pasteNodeClipboard(
       position,
       selected: true,
       dragging: false,
-      data: initializePastedNodeData(node.data, id, position),
+      data: initializePastedNodeData(node.data, id),
     };
   });
   const pastedEdges = clipboard.edges.map((edge) => {
@@ -99,14 +99,13 @@ function cloneClipboardNode(node: ModuleBaseNode): ModuleBaseNode {
 function initializePastedNodeData(
   data: ModuleNodeData,
   id: string,
-  position: { x: number; y: number },
 ): ModuleNodeData {
   return {
     ...cloneNodeData(data),
     id,
-    position,
     predecessors: [],
     successors: [],
+    links: { predecessorIds: [], successorIds: [] },
     forwardTopologyOrder: 0,
     inferenceTopologyOrder: new Set(),
     backwardTopologyOrder: 0,
@@ -119,16 +118,22 @@ function initializePastedNodeData(
   };
 }
 
-function cloneNodeData(data: ModuleNodeData): ModuleNodeData {
+export function cloneNodeData(data: ModuleNodeData): ModuleNodeData {
   return {
     ...data,
-    position: { ...data.position },
     predecessors: [],
     successors: [],
+    links: {
+      predecessorIds: [...data.links.predecessorIds],
+      successorIds: [...data.links.successorIds],
+    },
     inferenceTopologyOrder: new Set(data.inferenceTopologyOrder),
     stats: cloneStats(data.stats),
     statsBackward: data.statsBackward
-      ? { ...data.statsBackward }
+      ? {
+        rank: { ...data.statsBackward.rank },
+        distribution: cloneDistribution(data.statsBackward.distribution),
+      }
       : undefined,
     sumInputPairStats: data.sumInputPairStats?.map((pair) => ({ ...pair })),
     backwardOutputPairStats: data.backwardOutputPairStats?.map(
@@ -142,11 +147,30 @@ function cloneStats(stats: ModuleStats | undefined) {
 
   return {
     ...stats,
+    rank: { ...stats.rank },
+    distribution: cloneDistribution(stats.distribution),
+    shape: { ...stats.shape },
+    adaptation: {
+      repetition: {
+        potential: { ...stats.adaptation.repetition.potential },
+        effective: { ...stats.adaptation.repetition.effective },
+        memory: { ...stats.adaptation.repetition.memory },
+      },
+    },
     inputElementCorr: stats.inputElementCorr
       ? { ...stats.inputElementCorr }
       : undefined,
     inputLinearCorr: stats.inputLinearCorr
       ? { ...stats.inputLinearCorr }
       : undefined,
+  };
+}
+
+function cloneDistribution<T extends ModuleStats['distribution']>(
+  distribution: T,
+): T {
+  return {
+    ...distribution,
+    support: distribution.support?.map((point) => ({ ...point })),
   };
 }

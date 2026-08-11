@@ -6,6 +6,9 @@ import type { DesktopFile } from './desktop/desktopTypes';
 import { LanguageProvider } from './i18n/LanguageContext';
 import { LabWorkspace } from './lab/LabWorkspace';
 import { loadGameProgress, saveGameProgress } from './dataStorage/gameStorage';
+import { loadDesktopFiles } from './dataStorage/desktopStorage';
+
+const DEVELOPMENT_START_FILE_ID = 'experimental_nbp';
 
 type AppScene =
   | { type: 'lab' }
@@ -17,7 +20,7 @@ type SceneTransitionPhase = 'out' | 'in';
 
 export default function App() {
   const [gameProgress, setGameProgress] = useState(loadGameProgress);
-  const [scene, setScene] = useState<AppScene>({ type: 'lab' });
+  const [scene, setScene] = useState<AppScene>(createInitialScene);
   const [transitionTarget, setTransitionTarget] =
     useState<SceneTransitionTarget>(null);
   const [transitionPhase, setTransitionPhase] =
@@ -92,6 +95,18 @@ export default function App() {
       </div>
     </LanguageProvider>
   );
+}
+
+function createInitialScene(): AppScene {
+  if (!import.meta.env.DEV) return { type: 'lab' };
+
+  const file = loadDesktopFiles().find(
+    (desktopFile) => desktopFile.id === DEVELOPMENT_START_FILE_ID,
+  );
+
+  return file
+    ? { type: 'file', activeFile: { workspace: 'blueprint', file } }
+    : { type: 'lab' };
 }
 
 function getSceneKey(scene: AppScene) {

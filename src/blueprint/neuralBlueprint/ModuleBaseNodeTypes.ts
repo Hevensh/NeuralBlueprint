@@ -14,7 +14,12 @@ export type ModuleBaseNodeKind =
   | 'Sum'
   | 'Output';
 export type ModuleAnalysisDirection = 'forward' | 'backward';
-export type ModuleDimLabel = 'normal' | 'not the same' | '---';
+export type ModuleAnalysisStatus =
+  | 'valid'
+  | 'disconnected'
+  | 'cycle'
+  | 'shape-mismatch'
+  | 'unknown';
 export type InputNormalizationMode = '0-1' | 'standard';
 export type LinearInitializationMode = 'standard_normal' | 'xavier_normal';
 export type BiasInitializationMode = 'zeros' | 'standard_normal';
@@ -27,13 +32,47 @@ export interface ModuleTensorShape {
   width: ModuleDimension;
 }
 export interface RepetitionRank {
-  high: number;
+  small: number;
   medium: number;
-  low: number;
+  large: number;
+  extraLarge: number;
+  global: number;
+}
+export interface RepetitionStats {
+  /** Unclipped capability propagated through the network. */
+  potential: RepetitionRank;
+  /** Capability currently usable under the forward effective-rank bottleneck. */
+  effective: RepetitionRank;
+  /** Learnable memory capacity after combining with backward effective rank. */
+  memory: RepetitionRank;
+}
+export interface ModuleRankStats {
+  /** Structural rank of the module output. */
+  outputRank: number;
+  /** Rank used as the denominator of the current saturation estimate. */
+  basisRank: number;
+  effectiveRank: number;
+  saturation: number;
+  minRank?: number;
+}
+export interface DistributionSupportPoint {
+  value: number;
+  probability: number;
+}
+export interface ModuleDistributionStats {
+  mean: number;
+  variance: number;
+  zeroRate: number;
+  negativeRate?: number;
+  /** Runtime CDF sketch used by nonlinear distribution propagation. */
+  support?: DistributionSupportPoint[];
+}
+export interface ModuleAdaptationStats {
+  repetition: RepetitionStats;
 }
 export type ModuleLockedProperty =
-  | 'outputDim'
-  | 'effectiveRank'
+  | 'outFeatures'
+  | 'inputEffectiveRank'
   | 'neededOutputDim';
 
 export interface ModuleNodeLock {
@@ -42,29 +81,12 @@ export interface ModuleNodeLock {
 }
 
 export interface ModuleStats {
-  /** Output dimension / potential rank of the module output. */
-  rank: number;
-  /** Forward inference state for this module output. */
-  dimLabel: ModuleDimLabel;
-  /** Estimated effective rank carried by the module output. */
-  effectiveRank: number;
+  status: ModuleAnalysisStatus;
+  rank: ModuleRankStats;
   /** Tensor shape carried alongside channel-rank analysis. */
-  shape?: ModuleTensorShape;
-  /** High-, medium-, and low-frequency repetition adaptation ranks. */
-  repetitionRank?: RepetitionRank;
-  /** effectiveRank / rank. This can exceed 1 after Sum composition. */
-  saturation: number;
-  /** Rank trace used only for linear-correlation rho estimation. */
-  minRank?: number;
-
-  /** Mean of the module output activation. */
-  mean: number;
-  /** Variance of the module output activation. */
-  variance: number;
-  /** Probability mass exactly at zero. */
-  zeroRate: number;
-  /** Probability mass below zero before possible ReLU-style clipping. */
-  negativeRate?: number;
+  shape: ModuleTensorShape;
+  distribution: ModuleDistributionStats;
+  adaptation: ModuleAdaptationStats;
 
   /**
    * Element-level activation correlation from this output to each direct input
@@ -111,22 +133,8 @@ export interface ModuleStatsForwardResult {
 }
 
 export interface ModuleStatsBackward {
-  /** Dimension of the gradient propagated toward the module input. */
-  rank: number;
-  /** Estimated effective rank carried by the gradient. */
-  effectiveRank: number;
-  /** effectiveRank / rank. This can exceed 1 after branch aggregation. */
-  saturation: number;
-  /** Rank trace used while propagating through dimension-changing modules. */
-  minRank?: number;
-  /** Mean of the gradient distribution. */
-  mean: number;
-  /** Variance of the gradient distribution. */
-  variance: number;
-  /** Probability mass exactly at zero. */
-  zeroRate: number;
-  /** Probability mass below zero. */
-  negativeRate?: number;
+  rank: ModuleRankStats;
+  distribution: ModuleDistributionStats;
 }
 
 export interface ModuleBaseNodeData<
@@ -136,7 +144,13 @@ export interface ModuleBaseNodeData<
   name: string;
   type: NeuralBlueprintPageType;
   kind: TKind;
+  links: {
+    predecessorIds: string[];
+    successorIds: string[];
+  };
+  /** Derived runtime links; never persisted. */
   predecessors: ModuleNodeData[];
+  /** Derived runtime links; never persisted. */
   successors: ModuleNodeData[];
   forwardTopologyOrder?: number;
   inferenceTopologyOrder?: Set<number>;
@@ -152,27 +166,20 @@ export interface ModuleBaseNodeData<
   showRepetitionAnalysis?: boolean;
   sumInputPairStats?: SumInputPairStats[];
   backwardOutputPairStats?: BackwardOutputPairStats[];
-  position: {
-    x: number;
-    y: number;
-  };
 }
 
-export interface InputNodeData extends ModuleBaseNodeData<'Input'> {
+export interface InputModuleConfig {
   normalizationMode: InputNormalizationMode;
   outFeatures: number;
   inputEffectiveRank: number;
 }
 
-export interface ThreeDInputNodeData extends ModuleBaseNodeData<'3DInput'> {
-  normalizationMode: InputNormalizationMode;
-  outFeatures: number;
-  inputEffectiveRank: number;
+export interface ThreeDInputModuleConfig extends InputModuleConfig {
   height: Exclude<ModuleDimension, 'absent'>;
   width: Exclude<ModuleDimension, 'absent'>;
 }
 
-export interface LinearNodeData extends ModuleBaseNodeData<'Linear'> {
+export interface LinearModuleConfig {
   initializationMode: LinearInitializationMode;
   biasInitializationMode: BiasInitializationMode;
   inFeatures?: number;
@@ -180,7 +187,7 @@ export interface LinearNodeData extends ModuleBaseNodeData<'Linear'> {
   useBias: boolean;
 }
 
-export interface CNNNodeData extends ModuleBaseNodeData<'CNN'> {
+export interface CNNModuleConfig {
   initializationMode: LinearInitializationMode;
   biasInitializationMode: BiasInitializationMode;
   outFeatures: number;
@@ -191,39 +198,84 @@ export interface CNNNodeData extends ModuleBaseNodeData<'CNN'> {
   useBias: boolean;
 }
 
-export interface PoolingNodeData extends ModuleBaseNodeData<'Pooling'> {
+export interface PoolingModuleConfig {
   poolMode: PoolMode;
   kernelSize: number;
   stride: number;
   padding: number;
 }
 
+export interface GlobalPoolingModuleConfig {
+  poolMode: PoolMode;
+}
+
+export interface DropoutModuleConfig {
+  dropoutRate: number;
+}
+
+export interface OutputModuleConfig {
+  neededOutputDim: number;
+  neededTime: ModuleDimension;
+  neededHeight: ModuleDimension;
+  neededWidth: ModuleDimension;
+}
+
+export interface ModuleConfigByKind {
+  Input: InputModuleConfig;
+  '3DInput': ThreeDInputModuleConfig;
+  Linear: LinearModuleConfig;
+  CNN: CNNModuleConfig;
+  Pooling: PoolingModuleConfig;
+  Flatten: Record<string, never>;
+  GlobalPooling: GlobalPoolingModuleConfig;
+  ReLU: Record<string, never>;
+  Dropout: DropoutModuleConfig;
+  Sum: Record<string, never>;
+  Output: OutputModuleConfig;
+}
+
+export interface InputNodeData
+  extends ModuleBaseNodeData<'Input'>, InputModuleConfig {}
+
+export interface ThreeDInputNodeData
+  extends ModuleBaseNodeData<'3DInput'>, ThreeDInputModuleConfig {
+  normalizationMode: InputNormalizationMode;
+  outFeatures: number;
+  inputEffectiveRank: number;
+  height: Exclude<ModuleDimension, 'absent'>;
+  width: Exclude<ModuleDimension, 'absent'>;
+}
+
+export interface LinearNodeData
+  extends ModuleBaseNodeData<'Linear'>, LinearModuleConfig {}
+
+export interface CNNNodeData
+  extends ModuleBaseNodeData<'CNN'>, CNNModuleConfig {}
+
+export interface PoolingNodeData
+  extends ModuleBaseNodeData<'Pooling'>, PoolingModuleConfig {}
+
 export interface FlattenNodeData extends ModuleBaseNodeData<'Flatten'> {
   readonly kind: 'Flatten';
 }
 
-export interface GlobalPoolingNodeData extends ModuleBaseNodeData<'GlobalPooling'> {
-  poolMode: PoolMode;
-}
+export interface GlobalPoolingNodeData
+  extends ModuleBaseNodeData<'GlobalPooling'>, GlobalPoolingModuleConfig {}
 
 export interface ReLUNodeData extends ModuleBaseNodeData<'ReLU'> {
   readonly kind: 'ReLU';
 }
 
-export interface DropoutNodeData extends ModuleBaseNodeData<'Dropout'> {
-  dropoutRate: number;
-}
+export interface DropoutNodeData
+  extends ModuleBaseNodeData<'Dropout'>, DropoutModuleConfig {}
 
 export interface SumNodeData extends ModuleBaseNodeData<'Sum'> {
   readonly kind: 'Sum';
 }
 
-export interface OutputNodeData extends ModuleBaseNodeData<'Output'> {
+export interface OutputNodeData
+  extends ModuleBaseNodeData<'Output'>, OutputModuleConfig {
   readonly kind: 'Output';
-  neededOutputDim: number;
-  neededTime: ModuleDimension;
-  neededHeight: ModuleDimension;
-  neededWidth: ModuleDimension;
 }
 
 export type ModuleNodeData =

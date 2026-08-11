@@ -94,8 +94,8 @@ export function computeSumCovariance(
       const covarianceCorrelation = getInputPairCorrelation(elementPairCorrelation, leftIndex, rightIndex);
       const linearCorrelation = getInputPairCorrelation(linearPairCorrelation, leftIndex, rightIndex);
       const covariance = covarianceCorrelation
-        * Math.sqrt(Math.max(inputs[leftIndex].variance, 0))
-        * Math.sqrt(Math.max(inputs[rightIndex].variance, 0));
+        * Math.sqrt(Math.max(inputs[leftIndex].distribution.variance, 0))
+        * Math.sqrt(Math.max(inputs[rightIndex].distribution.variance, 0));
 
       total += 2 * covariance;
       pairs.push({
@@ -155,7 +155,7 @@ export function computeSumInputCorr(
   const inputCorr: Record<string, number> = {};
 
   inputNodes.forEach((inputNode, inputIndex) => {
-    const targetVariance = inputs[inputIndex]?.variance ?? 0;
+    const targetVariance = inputs[inputIndex]?.distribution.variance ?? 0;
     if (targetVariance <= 0 || sumVariance <= 0) {
       inputCorr[inputNode.id] = 0;
       return;
@@ -167,7 +167,10 @@ export function computeSumInputCorr(
       if (inputIndex === otherIndex) return;
 
       covarianceWithSum += getInputPairCorrelation(inputPairCorrelation, inputIndex, otherIndex)
-        * Math.sqrt(Math.max(targetVariance, 0) * Math.max(input.variance, 0));
+        * Math.sqrt(
+          Math.max(targetVariance, 0)
+            * Math.max(input.distribution.variance, 0),
+        );
     });
 
     inputCorr[inputNode.id] = covarianceWithSum / Math.sqrt(targetVariance * sumVariance);

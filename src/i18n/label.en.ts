@@ -151,6 +151,9 @@ export const EN_LABELS = {
     inferenceMemory: {
       title: 'Inference Memory',
       model: 'Model',
+      memory: 'Memory',
+      repetition: 'Repetition',
+      distance: 'Distance',
       axis: 'Inference Stage',
       empty: 'No inference memory data',
     },

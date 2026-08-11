@@ -17,11 +17,14 @@ export function backwardLinearStats(
   const fanOut = node.outFeatures;
   const effectiveRank = fanIn * (
     1 - Math.exp(
-      (-LINEAR_SATURATION_GAIN * gradient.effectiveRank)
+      (-LINEAR_SATURATION_GAIN * gradient.rank.effectiveRank)
         / Math.max(fanIn, EPS),
     )
   );
-  const minRank = Math.min(gradient.minRank ?? gradient.rank, fanIn);
+  const minRank = Math.min(
+    gradient.rank.minRank ?? gradient.rank.outputRank,
+    fanIn,
+  );
   const weightVariance = getWeightVariance(
     node.initializationMode,
     fanIn,
@@ -30,16 +33,24 @@ export function backwardLinearStats(
   const mean = 0;
   const variance = fanOut
     * weightVariance
-    * (gradient.variance + gradient.mean ** 2);
+    * (
+      gradient.distribution.variance
+        + gradient.distribution.mean ** 2
+    );
 
   return {
-    rank: fanIn,
-    effectiveRank,
-    saturation: effectiveRank / Math.max(fanIn, EPS),
-    minRank,
-    mean,
-    variance,
-    zeroRate: 0,
-    negativeRate: negativeRateFromNormal(mean, variance),
+    rank: {
+      outputRank: fanIn,
+      basisRank: fanIn,
+      effectiveRank,
+      saturation: effectiveRank / Math.max(fanIn, EPS),
+      minRank,
+    },
+    distribution: {
+      mean,
+      variance,
+      zeroRate: 0,
+      negativeRate: negativeRateFromNormal(mean, variance),
+    },
   };
 }

@@ -1,6 +1,10 @@
 import type { DragEvent } from 'react';
 import { useLabels } from '../../i18n/LanguageContext';
 import type { ModuleBaseNodeKind } from './ModuleBaseNodeTypes';
+import {
+  getModuleDefinition,
+  MODULE_DEFINITIONS,
+} from './moduleRegistry';
 
 export const MODULE_BASE_NODE_DRAG_TYPE = 'application/neural-blueprint-module-node';
 
@@ -8,42 +12,12 @@ interface ModuleBaseNodeTemplate {
   kind: ModuleBaseNodeKind;
 }
 
-const moduleBaseNodeTemplates: ModuleBaseNodeTemplate[] = [
-  { kind: 'Input' },
-  { kind: '3DInput' },
-  { kind: 'Linear' },
-  { kind: 'CNN' },
-  { kind: 'Pooling' },
-  { kind: 'Flatten' },
-  { kind: 'GlobalPooling' },
-  { kind: 'ReLU' },
-  { kind: 'Dropout' },
-  { kind: 'Sum' },
-  { kind: 'Output' },
-];
+const moduleBaseNodeTemplates: readonly ModuleBaseNodeTemplate[] = (
+  MODULE_DEFINITIONS
+);
 
 function getModuleBaseNodeIcon(kind: ModuleBaseNodeKind) {
-  return kind === 'Linear'
-    ? 'W'
-    : kind === 'CNN'
-      ? 'C'
-      : kind === 'Pooling'
-        ? 'P'
-        : kind === 'Flatten'
-          ? 'F'
-          : kind === 'GlobalPooling'
-            ? 'GP'
-    : kind === 'ReLU'
-      ? 'R'
-      : kind === 'Dropout'
-        ? 'D'
-        : kind === 'Sum'
-          ? '+'
-          : kind === 'Output'
-            ? 'Y'
-            : kind === '3DInput'
-              ? '3D'
-              : 'X';
+  return getModuleDefinition(kind)?.icon ?? '?';
 }
 
 function handleDragStart(

@@ -16,16 +16,16 @@ export function getReluCorrByNegativeRate(negativeRateInput: number | undefined)
 }
 
 export function getConditionalNegativeRate(input: ModuleStats) {
-  const nonZeroRate = clamp01(1 - input.zeroRate);
+  const nonZeroRate = clamp01(1 - input.distribution.zeroRate);
   if (nonZeroRate <= EPS) {
     return 1;
   }
 
-  return clamp01((input.negativeRate ?? 0) / nonZeroRate);
+  return clamp01((input.distribution.negativeRate ?? 0) / nonZeroRate);
 }
 
 export function getNonZeroRate(input: ModuleStats) {
-  return clamp01(1 - input.zeroRate);
+  return clamp01(1 - input.distribution.zeroRate);
 }
 
 export function statsFromMoments(mean: number, secondMoment: number) {
@@ -46,8 +46,10 @@ export function getNonZeroContinuousMoments(input: ModuleStats) {
     };
   }
 
-  const mean = input.mean / nonZeroRate;
-  const secondMoment = (input.variance + input.mean ** 2) / nonZeroRate;
+  const mean = input.distribution.mean / nonZeroRate;
+  const secondMoment = (
+    input.distribution.variance + input.distribution.mean ** 2
+  ) / nonZeroRate;
 
   return {
     nonZeroRate,
@@ -61,35 +63,31 @@ export function getConditionalPositiveRate(input: ModuleStats) {
   return 1 - getConditionalNegativeRate(input);
 }
 
-export function getReluSaturation(input: ModuleStats) {
-  return getNonZeroTransitionSaturation(
-    input,
-    clamp01(input.zeroRate + (input.negativeRate ?? 0)),
-  );
-}
-
-export function getDropoutSaturation(input: ModuleStats, dropoutRate: number) {
-  const removedRate = clamp01(dropoutRate);
-  const outputZeroRate = removedRate
-    + (1 - removedRate) * clamp01(input.zeroRate);
-  return getNonZeroTransitionSaturation(input, outputZeroRate);
-}
-
 export function getNonZeroTransitionSaturation(
-  input: Pick<ModuleStats, 'saturation' | 'zeroRate'>,
+  input: Pick<ModuleStats, 'rank' | 'distribution'>,
   outputZeroRateInput: number,
 ) {
-  const beforeNonZeroRate = clamp01(1 - input.zeroRate);
+  const beforeNonZeroRate = clamp01(1 - input.distribution.zeroRate);
   const afterNonZeroRate = clamp01(1 - outputZeroRateInput);
   if (beforeNonZeroRate <= EPS) return 1;
   return Math.pow(
-    clamp01(input.saturation),
+    clamp01(input.rank.saturation),
     afterNonZeroRate / beforeNonZeroRate,
   );
 }
 
+export function getDistributionTransitionSaturation(
+  input: Pick<ModuleStats, 'rank' | 'distribution'>,
+  outputDistribution: Pick<ModuleStats['distribution'], 'zeroRate'>,
+) {
+  return getNonZeroTransitionSaturation(
+    input,
+    outputDistribution.zeroRate,
+  );
+}
+
 export function getGateLinearCorr(input: ModuleStats, outputSaturation: number) {
-  const inputSaturation = clamp01(input.saturation);
+  const inputSaturation = clamp01(input.rank.saturation);
   const nextSaturation = clamp01(outputSaturation);
   if (nextSaturation <= EPS) {
     return 0;
@@ -108,9 +106,9 @@ export function negativeRateFromNormal(mean: number, variance: number) {
 }
 
 export function isNonNegative(
-  stats: Pick<ModuleStats, 'negativeRate'>,
+  stats: Pick<ModuleStats, 'distribution'>,
 ) {
-  return (stats.negativeRate ?? 0) <= 0;
+  return (stats.distribution.negativeRate ?? 0) <= 0;
 }
 
 export function normalPdf(value: number) {

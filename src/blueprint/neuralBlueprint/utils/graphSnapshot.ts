@@ -1,6 +1,7 @@
 import type { Edge } from '@xyflow/react';
 import type { ModuleBaseNode } from '../ModuleBaseNodeTypes';
 import { rebuildNodeLinks } from './nodeLinks';
+import { cloneNodeData } from './nodeClipboard';
 
 export interface NeuralBlueprintGraphSnapshot {
   nodes: ModuleBaseNode[];
@@ -15,10 +16,7 @@ export function createGraphSnapshot(
   const snapshotNodes = nodes.map((node) => ({
     ...node,
     position: { ...node.position },
-    data: {
-      ...node.data,
-      position: { ...node.data.position },
-    },
+    data: cloneNodeData(node.data),
   }));
 
   return {

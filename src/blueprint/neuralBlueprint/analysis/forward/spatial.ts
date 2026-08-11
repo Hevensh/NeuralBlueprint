@@ -17,7 +17,9 @@ export function vectorShape(channels: ModuleDimension): ModuleTensorShape {
 
 export function readTensorShape(input: ModuleStats): ModuleTensorShape {
   return input.shape ?? vectorShape(
-    Number.isFinite(input.rank) ? input.rank : 'unknown',
+    Number.isFinite(input.rank.outputRank)
+      ? input.rank.outputRank
+      : 'unknown',
   );
 }
 

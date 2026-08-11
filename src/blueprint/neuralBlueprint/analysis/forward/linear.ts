@@ -3,7 +3,7 @@ import type {
   ModuleNodeData,
   ModuleStats,
 } from '../../ModuleBaseNodeTypes';
-import { preserveRepetitionRank } from '../repetitionRank';
+import { preserveRepetitionStats } from '../repetitionRank';
 import { readTensorShape } from './spatial';
 import { EPS, LINEAR_SATURATION_GAIN } from './utils/constants';
 import { negativeRateFromNormal } from './utils/math';
@@ -21,10 +21,12 @@ export function forwardLinearStats(
 ): ModuleStats {
   const fanIn = getFanIn(node, input);
   const fanOut = node.outFeatures;
-  const inputEffectiveRank = input.effectiveRank || fanOut;
+  const inputEffectiveRank = input.rank.effectiveRank || fanOut;
   const saturation = 1 - Math.exp((-LINEAR_SATURATION_GAIN * inputEffectiveRank) / Math.max(fanIn, EPS));
   const effectiveRank = fanIn * saturation;
-  const inputMinRank = input.minRank || input.rank || fanIn;
+  const inputMinRank = input.rank.minRank
+    || input.rank.outputRank
+    || fanIn;
   const minRank = Math.min(inputMinRank, fanOut);
   const linearCorr = inputMinRank > 0
     ? Math.sqrt(minRank / inputMinRank)
@@ -32,26 +34,35 @@ export function forwardLinearStats(
   const weightVariance = getWeightVariance(node.initializationMode, fanIn, fanOut);
   const biasVariance = getBiasVariance(node);
   const outputMean = 0;
-  const outputVariance = fanIn * weightVariance * (input.variance + input.mean ** 2) + biasVariance;
+  const outputVariance = fanIn * weightVariance * (
+    input.distribution.variance + input.distribution.mean ** 2
+  ) + biasVariance;
   const inputShape = readTensorShape(input);
 
   return {
-    rank: fanOut,
-    dimLabel: 'normal',
-    effectiveRank,
-    saturation,
+    status: 'valid',
+    rank: {
+      outputRank: fanOut,
+      basisRank: fanIn,
+      effectiveRank,
+      saturation,
+      minRank,
+    },
     shape: {
       time: inputShape.time,
       channels: fanOut,
       height: inputShape.height,
       width: inputShape.width,
     },
-    repetitionRank: preserveRepetitionRank(input, effectiveRank),
-    minRank,
-    mean: outputMean,
-    variance: outputVariance,
-    zeroRate: 0,
-    negativeRate: negativeRateFromNormal(outputMean, outputVariance),
+    adaptation: {
+      repetition: preserveRepetitionStats(input, effectiveRank),
+    },
+    distribution: {
+      mean: outputMean,
+      variance: outputVariance,
+      zeroRate: 0,
+      negativeRate: negativeRateFromNormal(outputMean, outputVariance),
+    },
     inputElementCorr: inputNode
       ? { [inputNode.id]: getLinearElementCorr(fanIn) }
       : undefined,

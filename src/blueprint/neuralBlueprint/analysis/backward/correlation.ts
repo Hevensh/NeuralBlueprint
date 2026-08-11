@@ -36,8 +36,14 @@ export function computeBackwardOutputPairStats(
         nodeMap,
       );
       const covariance = covarianceCorrelation
-        * Math.sqrt(Math.max(gradients[leftIndex]?.variance ?? 0, 0))
-        * Math.sqrt(Math.max(gradients[rightIndex]?.variance ?? 0, 0));
+        * Math.sqrt(Math.max(
+          gradients[leftIndex]?.distribution.variance ?? 0,
+          0,
+        ))
+        * Math.sqrt(Math.max(
+          gradients[rightIndex]?.distribution.variance ?? 0,
+          0,
+        ));
 
       pairs.push({
         leftNodeId: leftNode.id,
@@ -118,8 +124,8 @@ function computeBackwardPathCorrelation(
     if (node.kind === 'ReLU') {
       const inputStats = node.predecessors[0]?.stats;
       const keepRate = 1
-        - (inputStats?.zeroRate ?? 0)
-        - (inputStats?.negativeRate ?? 0.5);
+        - (inputStats?.distribution.zeroRate ?? 0)
+        - (inputStats?.distribution.negativeRate ?? 0.5);
       correlation *= Math.sqrt(clamp01(keepRate));
     }
     if (node.kind === 'Dropout') {

@@ -1,20 +1,11 @@
 import type { MemoryProfileSource } from '../blueprint/knowledgeGraph/model/types';
 import type { ModuleBaseNodeKind } from '../blueprint/neuralBlueprint/ModuleBaseNodeTypes';
+import { MODULE_KINDS } from '../blueprint/neuralBlueprint/moduleRegistry';
 
 export type NetworkCapabilityMode = MemoryProfileSource | 'select';
 
 export const ALL_NEURAL_BLUEPRINT_MODULES: ModuleBaseNodeKind[] = [
-  'Input',
-  '3DInput',
-  'Linear',
-  'CNN',
-  'Pooling',
-  'Flatten',
-  'GlobalPooling',
-  'ReLU',
-  'Dropout',
-  'Sum',
-  'Output',
+  ...MODULE_KINDS,
 ];
 
 export type BlueprintTaskFeatureConfig = {

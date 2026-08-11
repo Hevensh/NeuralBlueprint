@@ -153,6 +153,9 @@ export const ZH_LABELS = {
     inferenceMemory: {
       title: '推理记忆',
       model: '模型',
+      memory: '记忆',
+      repetition: '重复适应',
+      distance: '距离适应',
       axis: '推理序',
       empty: '没有推理记忆数据',
     },

@@ -1,20 +1,24 @@
 import type {
+  CNNNodeData,
   LinearNodeData,
   ModuleBaseNode,
+  ModuleNodeData,
 } from '../ModuleBaseNodeTypes';
 import {
   collectInferenceModelIslands,
   computeInferenceGroupProfile,
 } from './inferenceMemoryProfile';
 
+type TrainableNodeData = LinearNodeData | CNNNodeData;
+
 export function updateInferencePoints(nodes: ModuleBaseNode[]) {
   nodes.forEach((node) => {
     const { data } = node;
-    if (data.kind !== 'Linear') return;
+    if (!isTrainableNode(data)) return;
 
     if (
-      !Number.isFinite(data.stats?.effectiveRank)
-      || !Number.isFinite(data.statsBackward?.effectiveRank)
+      !Number.isFinite(data.stats?.rank.effectiveRank)
+      || !Number.isFinite(data.statsBackward?.rank.effectiveRank)
     ) {
       data.memoryPoint = undefined;
       data.inferencePoint = undefined;
@@ -22,9 +26,9 @@ export function updateInferencePoints(nodes: ModuleBaseNode[]) {
     }
 
     data.memoryPoint = (
-      data.stats?.effectiveRank ?? Number.NaN
+      data.stats?.rank.effectiveRank ?? Number.NaN
     ) * (
-      data.statsBackward?.effectiveRank ?? Number.NaN
+      data.statsBackward?.rank.effectiveRank ?? Number.NaN
     );
     data.inferencePoint = undefined;
 
@@ -32,12 +36,12 @@ export function updateInferencePoints(nodes: ModuleBaseNode[]) {
   });
 
   collectInferenceModelIslands(nodes).forEach((island) => {
-    const groups = new Map<string, LinearNodeData[]>();
+    const groups = new Map<string, TrainableNodeData[]>();
 
     island.nodes.forEach((node) => {
       const { data } = node;
       if (
-        data.kind !== 'Linear'
+        !isTrainableNode(data)
         || !data.inferenceTopologyOrder?.size
         || !Number.isFinite(data.memoryPoint)
       ) return;
@@ -61,6 +65,10 @@ export function updateInferencePoints(nodes: ModuleBaseNode[]) {
       });
     });
   });
+}
+
+function isTrainableNode(data: ModuleNodeData): data is TrainableNodeData {
+  return data.kind === 'Linear' || data.kind === 'CNN';
 }
 
 function getInferenceOrderKey(orders: Set<number> | undefined) {

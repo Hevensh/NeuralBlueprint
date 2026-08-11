@@ -143,8 +143,11 @@ export function NeuralBlueprintRightPanel({
   const selectedStats = analysisDirection === 'backward'
     ? selectedNode?.statsBackward
     : selectedNode?.stats;
-  const outputDimLocked = isPropertyLocked(selectedNode, 'outputDim');
-  const effectiveRankLocked = isPropertyLocked(selectedNode, 'effectiveRank');
+  const outputDimLocked = isPropertyLocked(selectedNode, 'outFeatures');
+  const effectiveRankLocked = isPropertyLocked(
+    selectedNode,
+    'inputEffectiveRank',
+  );
   const neededOutputDimLocked = isPropertyLocked(
     selectedNode,
     'neededOutputDim',
@@ -240,7 +243,10 @@ export function NeuralBlueprintRightPanel({
             <div className="property-field">
               <span className="property-label">{propertyLabels.outputDim}</span>
               <div className="property-value">
-                {formatDecimalPropertyNumber(selectedNode.stats?.rank, 0)}
+                {formatDecimalPropertyNumber(
+                  selectedNode.stats?.rank.outputRank,
+                  0,
+                )}
               </div>
             </div>
           )}
@@ -258,7 +264,10 @@ export function NeuralBlueprintRightPanel({
                   {propertyLabels.effectiveRank}
                 </span>
                 <div className="property-value">
-                  {formatDecimalPropertyNumber(selectedStats?.effectiveRank, 3)}
+                  {formatDecimalPropertyNumber(
+                    selectedStats?.rank.effectiveRank,
+                    3,
+                  )}
                 </div>
               </label>
             )}
@@ -281,7 +290,10 @@ export function NeuralBlueprintRightPanel({
                     : propertyLabels.gradientMean}
                 </span>
                 <div className="property-value">
-                  {formatDecimalPropertyNumber(selectedStats?.mean, 3)}
+                  {formatDecimalPropertyNumber(
+                    selectedStats?.distribution.mean,
+                    3,
+                  )}
                 </div>
               </div>
 
@@ -293,7 +305,9 @@ export function NeuralBlueprintRightPanel({
                 </span>
                 <div className="property-value">
                   {formatDecimalPropertyNumber(
-                    getStandardDeviation(selectedStats?.variance),
+                    getStandardDeviation(
+                      selectedStats?.distribution.variance,
+                    ),
                     3,
                   )}
                 </div>
@@ -359,9 +373,6 @@ function hasLockedPatch<TNode extends ModuleNodeData>(
 }
 
 function dataFieldToLockedProperty(field: string): ModuleLockedProperty {
-  if (field === 'outFeatures') return 'outputDim';
-  if (field === 'inputEffectiveRank') return 'effectiveRank';
-  if (field === 'neededOutputDim') return 'neededOutputDim';
   return field as ModuleLockedProperty;
 }
 

@@ -2,7 +2,7 @@ import type {
   ModuleStats,
   PoolingNodeData,
 } from '../../ModuleBaseNodeTypes';
-import { poolRepetitionRank } from '../repetitionRank';
+import { poolRepetitionStats } from '../repetitionRank';
 import { getForwardPoolingMoments } from './poolingMoments';
 import {
   getKnownDimension,
@@ -10,7 +10,7 @@ import {
   readTensorShape,
 } from './spatial';
 import { EPS } from './utils/constants';
-import { getNonZeroTransitionSaturation } from './utils/math';
+import { getDistributionTransitionSaturation } from './utils/math';
 
 export function forwardPoolingStats(
   node: PoolingNodeData,
@@ -32,25 +32,35 @@ export function forwardPoolingStats(
   );
   const rank = getKnownDimension(inputShape.channels) ?? Number.NaN;
   const saturation = node.poolMode === 'average'
-    ? input.saturation
-    : getNonZeroTransitionSaturation(input, moments.zeroRate);
+    ? input.rank.saturation
+    : getDistributionTransitionSaturation(input, moments);
   const effectiveRank = node.poolMode === 'average'
-    ? input.effectiveRank
+    ? input.rank.effectiveRank
     : rank * saturation;
 
   return {
     ...input,
-    ...moments,
-    rank,
-    effectiveRank,
-    saturation: Number.isFinite(rank)
-      ? effectiveRank / Math.max(rank, EPS)
-      : saturation,
-    shape,
-    repetitionRank: poolRepetitionRank(
-      input,
-      node.kernelSize,
+    rank: {
+      outputRank: rank,
+      basisRank: node.poolMode === 'average'
+        ? input.rank.basisRank
+        : rank,
       effectiveRank,
-    ),
+      saturation: node.poolMode === 'average'
+        ? input.rank.saturation
+        : Number.isFinite(rank)
+          ? effectiveRank / Math.max(rank, EPS)
+          : saturation,
+      minRank: input.rank.minRank,
+    },
+    distribution: moments,
+    shape,
+    adaptation: {
+      repetition: poolRepetitionStats(
+        input,
+        node.kernelSize,
+        effectiveRank,
+      ),
+    },
   };
 }

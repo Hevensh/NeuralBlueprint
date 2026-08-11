@@ -16,14 +16,14 @@ export function applyTopologyOrders(nodes: ModuleBaseNode[]): ModuleBaseNode[] {
     orderMap: forwardOrderMap,
     cycleNodeIds,
     warnedMissingLinks,
-    getLinkedData: (node) => node.predecessors,
+    getLinkedIds: (node) => node.links.predecessorIds,
   });
   const getBackwardTopologyOrder = createTopologyOrderResolver({
     nodeMap,
     orderMap: backwardOrderMap,
     cycleNodeIds,
     warnedMissingLinks,
-    getLinkedData: (node) => node.successors,
+    getLinkedIds: (node) => node.links.successorIds,
   });
 
   nodes.forEach((node) => {
@@ -49,12 +49,16 @@ export function applyTopologyOrders(nodes: ModuleBaseNode[]): ModuleBaseNode[] {
     const data = dataById.get(node.data.id);
     if (!data) return;
 
-    data.predecessors = node.data.predecessors
-      .map((predecessor) => dataById.get(predecessor.id))
+    data.predecessors = node.data.links.predecessorIds
+      .map((predecessorId) => dataById.get(predecessorId))
       .filter((predecessor): predecessor is ModuleNodeData => Boolean(predecessor));
-    data.successors = node.data.successors
-      .map((successor) => dataById.get(successor.id))
+    data.successors = node.data.links.successorIds
+      .map((successorId) => dataById.get(successorId))
       .filter((successor): successor is ModuleNodeData => Boolean(successor));
+    data.links = {
+      predecessorIds: data.predecessors.map((predecessor) => predecessor.id),
+      successorIds: data.successors.map((successor) => successor.id),
+    };
   });
 
   return nodes.map((node) => ({
@@ -69,8 +73,8 @@ function normalizeFixedOutputRank(node: ModuleNodeData): ModuleNodeData {
       ...node,
       neededOutputDim: Number.isFinite(node.neededOutputDim)
         ? node.neededOutputDim
-        : Number.isFinite(node.stats?.rank)
-          ? node.stats?.rank as number
+        : Number.isFinite(node.stats?.rank.outputRank)
+          ? node.stats?.rank.outputRank as number
           : DEFAULT_OUTPUT_DIM,
     };
   }
@@ -84,8 +88,8 @@ function normalizeFixedOutputRank(node: ModuleNodeData): ModuleNodeData {
 
   const outFeatures = Number.isFinite(node.outFeatures)
     ? node.outFeatures
-    : Number.isFinite(node.stats?.rank)
-      ? node.stats?.rank as number
+    : Number.isFinite(node.stats?.rank.outputRank)
+      ? node.stats?.rank.outputRank as number
       : DEFAULT_OUTPUT_DIM;
 
   return {
@@ -99,7 +103,7 @@ interface TopologyOrderResolverOptions {
   orderMap: Map<string, number>;
   cycleNodeIds: Set<string>;
   warnedMissingLinks: Set<string>;
-  getLinkedData: (node: ModuleNodeData) => ModuleNodeData[];
+  getLinkedIds: (node: ModuleNodeData) => string[];
 }
 
 function createTopologyOrderResolver({
@@ -107,7 +111,7 @@ function createTopologyOrderResolver({
   orderMap,
   cycleNodeIds,
   warnedMissingLinks,
-  getLinkedData,
+  getLinkedIds,
 }: TopologyOrderResolverOptions) {
   const visited = new Set<string>();
   const visiting = new Set<string>();
@@ -132,11 +136,11 @@ function createTopologyOrderResolver({
     visiting.add(nodeId);
     path.push(nodeId);
 
-    const linkedOrders = getLinkedData(node.data)
-      .map((linkedData) => {
-        const linkedNode = nodeMap.get(linkedData.id);
+    const linkedOrders = getLinkedIds(node.data)
+      .map((linkedId) => {
+        const linkedNode = nodeMap.get(linkedId);
         if (!linkedNode) {
-          warnMissingLink(linkedData.id, warnedMissingLinks);
+          warnMissingLink(linkedId, warnedMissingLinks);
           return undefined;
         }
         return getTopologyOrder(linkedNode.data.id);

@@ -79,10 +79,14 @@ function getMaxBackwardKeepRate(
   if (
     input
     && output
-    && (input.negativeRate ?? 0) <= EPS
+    && (input.distribution.negativeRate ?? 0) <= EPS
   ) {
-    const inputNonZeroRate = clamp01(1 - input.zeroRate);
-    const outputNonZeroRate = clamp01(1 - output.zeroRate);
+    const inputNonZeroRate = clamp01(
+      1 - input.distribution.zeroRate,
+    );
+    const outputNonZeroRate = clamp01(
+      1 - output.distribution.zeroRate,
+    );
     perWindowRate = inputNonZeroRate <= EPS
       ? 0
       : clamp01(
@@ -101,9 +105,6 @@ function copyEffectiveRank(
   return {
     ...stats,
     rank: rankStats.rank,
-    effectiveRank: rankStats.effectiveRank,
-    saturation: rankStats.saturation,
-    minRank: rankStats.minRank,
   };
 }
 
@@ -117,36 +118,52 @@ function backwardAggregateStats(
   if (elementCount === 1 && overlapCount === 1) return gradient;
 
   if (mode === 'average') {
-    const mean = overlapCount * gradient.mean / elementCount;
-    const variance = overlapCount * gradient.variance / elementCount ** 2;
-    const zeroRate = Math.pow(gradient.zeroRate, overlapCount);
+    const mean = overlapCount
+      * gradient.distribution.mean / elementCount;
+    const variance = overlapCount
+      * gradient.distribution.variance / elementCount ** 2;
+    const zeroRate = Math.pow(
+      gradient.distribution.zeroRate,
+      overlapCount,
+    );
     return {
       ...gradient,
-      mean,
-      variance,
-      zeroRate,
-      negativeRate: (1 - zeroRate) * negativeRateFromNormal(mean, variance),
+      distribution: {
+        mean,
+        variance,
+        zeroRate,
+        negativeRate: (1 - zeroRate)
+          * negativeRateFromNormal(mean, variance),
+      },
     };
   }
 
   const selectionRate = 1 / elementCount;
-  const oneMean = selectionRate * gradient.mean;
+  const oneMean = selectionRate * gradient.distribution.mean;
   const oneSecondMoment = selectionRate
-    * (gradient.variance + gradient.mean ** 2);
+    * (
+      gradient.distribution.variance
+        + gradient.distribution.mean ** 2
+    );
   const mean = overlapCount * oneMean;
   const variance = overlapCount * Math.max(
     oneSecondMoment - oneMean ** 2,
     0,
   );
-  const oneZeroRate = 1 - selectionRate * (1 - gradient.zeroRate);
+  const oneZeroRate = 1 - selectionRate * (
+    1 - gradient.distribution.zeroRate
+  );
   const zeroRate = Math.pow(oneZeroRate, overlapCount);
 
   return {
     ...gradient,
-    mean,
-    variance,
-    zeroRate,
-    negativeRate: (1 - zeroRate) * negativeRateFromNormal(mean, variance),
+    distribution: {
+      mean,
+      variance,
+      zeroRate,
+      negativeRate: (1 - zeroRate)
+        * negativeRateFromNormal(mean, variance),
+    },
   };
 }
 
@@ -155,9 +172,11 @@ function unknownMoments(
 ): ModuleStatsBackward {
   return {
     ...gradient,
-    mean: Number.NaN,
-    variance: Number.NaN,
-    zeroRate: Number.NaN,
-    negativeRate: Number.NaN,
+    distribution: {
+      mean: Number.NaN,
+      variance: Number.NaN,
+      zeroRate: Number.NaN,
+      negativeRate: Number.NaN,
+    },
   };
 }

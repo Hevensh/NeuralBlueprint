@@ -10,6 +10,7 @@ export function rebuildNodeLinks(
   nodes.forEach((node) => {
     dataById.set(node.id, {
       ...node.data,
+      links: { predecessorIds: [], successorIds: [] },
       predecessors: [],
       successors: [],
     });
@@ -20,6 +21,8 @@ export function rebuildNodeLinks(
     const target = dataById.get(edge.target);
     if (!source || !target) return;
 
+    source.links.successorIds.push(target.id);
+    target.links.predecessorIds.push(source.id);
     source.successors.push(target);
     target.predecessors.push(source);
   });

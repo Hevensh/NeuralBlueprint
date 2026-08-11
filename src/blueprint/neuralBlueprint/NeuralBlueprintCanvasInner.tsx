@@ -303,7 +303,6 @@ export function NeuralBlueprintCanvasInner({
       id,
       name: kind,
       type: PageType.NeuralBlueprint,
-      position,
     });
     const node: ModuleBaseNode = {
       id,

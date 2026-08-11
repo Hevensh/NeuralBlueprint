@@ -2,7 +2,7 @@ import type {
   GlobalPoolingNodeData,
   ModuleStats,
 } from '../../ModuleBaseNodeTypes';
-import { preserveRepetitionRank } from '../repetitionRank';
+import { preserveRepetitionStats } from '../repetitionRank';
 import { EPS } from './utils/constants';
 import {
   getGlobalAggregationSize,
@@ -11,7 +11,7 @@ import {
   readTensorShape,
 } from './spatial';
 import { getForwardPoolingMoments } from './poolingMoments';
-import { getNonZeroTransitionSaturation } from './utils/math';
+import { getDistributionTransitionSaturation } from './utils/math';
 
 export function forwardGlobalPoolingStats(
   node: GlobalPoolingNodeData,
@@ -31,23 +31,33 @@ export function forwardGlobalPoolingStats(
     }
     : getForwardPoolingMoments(input, aggregationSize, node.poolMode);
   const inputEffectiveRank = Number.isFinite(rank)
-    ? Math.min(input.effectiveRank, rank)
-    : input.effectiveRank;
+    ? Math.min(input.rank.effectiveRank, rank)
+    : input.rank.effectiveRank;
   const saturation = node.poolMode === 'average'
-    ? input.saturation
-    : getNonZeroTransitionSaturation(input, moments.zeroRate);
+    ? input.rank.saturation
+    : getDistributionTransitionSaturation(input, moments);
   const effectiveRank = node.poolMode === 'average'
     ? inputEffectiveRank
     : rank * saturation;
   return {
     ...input,
-    ...moments,
-    rank,
-    effectiveRank,
-    saturation: Number.isFinite(rank)
-      ? effectiveRank / Math.max(rank, EPS)
-      : saturation,
+    rank: {
+      outputRank: rank,
+      basisRank: node.poolMode === 'average'
+        ? input.rank.basisRank
+        : rank,
+      effectiveRank,
+      saturation: node.poolMode === 'average'
+        ? input.rank.saturation
+        : Number.isFinite(rank)
+          ? effectiveRank / Math.max(rank, EPS)
+          : saturation,
+      minRank: input.rank.minRank,
+    },
+    distribution: moments,
     shape,
-    repetitionRank: preserveRepetitionRank(input, effectiveRank),
+    adaptation: {
+      repetition: preserveRepetitionStats(input, effectiveRank),
+    },
   };
 }

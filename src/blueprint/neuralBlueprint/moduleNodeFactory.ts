@@ -4,37 +4,22 @@ import type {
   ModuleNodeData,
   ModuleStats,
 } from './ModuleBaseNodeTypes';
+import { createEmptyRepetitionStats } from './analysis/repetitionRank';
+export { isModuleBaseNodeKind } from './moduleRegistry';
 
 export const DEFAULT_OUTPUT_DIM = 64;
 export const DEFAULT_INPUT_EFFECTIVE_RANK = 32;
 export const DEFAULT_3D_INPUT_CHANNELS = 3;
 export const DEFAULT_3D_INPUT_SIZE = 224;
 
-const moduleNodeKinds: ModuleBaseNodeKind[] = [
-  'Input',
-  '3DInput',
-  'Linear',
-  'CNN',
-  'Pooling',
-  'Flatten',
-  'GlobalPooling',
-  'ReLU',
-  'Dropout',
-  'Sum',
-  'Output',
-];
-
-export function isModuleBaseNodeKind(kind: string): kind is ModuleBaseNodeKind {
-  return moduleNodeKinds.includes(kind as ModuleBaseNodeKind);
-}
-
 export function createModuleNodeData(
   kind: ModuleBaseNodeKind,
-  common: Pick<ModuleBaseNodeData, 'id' | 'name' | 'type' | 'position'>,
+  common: Pick<ModuleBaseNodeData, 'id' | 'name' | 'type'>,
 ): ModuleNodeData {
   const base = {
     ...common,
     kind,
+    links: { predecessorIds: [], successorIds: [] },
     predecessors: [],
     successors: [],
     forwardTopologyOrder: 0,
@@ -133,63 +118,78 @@ function getDefaultStats(kind: ModuleBaseNodeKind): ModuleStats {
       ? DEFAULT_3D_INPUT_CHANNELS
       : DEFAULT_INPUT_EFFECTIVE_RANK;
     return {
-      rank,
-      dimLabel: 'normal',
-      effectiveRank,
-      saturation: effectiveRank / rank,
-      minRank: rank,
-      mean: 0.5,
-      variance: 1 / 12,
-      zeroRate: 0,
-      negativeRate: 0,
+      status: 'valid',
+      rank: {
+        outputRank: rank,
+        basisRank: rank,
+        effectiveRank,
+        saturation: effectiveRank / rank,
+        minRank: rank,
+      },
+      distribution: {
+        mean: 0.5,
+        variance: 1 / 12,
+        zeroRate: 0,
+        negativeRate: 0,
+      },
       shape: {
         time: 'absent',
         channels: rank,
         height: kind === '3DInput' ? DEFAULT_3D_INPUT_SIZE : 'absent',
         width: kind === '3DInput' ? DEFAULT_3D_INPUT_SIZE : 'absent',
       },
-      repetitionRank: { high: 0, medium: 0, low: 0 },
+      adaptation: { repetition: createEmptyRepetitionStats() },
     };
   }
 
   if (kind === 'Linear' || kind === 'CNN') {
     const rank = kind === 'CNN' ? 32 : DEFAULT_OUTPUT_DIM;
     return {
-      rank,
-      dimLabel: 'normal',
-      effectiveRank: Number.NaN,
-      saturation: Number.NaN,
-      minRank: Number.NaN,
-      mean: Number.NaN,
-      variance: Number.NaN,
-      zeroRate: Number.NaN,
-      negativeRate: Number.NaN,
+      status: 'unknown',
+      rank: {
+        outputRank: rank,
+        basisRank: Number.NaN,
+        effectiveRank: Number.NaN,
+        saturation: Number.NaN,
+        minRank: Number.NaN,
+      },
+      distribution: {
+        mean: Number.NaN,
+        variance: Number.NaN,
+        zeroRate: Number.NaN,
+        negativeRate: Number.NaN,
+      },
       shape: {
         time: 'absent',
         channels: rank,
         height: kind === 'CNN' ? 'unknown' : 'absent',
         width: kind === 'CNN' ? 'unknown' : 'absent',
       },
-      repetitionRank: { high: 0, medium: 0, low: 0 },
+      adaptation: { repetition: createEmptyRepetitionStats() },
     };
   }
 
   return {
-    rank: Number.NaN,
-    dimLabel: 'normal',
-    effectiveRank: Number.NaN,
-    saturation: Number.NaN,
-    minRank: Number.NaN,
-    mean: Number.NaN,
-    variance: Number.NaN,
-    zeroRate: Number.NaN,
-    negativeRate: Number.NaN,
+    status: 'unknown',
+    rank: {
+      outputRank: Number.NaN,
+      basisRank: Number.NaN,
+      effectiveRank: Number.NaN,
+      saturation: Number.NaN,
+      minRank: Number.NaN,
+    },
+    distribution: {
+      mean: Number.NaN,
+      variance: Number.NaN,
+      zeroRate: Number.NaN,
+      negativeRate: Number.NaN,
+    },
     shape: {
       time: 'absent',
       channels: 'unknown',
       height: kind === 'Pooling' ? 'unknown' : 'absent',
       width: kind === 'Pooling' ? 'unknown' : 'absent',
     },
-    repetitionRank: { high: 0, medium: 0, low: 0 },
+    adaptation: { repetition: createEmptyRepetitionStats() },
   };
 }
