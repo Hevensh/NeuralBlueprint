@@ -59,7 +59,8 @@
   cursor: pointer;
 }
 
-.dimension-number-field .property-label {
+.dimension-number-field .property-label,
+.property-field-label-hidden .property-label {
   display: none;
 }
 

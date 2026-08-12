@@ -1,4 +1,7 @@
-import type { KnowledgeGraphSessionState } from '../dataStorage/knowledgeGraphStorage';
+import {
+  DEFAULT_KNOWLEDGE_GRAPH_UI,
+  type KnowledgeGraphSessionState,
+} from '../dataStorage/knowledgeGraphStorage';
 import {
   createEmptyKnowledgeDatasetCollection,
   generateKnowledgeDatasets,
@@ -76,5 +79,6 @@ export function createKnowledgeGraphSession(
     ),
     modelInitialized: false,
     networkProfileSignature: '',
+    ui: { ...DEFAULT_KNOWLEDGE_GRAPH_UI },
   };
 }

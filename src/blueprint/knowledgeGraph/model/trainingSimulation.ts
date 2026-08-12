@@ -7,6 +7,7 @@ import type { KnowledgeLossPoint } from './types';
 import { computeKnowledgeLossReport } from './lossMetrics';
 import { cloneKnowledgeGraphMemory } from './memoryState';
 import {
+  entityPoolAdaptationCompatibility,
   entityRequiredMemory,
   getTrainingEntities,
   poolAllocatedMemory,
@@ -163,7 +164,11 @@ function trainOneStep(
           entity,
           utilities,
           stage,
-        ).total,
+        ).total * entityPoolAdaptationCompatibility(
+          next,
+          entity,
+          pool.id,
+        ),
         random,
         noAllocationWeight,
       );

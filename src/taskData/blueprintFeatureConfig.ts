@@ -16,6 +16,7 @@ export type BlueprintTaskFeatureConfig = {
     showVarianceAnalysisToggle?: boolean;
     showRankAnalysisToggle?: boolean;
     showRepetitionAnalysisToggle?: boolean;
+    showDistanceIndexAnalysisToggle?: boolean;
   };
   knowledgeGraph: {
     canOpenTab: boolean;
@@ -37,6 +38,7 @@ export type ResolvedBlueprintTaskFeatureConfig = {
     showVarianceAnalysisToggle: boolean;
     showRankAnalysisToggle: boolean;
     showRepetitionAnalysisToggle: boolean;
+    showDistanceIndexAnalysisToggle: boolean;
   };
   knowledgeGraph: {
     canOpenTab: boolean;
@@ -58,6 +60,7 @@ export const DEFAULT_BLUEPRINT_TASK_FEATURES: ResolvedBlueprintTaskFeatureConfig
     showVarianceAnalysisToggle: true,
     showRankAnalysisToggle: true,
     showRepetitionAnalysisToggle: true,
+    showDistanceIndexAnalysisToggle: true,
   },
   knowledgeGraph: {
     canOpenTab: true,

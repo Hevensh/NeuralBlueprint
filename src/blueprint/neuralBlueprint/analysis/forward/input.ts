@@ -4,6 +4,7 @@ import type {
   ModuleStats,
 } from '../../ModuleBaseNodeTypes';
 import { createEmptyRepetitionStats } from '../repetitionRank';
+import { createEmptyDistanceIndexRank } from '../distanceIndexRank';
 import { EPS } from './utils/constants';
 
 export function forwardInputStats(
@@ -40,7 +41,10 @@ export function forwardInputStats(
       height: node.kind === '3DInput' ? normalizeInputDimension(node.height) : 'absent',
       width: node.kind === '3DInput' ? normalizeInputDimension(node.width) : 'absent',
     },
-    adaptation: { repetition: createEmptyRepetitionStats() },
+    adaptation: {
+      repetition: createEmptyRepetitionStats(),
+      distanceIndex: createEmptyDistanceIndexRank(),
+    },
     distribution: inputDistribution,
   };
 }

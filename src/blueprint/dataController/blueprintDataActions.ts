@@ -34,9 +34,18 @@ import {
   setMemoryProfileSource,
   setSelectedInferenceStage,
 } from '../knowledgeGraph/model/memoryState';
-import {
-  writeEntityMemory,
-} from '../knowledgeGraph/model/memoryOperations';
+import { writeEntityMemory } from '../knowledgeGraph/model/memoryOperations';
+import { normalizeAdaptationRequirement } from '../knowledgeGraph/model/adaptation';
+import type {
+  AdaptationRequirementValue,
+  DistanceIndexBand,
+  KnowledgeAdaptationRoute,
+  KnowledgeEdge,
+  KnowledgeEdgeKind,
+  KnowledgeGraphDefinition,
+  KnowledgeNode,
+  ReceptiveFieldBand,
+} from '../knowledgeGraph/model/types';
 import {
   evaluateAllocation,
   initializeAllocation,
@@ -288,6 +297,56 @@ export function createBlueprintDataActions({
     });
   };
 
+  const setNodeAdaptationRequirement = (
+    nodeId: string,
+    route: KnowledgeAdaptationRoute,
+    band: ReceptiveFieldBand | DistanceIndexBand,
+    value: AdaptationRequirementValue,
+  ) => {
+    setState((current) => {
+      const node = current.graphDefinition.nodes[nodeId];
+      if (!node) return current;
+      const nextNode = withAdaptationRequirement(
+        node,
+        route,
+        band,
+        value,
+      );
+      return {
+        ...current,
+        graphDefinition: replaceKnowledgeNode(
+          current.graphDefinition,
+          nextNode,
+        ),
+      };
+    });
+  };
+
+  const setEdgeAdaptationRequirement = (
+    edgeId: string,
+    route: KnowledgeAdaptationRoute,
+    band: ReceptiveFieldBand | DistanceIndexBand,
+    value: AdaptationRequirementValue,
+  ) => {
+    setState((current) => ({
+      ...current,
+      graphDefinition: mapKnowledgeEdges(
+        current.graphDefinition,
+        (edge) => edge.id === edgeId
+          ? {
+            ...edge,
+            properties: withAdaptationRequirement(
+              edge.properties,
+              route,
+              band,
+              value,
+            ),
+          }
+          : edge,
+      ),
+    }));
+  };
+
   const setGraphViewport = (viewport: KnowledgeGraphViewport) => {
     setState((current) => ({ ...current, viewport }));
   };
@@ -402,6 +461,8 @@ export function createBlueprintDataActions({
     setDatasetSplitRatio,
     setNodeMemory,
     setEdgeMemory,
+    setNodeAdaptationRequirement,
+    setEdgeAdaptationRequirement,
     setGraphViewport,
     initializeNeuralMemory,
     runTrainingStep,
@@ -414,5 +475,49 @@ export function createBlueprintDataActions({
         stabilityPercent(),
       )
     )),
+  };
+}
+
+function withAdaptationRequirement<
+  T extends { adaptationRequirements: KnowledgeNode['adaptationRequirements'] },
+>(
+  target: T,
+  route: KnowledgeAdaptationRoute,
+  band: ReceptiveFieldBand | DistanceIndexBand,
+  value: AdaptationRequirementValue,
+): T {
+  return {
+    ...target,
+    adaptationRequirements: {
+      ...target.adaptationRequirements,
+      [route]: {
+        ...target.adaptationRequirements[route],
+        [band]: normalizeAdaptationRequirement(value),
+      },
+    },
+  };
+}
+
+function replaceKnowledgeNode(
+  graph: KnowledgeGraphDefinition,
+  node: KnowledgeNode,
+): KnowledgeGraphDefinition {
+  const nodes = { ...graph.nodes, [node.id]: node };
+  return mapKnowledgeEdges({ ...graph, nodes }, (edge) => ({
+    ...edge,
+    source: nodes[edge.source.id],
+    target: nodes[edge.target.id],
+  }));
+}
+
+function mapKnowledgeEdges(
+  graph: KnowledgeGraphDefinition,
+  map: (edge: KnowledgeEdge<KnowledgeEdgeKind>) => KnowledgeEdge<KnowledgeEdgeKind>,
+): KnowledgeGraphDefinition {
+  return {
+    ...graph,
+    depEdges: graph.depEdges.map(map) as KnowledgeGraphDefinition['depEdges'],
+    subEdges: graph.subEdges.map(map) as KnowledgeGraphDefinition['subEdges'],
+    interEdges: graph.interEdges.map(map) as KnowledgeGraphDefinition['interEdges'],
   };
 }

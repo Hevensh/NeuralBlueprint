@@ -28,7 +28,7 @@ export function CurrentStatistics({
           value={stats.maxDependencyDepth}
         />
       </ControlGrid>
-      <div className="knowledge-control-grid knowledge-control-grid-three">
+      <div className="blueprint-control-grid blueprint-control-grid-three">
         <StatValue label={labels.dependency} value={stats.dependencyEdgeCount} />
         <StatValue label={labels.substitute} value={stats.substituteEdgeCount} />
         <StatValue

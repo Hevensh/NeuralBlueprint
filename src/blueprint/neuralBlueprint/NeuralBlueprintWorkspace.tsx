@@ -38,6 +38,9 @@ export function NeuralBlueprintWorkspace({
   const [showVarianceAnalysis, setShowVarianceAnalysis] = useState(initialUi.showVarianceAnalysis);
   const [showRankAnalysis, setShowRankAnalysis] = useState(initialUi.showRankAnalysis);
   const [showRepetitionAnalysis, setShowRepetitionAnalysis] = useState(initialUi.showRepetitionAnalysis);
+  const [showDistanceIndexAnalysis, setShowDistanceIndexAnalysis] = useState(
+    initialUi.showDistanceIndexAnalysis,
+  );
   const [analysisDirection, setAnalysisDirection] = useState<ModuleAnalysisDirection>(
     initialUi.analysisDirection,
   );
@@ -58,6 +61,8 @@ export function NeuralBlueprintWorkspace({
     && showRankAnalysis;
   const effectiveShowRepetitionAnalysis = features.showRepetitionAnalysisToggle
     && showRepetitionAnalysis;
+  const effectiveShowDistanceIndexAnalysis =
+    features.showDistanceIndexAnalysisToggle && showDistanceIndexAnalysis;
 
   return (
     <>
@@ -77,6 +82,7 @@ export function NeuralBlueprintWorkspace({
         showRankAnalysis={effectiveShowRankAnalysis}
         showVarianceAnalysis={effectiveShowVarianceAnalysis}
         showRepetitionAnalysis={effectiveShowRepetitionAnalysis}
+        showDistanceIndexAnalysis={effectiveShowDistanceIndexAnalysis}
         setSelectedNode={setSelectedNode}
         onTaskSnapshotChange={onTaskSnapshotChange}
       />
@@ -88,9 +94,11 @@ export function NeuralBlueprintWorkspace({
         showRankAnalysis={effectiveShowRankAnalysis}
         showVarianceAnalysis={effectiveShowVarianceAnalysis}
         showRepetitionAnalysis={effectiveShowRepetitionAnalysis}
+        showDistanceIndexAnalysis={effectiveShowDistanceIndexAnalysis}
         setShowRankAnalysis={setShowRankAnalysis}
         setShowVarianceAnalysis={setShowVarianceAnalysis}
         setShowRepetitionAnalysis={setShowRepetitionAnalysis}
+        setShowDistanceIndexAnalysis={setShowDistanceIndexAnalysis}
         setAnalysisDirection={setAnalysisDirection}
         setSelectedInferenceModelId={setSelectedInferenceModelId}
         setSelectedNode={setSelectedNode}

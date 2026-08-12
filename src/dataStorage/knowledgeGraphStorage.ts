@@ -9,7 +9,7 @@ import type {
 } from '../blueprint/knowledgeGraph/model/types';
 import { appStorage } from './storageAdapter';
 
-const STORAGE_PREFIX = 'knowledgeGraph:v11:';
+const STORAGE_PREFIX = 'knowledgeGraph:v13:';
 
 export type KnowledgeGraphSessionState = {
   graphDefinition: KnowledgeGraphDefinition;
@@ -23,6 +23,23 @@ export type KnowledgeGraphSessionState = {
   trainingRandomState: number;
   modelInitialized: boolean;
   networkProfileSignature: string;
+  ui: KnowledgeGraphUiState;
+};
+
+export type KnowledgeGraphUiState = {
+  showMemory: boolean;
+  showMetrics: boolean;
+  showUtility: boolean;
+  showReceptiveField: boolean;
+  showDistanceIndex: boolean;
+};
+
+export const DEFAULT_KNOWLEDGE_GRAPH_UI: KnowledgeGraphUiState = {
+  showMemory: true,
+  showMetrics: true,
+  showUtility: true,
+  showReceptiveField: false,
+  showDistanceIndex: false,
 };
 
 export type KnowledgeGraphViewport = {
@@ -62,9 +79,10 @@ type StoredKnowledgeGraphDefinition = {
 
 type StoredKnowledgeGraphSessionState = Omit<
   KnowledgeGraphSessionState,
-  'graphDefinition'
+  'graphDefinition' | 'ui'
 > & {
   graphDefinition: StoredKnowledgeGraphDefinition;
+  ui?: Partial<KnowledgeGraphUiState>;
 };
 
 export function loadKnowledgeGraphSession(
@@ -77,6 +95,10 @@ export function loadKnowledgeGraphSession(
   return {
     ...stored,
     graphDefinition: toRuntimeGraph(stored.graphDefinition),
+    ui: {
+      ...DEFAULT_KNOWLEDGE_GRAPH_UI,
+      ...stored.ui,
+    },
   };
 }
 

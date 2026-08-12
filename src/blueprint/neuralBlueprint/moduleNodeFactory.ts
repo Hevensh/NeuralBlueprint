@@ -5,6 +5,7 @@ import type {
   ModuleStats,
 } from './ModuleBaseNodeTypes';
 import { createEmptyRepetitionStats } from './analysis/repetitionRank';
+import { createEmptyDistanceIndexRank } from './analysis/distanceIndexRank';
 export { isModuleBaseNodeKind } from './moduleRegistry';
 
 export const DEFAULT_OUTPUT_DIM = 64;
@@ -138,7 +139,10 @@ function getDefaultStats(kind: ModuleBaseNodeKind): ModuleStats {
         height: kind === '3DInput' ? DEFAULT_3D_INPUT_SIZE : 'absent',
         width: kind === '3DInput' ? DEFAULT_3D_INPUT_SIZE : 'absent',
       },
-      adaptation: { repetition: createEmptyRepetitionStats() },
+      adaptation: {
+        repetition: createEmptyRepetitionStats(),
+        distanceIndex: createEmptyDistanceIndexRank(),
+      },
     };
   }
 
@@ -165,7 +169,10 @@ function getDefaultStats(kind: ModuleBaseNodeKind): ModuleStats {
         height: kind === 'CNN' ? 'unknown' : 'absent',
         width: kind === 'CNN' ? 'unknown' : 'absent',
       },
-      adaptation: { repetition: createEmptyRepetitionStats() },
+      adaptation: {
+        repetition: createEmptyRepetitionStats(),
+        distanceIndex: createEmptyDistanceIndexRank(),
+      },
     };
   }
 
@@ -190,6 +197,9 @@ function getDefaultStats(kind: ModuleBaseNodeKind): ModuleStats {
       height: kind === 'Pooling' ? 'unknown' : 'absent',
       width: kind === 'Pooling' ? 'unknown' : 'absent',
     },
-    adaptation: { repetition: createEmptyRepetitionStats() },
+    adaptation: {
+      repetition: createEmptyRepetitionStats(),
+      distanceIndex: createEmptyDistanceIndexRank(),
+    },
   };
 }

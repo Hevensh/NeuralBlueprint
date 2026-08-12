@@ -5,6 +5,10 @@ import type {
   KnowledgeGraphNodeData,
 } from './KnowledgeGraphNodeTypes';
 import { formatTrainingSignal } from './formatTrainingSignal';
+import {
+  KnowledgeAdaptationProperties,
+  type AdaptationChange,
+} from './KnowledgeAdaptationProperties';
 
 interface KnowledgeDetailPanelProps {
   selectedNode: KnowledgeGraphNodeData | null;
@@ -17,11 +21,17 @@ interface KnowledgeDetailPanelProps {
   showMemory: boolean;
   showMetrics: boolean;
   showUtility: boolean;
+  showReceptiveField: boolean;
+  showDistanceIndex: boolean;
   onShowMemoryChange: () => void;
   onShowMetricsChange: () => void;
   onShowUtilityChange: () => void;
+  onShowReceptiveFieldChange: () => void;
+  onShowDistanceIndexChange: () => void;
   onMemoryChange: (nodeId: string, memory: number) => void;
   onEdgeMemoryChange: (edgeId: string, memory: number) => void;
+  onNodeAdaptationRequirementChange: AdaptationChange;
+  onEdgeAdaptationRequirementChange: AdaptationChange;
   onInferenceStageChange: (stage: number) => void;
 }
 
@@ -36,11 +46,17 @@ export function KnowledgeDetailPanel({
   showMemory,
   showMetrics,
   showUtility,
+  showReceptiveField,
+  showDistanceIndex,
   onShowMemoryChange,
   onShowMetricsChange,
   onShowUtilityChange,
+  onShowReceptiveFieldChange,
+  onShowDistanceIndexChange,
   onMemoryChange,
   onEdgeMemoryChange,
+  onNodeAdaptationRequirementChange,
+  onEdgeAdaptationRequirementChange,
   onInferenceStageChange,
 }: KnowledgeDetailPanelProps) {
   const labels = useLabels().knowledgeGraph.detail;
@@ -55,40 +71,39 @@ export function KnowledgeDetailPanel({
           onChange={onInferenceStageChange}
         />
       )}
-      {(enableMemoryAnalysis || enableMasteryOverfitAnalysis || enableUtilityAnalysis) && (
-        <div className="property-toggle-group">
-          {enableMemoryAnalysis && (
-            <button
-              aria-pressed={showMemory}
-              className={`toggle-button ${showMemory ? 'active' : ''}`}
-              onClick={onShowMemoryChange}
-              type="button"
-            >
-              {labels.memoryAllocation}
-            </button>
-          )}
-          {enableMasteryOverfitAnalysis && (
-            <button
-              aria-pressed={showMetrics}
-              className={`toggle-button ${showMetrics ? 'active' : ''}`}
-              onClick={onShowMetricsChange}
-              type="button"
-            >
-              {labels.masteryOverfit}
-            </button>
-          )}
-          {enableUtilityAnalysis && (
-            <button
-              aria-pressed={showUtility}
-              className={`toggle-button ${showUtility ? 'active' : ''}`}
-              onClick={onShowUtilityChange}
-              type="button"
-            >
-              {labels.utility}
-            </button>
-          )}
-        </div>
-      )}
+      <div className="property-toggle-group">
+        {enableMemoryAnalysis && (
+          <AnalysisToggle
+            active={showMemory}
+            label={labels.memoryAllocation}
+            onChange={onShowMemoryChange}
+          />
+        )}
+        {enableMasteryOverfitAnalysis && (
+          <AnalysisToggle
+            active={showMetrics}
+            label={labels.masteryOverfit}
+            onChange={onShowMetricsChange}
+          />
+        )}
+        {enableUtilityAnalysis && (
+          <AnalysisToggle
+            active={showUtility}
+            label={labels.utility}
+            onChange={onShowUtilityChange}
+          />
+        )}
+        <AnalysisToggle
+          active={showReceptiveField}
+          label={labels.receptiveFieldAnalysis}
+          onChange={onShowReceptiveFieldChange}
+        />
+        <AnalysisToggle
+          active={showDistanceIndex}
+          label={labels.distanceIndexAnalysis}
+          onChange={onShowDistanceIndexChange}
+        />
+      </div>
       {selectedEdge
         ? (
           <EdgeProperties
@@ -96,7 +111,10 @@ export function KnowledgeDetailPanel({
             showMemory={showMemory}
             showMetrics={showMetrics}
             showUtility={showUtility}
+            showReceptiveField={showReceptiveField}
+            showDistanceIndex={showDistanceIndex}
             onMemoryChange={onEdgeMemoryChange}
+            onAdaptationRequirementChange={onEdgeAdaptationRequirementChange}
           />
         )
         : selectedNode
@@ -106,11 +124,35 @@ export function KnowledgeDetailPanel({
               showMemory={showMemory}
               showMetrics={showMetrics}
               showUtility={showUtility}
+              showReceptiveField={showReceptiveField}
+              showDistanceIndex={showDistanceIndex}
               onMemoryChange={onMemoryChange}
+              onAdaptationRequirementChange={onNodeAdaptationRequirementChange}
             />
           )
           : <div className="property-empty">{labels.noElementSelected}</div>}
     </aside>
+  );
+}
+
+function AnalysisToggle({
+  active,
+  label,
+  onChange,
+}: {
+  active: boolean;
+  label: string;
+  onChange: () => void;
+}) {
+  return (
+    <button
+      aria-pressed={active}
+      className={`toggle-button ${active ? 'active' : ''}`}
+      onClick={onChange}
+      type="button"
+    >
+      {label}
+    </button>
   );
 }
 
@@ -150,13 +192,19 @@ function EdgeProperties({
   showMemory,
   showMetrics,
   showUtility,
+  showReceptiveField,
+  showDistanceIndex,
   onMemoryChange,
+  onAdaptationRequirementChange,
 }: {
   selectedEdge: KnowledgeGraphEdgeData;
   showMemory: boolean;
   showMetrics: boolean;
   showUtility: boolean;
+  showReceptiveField: boolean;
+  showDistanceIndex: boolean;
   onMemoryChange: (edgeId: string, memory: number) => void;
+  onAdaptationRequirementChange: AdaptationChange;
 }) {
   const labels = useLabels().knowledgeGraph.detail;
   const { metrics } = selectedEdge;
@@ -201,6 +249,13 @@ function EdgeProperties({
         </>
       )}
       {showUtility && <TrainingProperties training={metrics.training} />}
+      <KnowledgeAdaptationProperties
+        entityId={selectedEdge.id}
+        requirements={selectedEdge.properties.adaptationRequirements}
+        showDistanceIndex={showDistanceIndex}
+        showReceptiveField={showReceptiveField}
+        onRequirementChange={onAdaptationRequirementChange}
+      />
     </div>
   );
 }
@@ -210,13 +265,19 @@ function NodeProperties({
   showMemory,
   showMetrics,
   showUtility,
+  showReceptiveField,
+  showDistanceIndex,
   onMemoryChange,
+  onAdaptationRequirementChange,
 }: {
   selectedNode: KnowledgeGraphNodeData;
   showMemory: boolean;
   showMetrics: boolean;
   showUtility: boolean;
+  showReceptiveField: boolean;
+  showDistanceIndex: boolean;
   onMemoryChange: (nodeId: string, memory: number) => void;
+  onAdaptationRequirementChange: AdaptationChange;
 }) {
   const labels = useLabels().knowledgeGraph.detail;
   const { metrics } = selectedNode;
@@ -263,6 +324,13 @@ function NodeProperties({
         </>
       )}
       {showUtility && <TrainingProperties training={metrics.training} />}
+      <KnowledgeAdaptationProperties
+        entityId={selectedNode.id}
+        requirements={selectedNode.properties.adaptationRequirements}
+        showDistanceIndex={showDistanceIndex}
+        showReceptiveField={showReceptiveField}
+        onRequirementChange={onAdaptationRequirementChange}
+      />
       <Value label={labels.trainLoss} value={format(metrics.trainLoss)} />
       <Value label={labels.valLoss} value={format(metrics.valLoss)} />
     </div>

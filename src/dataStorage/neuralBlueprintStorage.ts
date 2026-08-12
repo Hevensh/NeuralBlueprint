@@ -45,6 +45,7 @@ export interface StoredNeuralBlueprintGraph {
     showRankAnalysis: boolean;
     showVarianceAnalysis: boolean;
     showRepetitionAnalysis?: boolean;
+    showDistanceIndexAnalysis?: boolean;
   };
 }
 
@@ -106,6 +107,8 @@ function parseStoredGraph(raw: string): StoredNeuralBlueprintGraph {
           showRankAnalysis: value.ui.showRankAnalysis === true,
           showVarianceAnalysis: value.ui.showVarianceAnalysis === true,
           showRepetitionAnalysis: value.ui.showRepetitionAnalysis === true,
+          showDistanceIndexAnalysis:
+            value.ui.showDistanceIndexAnalysis === true,
         }
         : undefined,
     };
@@ -222,6 +225,7 @@ export function loadNeuralBlueprintUi(fileId: string) {
         showRankAnalysis: false,
         showVarianceAnalysis: false,
         showRepetitionAnalysis: false,
+        showDistanceIndexAnalysis: false,
       };
     }
 
@@ -231,6 +235,8 @@ export function loadNeuralBlueprintUi(fileId: string) {
       showRankAnalysis: parsed.ui?.showRankAnalysis ?? false,
       showVarianceAnalysis: parsed.ui?.showVarianceAnalysis ?? false,
       showRepetitionAnalysis: parsed.ui?.showRepetitionAnalysis ?? false,
+      showDistanceIndexAnalysis:
+        parsed.ui?.showDistanceIndexAnalysis ?? false,
     };
   } catch {
     return {
@@ -238,6 +244,7 @@ export function loadNeuralBlueprintUi(fileId: string) {
       showRankAnalysis: false,
       showVarianceAnalysis: false,
       showRepetitionAnalysis: false,
+      showDistanceIndexAnalysis: false,
     };
   }
 }
@@ -251,6 +258,7 @@ export function saveNeuralBlueprintGraph(
     showRankAnalysis: boolean;
     showVarianceAnalysis: boolean;
     showRepetitionAnalysis: boolean;
+    showDistanceIndexAnalysis: boolean;
   },
 ) {
   const graph: StoredNeuralBlueprintGraph = {

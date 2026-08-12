@@ -3,6 +3,7 @@ import type {
   ModuleStats,
 } from '../../ModuleBaseNodeTypes';
 import { preserveRepetitionStats } from '../repetitionRank';
+import { createEmptyDistanceIndexRank } from '../distanceIndexRank';
 import { EPS } from './utils/constants';
 import {
   getGlobalAggregationSize,
@@ -58,6 +59,7 @@ export function forwardGlobalPoolingStats(
     shape,
     adaptation: {
       repetition: preserveRepetitionStats(input, effectiveRank),
+      distanceIndex: createEmptyDistanceIndexRank(),
     },
   };
 }

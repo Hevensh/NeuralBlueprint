@@ -3,6 +3,7 @@ import type {
   ModuleStats,
 } from '../../ModuleBaseNodeTypes';
 import { cnnRepetitionStats } from '../repetitionRank';
+import { createEmptyDistanceIndexRank } from '../distanceIndexRank';
 import { EPS, LINEAR_SATURATION_GAIN } from './utils/constants';
 import { negativeRateFromNormal } from './utils/math';
 import { getBiasVariance, getWeightVariance } from './utils/moduleStats';
@@ -77,6 +78,7 @@ export function forwardCNNStats(
         effectiveRank,
         node.kernelSize,
       ),
+      distanceIndex: createEmptyDistanceIndexRank(),
     },
   };
 }

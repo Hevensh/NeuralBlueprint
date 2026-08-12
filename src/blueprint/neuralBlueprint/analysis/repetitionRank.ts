@@ -16,7 +16,6 @@ export function createEmptyRepetitionStats(): RepetitionStats {
   return {
     potential: { ...EMPTY_REPETITION_RANK },
     effective: { ...EMPTY_REPETITION_RANK },
-    memory: { ...EMPTY_REPETITION_RANK },
   };
 }
 
@@ -98,24 +97,6 @@ export function maxRepetitionStats(
   return createRepetitionStats(potential, outputEffectiveRank);
 }
 
-export function applyRepetitionMemory(
-  stats: ModuleStats,
-  backwardEffectiveRank: number,
-) {
-  const learnableRank = Math.max(
-    Number.isFinite(backwardEffectiveRank) ? backwardEffectiveRank : 0,
-    0,
-  );
-  const effective = stats.adaptation.repetition.effective;
-  stats.adaptation.repetition.memory = {
-    small: effective.small * learnableRank,
-    medium: effective.medium * learnableRank,
-    large: effective.large * learnableRank,
-    extraLarge: effective.extraLarge * learnableRank,
-    global: effective.global * learnableRank,
-  };
-}
-
 function createRepetitionStats(
   potentialInput: RepetitionRank,
   effectiveRank: number,
@@ -137,7 +118,6 @@ function createRepetitionStats(
       extraLarge: Math.min(potential.extraLarge, limit),
       global: Math.min(potential.global, limit),
     },
-    memory: { ...EMPTY_REPETITION_RANK },
   };
 }
 

@@ -7,6 +7,7 @@ import {
   createEmptyRepetitionStats,
   preserveRepetitionStats,
 } from '../repetitionRank';
+import { createEmptyDistanceIndexRank } from '../distanceIndexRank';
 import { dropoutDistribution } from './distributionSketch';
 import { EPS } from './utils/constants';
 import {
@@ -37,7 +38,10 @@ export function forwardDropoutStats(
         saturation: 1,
       },
       shape: input.shape,
-      adaptation: { repetition: createEmptyRepetitionStats() },
+      adaptation: {
+        repetition: createEmptyRepetitionStats(),
+        distanceIndex: createEmptyDistanceIndexRank(),
+      },
       distribution,
       inputElementCorr: inputNode ? { [inputNode.id]: 0 } : undefined,
       inputLinearCorr: inputNode ? { [inputNode.id]: 0 } : undefined,
@@ -62,6 +66,7 @@ export function forwardDropoutStats(
     shape: input.shape,
     adaptation: {
       repetition: preserveRepetitionStats(input, effectiveRank),
+      distanceIndex: createEmptyDistanceIndexRank(),
     },
     distribution,
     inputElementCorr: inputNode ? { [inputNode.id]: Math.sqrt(keepRate) } : undefined,

@@ -70,10 +70,13 @@ export function buildKnowledgeGraphElements(
         showMemoryPreview: true,
         showMetricPreview: true,
         showUtilityPreview: true,
+        showReceptiveFieldPreview: true,
+        showDistanceIndexPreview: true,
         showGlobalDebugPreview: true,
         properties: {
           dataAmount: node.dataAmount,
           requiredMemory: node.requiredMemory,
+          adaptationRequirements: node.adaptationRequirements,
         },
         metrics: {
           trainDataAmount: split?.train ?? node.dataAmount,
@@ -168,9 +171,12 @@ export function buildKnowledgeGraphElements(
         showMemoryPreview: true,
         showMetricPreview: true,
         showUtilityPreview: true,
+        showReceptiveFieldPreview: true,
+        showDistanceIndexPreview: true,
         showGlobalDebugPreview: true,
         properties: {
           requiredMemory: edge.properties.requiredMemory,
+          adaptationRequirements: edge.properties.adaptationRequirements,
           lambda: edge.properties.lambda,
         },
         metrics: edgeMetrics(

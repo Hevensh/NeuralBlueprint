@@ -8,6 +8,7 @@ import { knowledgePreviewColor } from './knowledgePreviewColor';
 import type { KnowledgeGraphNodeType } from './KnowledgeGraphNodeTypes';
 import { formatTrainingSignal } from './formatTrainingSignal';
 import { TrainingSignalPreview } from './TrainingSignalPreview';
+import { AdaptationRequirementPreview } from './AdaptationRequirementPreview';
 
 const HANDLE_POSITIONS = [
   Position.Top,
@@ -58,6 +59,8 @@ export function KnowledgeGraphNode({
       {(data.showMemoryPreview
         || data.showMetricPreview
         || data.showUtilityPreview
+        || data.showReceptiveFieldPreview
+        || data.showDistanceIndexPreview
         || data.showGlobalDebugPreview) &&
         <div
           className="knowledge-node-preview"
@@ -89,6 +92,20 @@ export function KnowledgeGraphNode({
             <span className="knowledge-node-preview-line">
               U {formatTrainingSignal(data.metrics.training.total)}
             </span>
+          )}
+          {data.showReceptiveFieldPreview && (
+            <AdaptationRequirementPreview
+              className="knowledge-node-preview-line"
+              requirements={data.properties.adaptationRequirements}
+              route="receptiveField"
+            />
+          )}
+          {data.showDistanceIndexPreview && (
+            <AdaptationRequirementPreview
+              className="knowledge-node-preview-line"
+              requirements={data.properties.adaptationRequirements}
+              route="distanceIndex"
+            />
           )}
           {data.showGlobalDebugPreview && (
             <TrainingSignalPreview

@@ -95,6 +95,7 @@ interface NeuralBlueprintCanvasInnerProp {
   showRankAnalysis: boolean;
   showVarianceAnalysis: boolean;
   showRepetitionAnalysis: boolean;
+  showDistanceIndexAnalysis: boolean;
   setSelectedNode: Dispatch<SetStateAction<ModuleNodeData | null>>;
   onTaskSnapshotChange?: (snapshot: NeuralBlueprintTaskSnapshot) => void;
 }
@@ -109,6 +110,7 @@ export function NeuralBlueprintCanvasInner({
   showRankAnalysis,
   showVarianceAnalysis,
   showRepetitionAnalysis,
+  showDistanceIndexAnalysis,
   setSelectedNode,
   onTaskSnapshotChange,
 }: NeuralBlueprintCanvasInnerProp) {
@@ -465,6 +467,7 @@ export function NeuralBlueprintCanvasInner({
         showRankAnalysis,
         showVarianceAnalysis,
         showRepetitionAnalysis,
+        showDistanceIndexAnalysis,
       });
     }, 500);
     return () => window.clearTimeout(timer);
@@ -476,6 +479,7 @@ export function NeuralBlueprintCanvasInner({
     showRankAnalysis,
     showVarianceAnalysis,
     showRepetitionAnalysis,
+    showDistanceIndexAnalysis,
   ]);
 
   useEffect(() => {
@@ -543,6 +547,7 @@ export function NeuralBlueprintCanvasInner({
       data-rank-analysis={showRankAnalysis}
       data-variance-analysis={showVarianceAnalysis}
       data-repetition-analysis={showRepetitionAnalysis}
+      data-distance-index-analysis={showDistanceIndexAnalysis}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >

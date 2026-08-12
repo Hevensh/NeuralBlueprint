@@ -20,9 +20,13 @@ export function KnowledgeGraphWorkspace({
   features: ResolvedBlueprintTaskFeatureConfig['knowledgeGraph'];
   showMemoryReasoningControls?: boolean;
 }) {
-  const [showMemory, setShowMemory] = useState(true);
-  const [showMetrics, setShowMetrics] = useState(true);
-  const [showUtility, setShowUtility] = useState(true);
+  const {
+    showMemory,
+    showMetrics,
+    showUtility,
+    showReceptiveField,
+    showDistanceIndex,
+  } = controller.analysisPreview;
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [previewDataset, setPreviewDataset] =
     useState<KnowledgeDataset | null>(null);
@@ -39,8 +43,10 @@ export function KnowledgeGraphWorkspace({
   const showUtilityPreview = enableUtilityAnalysis && showUtility;
   const showGlobalDebugPreview = features.enableGlobalDebugPreview;
   const toggleMetrics = () => {
-    if (!showMetrics && enableMemoryAnalysis) setShowMemory(true);
-    setShowMetrics((current) => !current);
+    controller.setAnalysisPreview({
+      ...(!showMetrics && enableMemoryAnalysis ? { showMemory: true } : {}),
+      showMetrics: !showMetrics,
+    });
   };
 
   return (
@@ -69,6 +75,8 @@ export function KnowledgeGraphWorkspace({
         showMemoryPreview={showMemoryPreview}
         showMetricPreview={showMetricPreview}
         showUtilityPreview={showUtilityPreview}
+        showReceptiveFieldPreview={showReceptiveField}
+        showDistanceIndexPreview={showDistanceIndex}
         showGlobalDebugPreview={showGlobalDebugPreview}
         previewDataset={previewDataset ?? selectedDataset}
         topOverlay={(
@@ -99,11 +107,29 @@ export function KnowledgeGraphWorkspace({
         showMemory={showMemoryPreview}
         showMetrics={showMetricPreview}
         showUtility={showUtilityPreview}
-        onShowMemoryChange={() => setShowMemory((current) => !current)}
+        showReceptiveField={showReceptiveField}
+        showDistanceIndex={showDistanceIndex}
+        onShowMemoryChange={() => controller.setAnalysisPreview({
+          showMemory: !showMemory,
+        })}
         onShowMetricsChange={toggleMetrics}
-        onShowUtilityChange={() => setShowUtility((current) => !current)}
+        onShowUtilityChange={() => controller.setAnalysisPreview({
+          showUtility: !showUtility,
+        })}
+        onShowReceptiveFieldChange={() => controller.setAnalysisPreview({
+          showReceptiveField: !showReceptiveField,
+        })}
+        onShowDistanceIndexChange={() => controller.setAnalysisPreview({
+          showDistanceIndex: !showDistanceIndex,
+        })}
         onMemoryChange={controller.setNodeMemory}
         onEdgeMemoryChange={controller.setEdgeMemory}
+        onNodeAdaptationRequirementChange={
+          controller.setNodeAdaptationRequirement
+        }
+        onEdgeAdaptationRequirementChange={
+          controller.setEdgeAdaptationRequirement
+        }
         onInferenceStageChange={controller.inferenceStage.onChange}
       />
     </>

@@ -4,6 +4,7 @@ import type {
   ModuleStats,
 } from '../../ModuleBaseNodeTypes';
 import { preserveRepetitionStats } from '../repetitionRank';
+import { createEmptyDistanceIndexRank } from '../distanceIndexRank';
 import { readTensorShape } from './spatial';
 import { EPS, LINEAR_SATURATION_GAIN } from './utils/constants';
 import { negativeRateFromNormal } from './utils/math';
@@ -56,6 +57,7 @@ export function forwardLinearStats(
     },
     adaptation: {
       repetition: preserveRepetitionStats(input, effectiveRank),
+      distanceIndex: createEmptyDistanceIndexRank(),
     },
     distribution: {
       mean: outputMean,

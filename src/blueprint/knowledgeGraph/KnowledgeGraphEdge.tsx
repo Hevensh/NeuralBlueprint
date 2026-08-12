@@ -9,6 +9,7 @@ import { knowledgePreviewColor } from './knowledgePreviewColor';
 import type { KnowledgeGraphEdgeType } from './KnowledgeGraphNodeTypes';
 import { formatTrainingSignal } from './formatTrainingSignal';
 import { TrainingSignalPreview } from './TrainingSignalPreview';
+import { AdaptationRequirementPreview } from './AdaptationRequirementPreview';
 
 export function KnowledgeGraphEdge({
   id,
@@ -35,6 +36,8 @@ export function KnowledgeGraphEdge({
   const showPreview = data?.showMemoryPreview
     || data?.showMetricPreview
     || data?.showUtilityPreview
+    || data?.showReceptiveFieldPreview
+    || data?.showDistanceIndexPreview
     || data?.showGlobalDebugPreview;
   const hovered = data?.hovered || previewHovered;
 
@@ -88,6 +91,18 @@ export function KnowledgeGraphEdge({
             )}
             {data.showUtilityPreview && (
               <span>U {formatTrainingSignal(data.metrics.training.total)}</span>
+            )}
+            {data.showReceptiveFieldPreview && (
+              <AdaptationRequirementPreview
+                requirements={data.properties.adaptationRequirements}
+                route="receptiveField"
+              />
+            )}
+            {data.showDistanceIndexPreview && (
+              <AdaptationRequirementPreview
+                requirements={data.properties.adaptationRequirements}
+                route="distanceIndex"
+              />
             )}
             {data.showGlobalDebugPreview && (
               <TrainingSignalPreview

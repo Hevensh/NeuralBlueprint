@@ -3,6 +3,7 @@ import type {
   ModuleStats,
 } from '../../ModuleBaseNodeTypes';
 import { preserveRepetitionStats } from '../repetitionRank';
+import { createEmptyDistanceIndexRank } from '../distanceIndexRank';
 import { reluDistribution } from './distributionSketch';
 import {
   getDistributionTransitionSaturation,
@@ -47,6 +48,7 @@ export function forwardReLUStats(
     shape: input.shape,
     adaptation: {
       repetition: preserveRepetitionStats(input, effectiveRank),
+      distanceIndex: createEmptyDistanceIndexRank(),
     },
     distribution,
     inputElementCorr: inputNode ? { [inputNode.id]: directCorr } : undefined,

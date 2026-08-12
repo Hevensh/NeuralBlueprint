@@ -5,6 +5,7 @@ import type {
   ModuleStatsForwardResult,
 } from '../../ModuleBaseNodeTypes';
 import { getLinearCorrBetweenNodes } from '../correlation';
+import { createEmptyDistanceIndexRank } from '../distanceIndexRank';
 import { maxRepetitionStats } from '../repetitionRank';
 import {
   mergeTensorShapes,
@@ -93,6 +94,7 @@ function aggregateForwardSumStats({
           validInputs,
           sumRankState.rank.effectiveRank,
         ),
+        distanceIndex: createEmptyDistanceIndexRank(),
       },
       distribution: {
         mean,

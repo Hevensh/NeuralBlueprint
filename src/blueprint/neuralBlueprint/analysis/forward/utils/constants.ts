@@ -1,5 +1,6 @@
 import type { ModuleStats } from '../../../ModuleBaseNodeTypes';
 import { createEmptyRepetitionStats } from '../../repetitionRank';
+import { createEmptyDistanceIndexRank } from '../../distanceIndexRank';
 
 export const DEFAULT_RANK = 64;
 export const DEFAULT_INPUT_EFFECTIVE_RANK = 32;
@@ -29,7 +30,10 @@ export const DEFAULT_INPUT_STATS: ModuleStats = {
     height: 'absent',
     width: 'absent',
   },
-  adaptation: { repetition: createEmptyRepetitionStats() },
+  adaptation: {
+    repetition: createEmptyRepetitionStats(),
+    distanceIndex: createEmptyDistanceIndexRank(),
+  },
 };
 
 export const EMPTY_STATS: ModuleStats = {
@@ -53,5 +57,8 @@ export const EMPTY_STATS: ModuleStats = {
     height: 'absent',
     width: 'absent',
   },
-  adaptation: { repetition: createEmptyRepetitionStats() },
+  adaptation: {
+    repetition: createEmptyRepetitionStats(),
+    distanceIndex: createEmptyDistanceIndexRank(),
+  },
 };

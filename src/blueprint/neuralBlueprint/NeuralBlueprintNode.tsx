@@ -67,6 +67,11 @@ export function NeuralBlueprintNode({
         <NodePreviewItem className="repetition-analysis-preview" label="rep-L" value={formatFixed(hasNoInputConnection ? undefined : data.stats?.adaptation.repetition.effective.large, 2)} />
         <NodePreviewItem className="repetition-analysis-preview" label="rep-XL" value={formatFixed(hasNoInputConnection ? undefined : data.stats?.adaptation.repetition.effective.extraLarge, 2)} />
         <NodePreviewItem className="repetition-analysis-preview" label="rep-G" value={formatFixed(hasNoInputConnection ? undefined : data.stats?.adaptation.repetition.effective.global, 2)} />
+        <NodePreviewItem className="distance-index-analysis-preview" label="idx-N" value={formatFixed(hasNoInputConnection ? undefined : data.stats?.adaptation.distanceIndex.none, 2)} />
+        <NodePreviewItem className="distance-index-analysis-preview" label="idx-S" value={formatFixed(hasNoInputConnection ? undefined : data.stats?.adaptation.distanceIndex.short, 2)} />
+        <NodePreviewItem className="distance-index-analysis-preview" label="idx-M" value={formatFixed(hasNoInputConnection ? undefined : data.stats?.adaptation.distanceIndex.medium, 2)} />
+        <NodePreviewItem className="distance-index-analysis-preview" label="idx-L" value={formatFixed(hasNoInputConnection ? undefined : data.stats?.adaptation.distanceIndex.long, 2)} />
+        <NodePreviewItem className="distance-index-analysis-preview" label="idx-G" value={formatFixed(hasNoInputConnection ? undefined : data.stats?.adaptation.distanceIndex.global, 2)} />
       </div>
       <Handle
         className="module-base-node-handle output-handle"

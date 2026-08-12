@@ -3,6 +3,7 @@ import type {
   PoolingNodeData,
 } from '../../ModuleBaseNodeTypes';
 import { poolRepetitionStats } from '../repetitionRank';
+import { createEmptyDistanceIndexRank } from '../distanceIndexRank';
 import { getForwardPoolingMoments } from './poolingMoments';
 import {
   getKnownDimension,
@@ -61,6 +62,7 @@ export function forwardPoolingStats(
         node.kernelSize,
         effectiveRank,
       ),
+      distanceIndex: createEmptyDistanceIndexRank(),
     },
   };
 }

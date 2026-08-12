@@ -1,6 +1,7 @@
 import type { InferenceMemoryProfile } from '../../InferenceMemoryProfileTypes';
 import { calculateMaxDependencyDepth } from './dependencyDepth';
 import {
+  entityPoolAdaptationCompatibility,
   poolAllocatedMemory,
   totalAllocatedMemory,
 } from './memoryOperations';
@@ -13,6 +14,10 @@ import type {
   KnowledgeMemoryStageTable,
   MemoryProfileSource,
 } from './types';
+import {
+  cloneAdaptationPoints,
+  createEmptyAdaptationPoints,
+} from './adaptation';
 
 const PRESET_POOL_ID = 'preset';
 
@@ -48,6 +53,7 @@ export function cloneKnowledgeGraphMemory(
     budgetPools: memory.budgetPools.map((pool) => ({
       ...pool,
       inferenceStages: [...pool.inferenceStages],
+      adaptationCapability: cloneAdaptationPoints(pool.adaptationCapability),
     })),
     stageTables: memory.stageTables.map((table) => ({
       stage: table.stage,
@@ -156,7 +162,7 @@ function applyBudgetPools(
     ),
     availableReasoningPoints: maxInferenceStage(budgetPools),
   };
-  fitPoolsToBudget(next);
+  fitPoolsToBudget(next, graph);
   next.selectedInferenceStage = followedLastStage
     ? next.availableReasoningPoints
     : Math.min(
@@ -177,6 +183,7 @@ function createPresetPool(
       (_, stage) => stage,
     ),
     memoryPoint,
+    adaptationCapability: createEmptyAdaptationPoints(),
   };
 }
 
@@ -187,6 +194,10 @@ function createBlueprintPools(profile: InferenceMemoryProfile) {
       id: `blueprint:${group.id}`,
       inferenceStages: normalizeStages(group.inferenceStages),
       memoryPoint: normalizeMemoryPoint(group.memoryPoint),
+      adaptationCapability: {
+        receptiveField: { ...group.adaptationPoints.repetition },
+        distanceIndex: { ...group.adaptationPoints.distance },
+      },
       varianceLogDistance: normalizeFactor(group.varianceLogDistance),
     }));
 }
@@ -225,24 +236,54 @@ function createAllocation(
   };
 }
 
-function fitPoolsToBudget(memory: KnowledgeGraphMemory) {
+function fitPoolsToBudget(
+  memory: KnowledgeGraphMemory,
+  graph: KnowledgeGraphDefinition,
+) {
+  const edges = [
+    ...graph.depEdges,
+    ...graph.subEdges,
+    ...graph.interEdges,
+  ];
+  const edgeById = new Map(edges.map((edge) => [edge.id, edge]));
+
   memory.budgetPools.forEach((pool) => {
+    memory.stageTables.forEach((table) => {
+      const allocation = table.allocations[pool.id];
+      if (!allocation) return;
+      Object.keys(allocation.nodes).forEach((nodeId) => {
+        const node = graph.nodes[nodeId];
+        if (
+          node
+          && entityPoolAdaptationCompatibility(memory, node, pool.id) <= 0
+        ) allocation.nodes[nodeId] = 0;
+      });
+      Object.keys(allocation.edges).forEach((edgeId) => {
+        const edge = edgeById.get(edgeId);
+        if (
+          edge
+          && entityPoolAdaptationCompatibility(memory, edge, pool.id) <= 0
+        ) allocation.edges[edgeId] = 0;
+      });
+    });
+
     let overflow = Math.max(
       0,
       poolAllocatedMemory(memory, pool.id) - pool.memoryPoint,
     );
-    if (overflow <= 0) return;
-    memory.stageTables.forEach((table) => {
-      const allocation = table.allocations[pool.id];
-      if (!allocation) return;
-      [allocation.nodes, allocation.edges].forEach((values) => {
-        Object.keys(values).forEach((id) => {
-          const removed = Math.min(values[id], overflow);
-          values[id] -= removed;
-          overflow -= removed;
+    if (overflow > 0) {
+      memory.stageTables.forEach((table) => {
+        const allocation = table.allocations[pool.id];
+        if (!allocation) return;
+        [allocation.nodes, allocation.edges].forEach((values) => {
+          Object.keys(values).forEach((id) => {
+            const removed = Math.min(values[id], overflow);
+            values[id] -= removed;
+            overflow -= removed;
+          });
         });
       });
-    });
+    }
   });
 }
 
@@ -254,6 +295,8 @@ function samePoolConfiguration(
     pool.id === right[index]?.id
     && pool.memoryPoint === right[index]?.memoryPoint
     && pool.varianceLogDistance === right[index]?.varianceLogDistance
+    && adaptationPointSignature(pool.adaptationCapability)
+      === adaptationPointSignature(right[index]?.adaptationCapability)
     && pool.inferenceStages.join(',') === right[index]?.inferenceStages.join(',')
   ));
 }
@@ -263,6 +306,16 @@ function cloneAllocation(allocation: KnowledgeMemoryAllocation) {
     nodes: { ...allocation.nodes },
     edges: { ...allocation.edges },
   };
+}
+
+function adaptationPointSignature(
+  points: KnowledgeMemoryBudgetPool['adaptationCapability'] | undefined,
+) {
+  if (!points) return '';
+  return [
+    ...Object.values(points.receptiveField),
+    ...Object.values(points.distanceIndex),
+  ].join(',');
 }
 
 function normalizeStages(stages: number[]) {

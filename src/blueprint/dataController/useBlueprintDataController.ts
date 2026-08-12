@@ -193,6 +193,16 @@ export function useBlueprintDataController({
     elements,
     selectedNode,
     selectNode: setSelectedNodeId,
+    analysisPreview: state.ui,
+    setAnalysisPreview: (
+      patch: Partial<KnowledgeGraphSessionState['ui']>,
+    ) => setState((current) => ({
+      ...current,
+      ui: {
+        ...current.ui,
+        ...patch,
+      },
+    })),
     viewport: state.viewport,
     setViewport: actions.setGraphViewport,
     graphControls: {
@@ -269,6 +279,8 @@ export function useBlueprintDataController({
     },
     setNodeMemory: actions.setNodeMemory,
     setEdgeMemory: actions.setEdgeMemory,
+    setNodeAdaptationRequirement: actions.setNodeAdaptationRequirement,
+    setEdgeAdaptationRequirement: actions.setEdgeAdaptationRequirement,
   };
 }
 

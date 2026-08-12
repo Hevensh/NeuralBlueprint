@@ -1,10 +1,14 @@
 import type {
   KnowledgeEntity,
+  KnowledgeAdaptationMatch,
   KnowledgeGraphDefinition,
   KnowledgeMemoryAllocation,
   KnowledgeMemoryBudgetPool,
   KnowledgeGraphMemory,
 } from './types';
+import {
+  computeAdaptationMatch,
+} from './adaptation';
 
 export function getTrainingEntities(graph: KnowledgeGraphDefinition): KnowledgeEntity[] {
   return [
@@ -79,6 +83,46 @@ export function writeEntityMemory(
   writeAcrossSlots(state, entity, integerMemory(amount), slots);
 }
 
+export function entityPoolAdaptationMatch(
+  memory: KnowledgeGraphMemory,
+  entity: KnowledgeEntity,
+  poolId: string,
+): KnowledgeAdaptationMatch {
+  const pool = memory.budgetPools.find((candidate) => candidate.id === poolId);
+  return pool
+    ? computeAdaptationMatch(
+        pool.adaptationCapability,
+        entityAdaptationRequirements(entity),
+      )
+    : createEmptyAdaptationMatch();
+}
+
+export function entityPoolAdaptationCompatibility(
+  memory: KnowledgeGraphMemory,
+  entity: KnowledgeEntity,
+  poolId: string,
+) {
+  return entityPoolAdaptationMatch(
+    memory,
+    entity,
+    poolId,
+  ).combined;
+}
+
+export function entityAdaptationRequirements(entity: KnowledgeEntity) {
+  return entity.kind === 'node'
+    ? entity.adaptationRequirements
+    : entity.properties.adaptationRequirements;
+}
+
+function createEmptyAdaptationMatch(): KnowledgeAdaptationMatch {
+  return {
+    receptiveField: 0,
+    distanceIndex: 0,
+    combined: 0,
+  };
+}
+
 export function writeEntityPoolStageMemory(
   state: KnowledgeGraphMemory,
   entity: KnowledgeEntity,
@@ -90,6 +134,10 @@ export function writeEntityPoolStageMemory(
   if (!allocation) return;
   const values = entity.kind === 'node' ? allocation.nodes : allocation.edges;
   const current = values[entity.id] ?? 0;
+  if (entityPoolAdaptationCompatibility(state, entity, poolId) <= 0) {
+    values[entity.id] = 0;
+    return;
+  }
   const remaining = Math.max(
     0,
     poolCapacity(state, poolId) - (poolAllocatedMemory(state, poolId) - current),
@@ -179,10 +227,10 @@ function writeAcrossSlots(
 
   while (current < target) {
     const slot = [...slots].sort((left, right) => (
-      poolRemaining(memory, right.pool.id)
-      - poolRemaining(memory, left.pool.id)
+      slotOpportunity(memory, entity, right)
+      - slotOpportunity(memory, entity, left)
     ))[0];
-    if (!slot || poolRemaining(memory, slot.pool.id) < 1) break;
+    if (!slot || slotOpportunity(memory, entity, slot) <= 0) break;
     writeEntityPoolStageMemory(
       memory,
       entity,
@@ -237,6 +285,15 @@ function slotMemory(
     slot.pool.id,
     slot.stage,
   );
+}
+
+function slotOpportunity(
+  memory: KnowledgeGraphMemory,
+  entity: KnowledgeEntity,
+  slot: PoolStageSlot,
+) {
+  return poolRemaining(memory, slot.pool.id)
+    * entityPoolAdaptationCompatibility(memory, entity, slot.pool.id);
 }
 
 function poolRemaining(memory: KnowledgeGraphMemory, poolId: string) {

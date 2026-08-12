@@ -35,9 +35,11 @@ interface NeuralBlueprintRightPanelProp {
   showRankAnalysis: boolean;
   showVarianceAnalysis: boolean;
   showRepetitionAnalysis: boolean;
+  showDistanceIndexAnalysis: boolean;
   setShowRankAnalysis: Dispatch<SetStateAction<boolean>>;
   setShowVarianceAnalysis: Dispatch<SetStateAction<boolean>>;
   setShowRepetitionAnalysis: Dispatch<SetStateAction<boolean>>;
+  setShowDistanceIndexAnalysis: Dispatch<SetStateAction<boolean>>;
   setAnalysisDirection: Dispatch<SetStateAction<ModuleAnalysisDirection>>;
   setSelectedInferenceModelId: (modelId: string) => void;
   setSelectedNode: Dispatch<SetStateAction<ModuleNodeData | null>>;
@@ -58,9 +60,11 @@ export function NeuralBlueprintRightPanel({
   showRankAnalysis,
   showVarianceAnalysis,
   showRepetitionAnalysis,
+  showDistanceIndexAnalysis,
   setShowRankAnalysis,
   setShowVarianceAnalysis,
   setShowRepetitionAnalysis,
+  setShowDistanceIndexAnalysis,
   setAnalysisDirection,
   setSelectedInferenceModelId,
   setSelectedNode,
@@ -203,6 +207,15 @@ export function NeuralBlueprintRightPanel({
             type="button"
           >
             {analysisLabels.repetitionAnalysis}
+          </button>
+        )}
+        {features.showDistanceIndexAnalysisToggle && (
+          <button
+            className={`toggle-button ${showDistanceIndexAnalysis ? 'active' : ''}`}
+            onClick={() => setShowDistanceIndexAnalysis((current) => !current)}
+            type="button"
+          >
+            {analysisLabels.distanceIndexAnalysis}
           </button>
         )}
       </div>

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import './controlSection.css';
 
 export function ControlSection({
   title,
@@ -22,8 +23,8 @@ export function ControlSection({
           className="action-button danger"
           disabled={resetDisabled}
           onClick={onReset}
-        type="button"
-      >
+          type="button"
+        >
           {resetLabel}
         </button>
       )}
@@ -32,7 +33,7 @@ export function ControlSection({
 }
 
 export function ControlGrid({ children }: { children: ReactNode }) {
-  return <div className="knowledge-control-grid">{children}</div>;
+  return <div className="blueprint-control-grid">{children}</div>;
 }
 
 export function TextField({

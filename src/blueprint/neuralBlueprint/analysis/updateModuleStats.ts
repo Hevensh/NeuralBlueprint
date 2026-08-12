@@ -17,22 +17,11 @@ import {
   getInvalidInferenceStats,
 } from './forward/utils/moduleStats';
 import { EMPTY_STATS } from './forward/utils/constants';
-import { applyRepetitionMemory } from './repetitionRank';
 
 export function updateModuleStats(nodes: ModuleBaseNode[]): void {
   const nodeData = nodes.map((node) => node.data);
   runForwardStats(nodeData);
   runBackwardStats(nodeData);
-  nodeData.forEach((node) => {
-    if (
-      node.stats?.status !== 'valid'
-      || !Number.isFinite(node.statsBackward?.rank.effectiveRank)
-    ) return;
-    applyRepetitionMemory(
-      node.stats,
-      node.statsBackward?.rank.effectiveRank ?? 0,
-    );
-  });
 }
 
 export function runForwardStats(

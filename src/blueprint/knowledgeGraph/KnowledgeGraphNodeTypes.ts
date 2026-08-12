@@ -1,11 +1,15 @@
 ﻿import type { Edge, Node } from '@xyflow/react';
 import type { KnowledgeGraphPageType } from '../PageTypes';
-import type { KnowledgeEdgeKind } from './model/types';
+import type {
+  KnowledgeAdaptationRequirements,
+  KnowledgeEdgeKind,
+} from './model/types';
 import type { TrainingSignal } from './model/trainingSignal';
 
 export interface KnowledgeGraphNodeProperties {
   dataAmount: number;
   requiredMemory: number;
+  adaptationRequirements: KnowledgeAdaptationRequirements;
 }
 
 export interface KnowledgeStagePreview {
@@ -28,17 +32,23 @@ export interface KnowledgeGraphNodeMetrics {
   stagePreviews: KnowledgeStagePreview[];
 }
 
-export interface KnowledgeGraphNodeData extends Record<string, unknown> {
+export interface KnowledgeAnalysisPreviewState {
+  showMemoryPreview: boolean;
+  showMetricPreview: boolean;
+  showUtilityPreview: boolean;
+  showReceptiveFieldPreview: boolean;
+  showDistanceIndexPreview: boolean;
+  showGlobalDebugPreview: boolean;
+}
+
+export interface KnowledgeGraphNodeData
+  extends Record<string, unknown>, KnowledgeAnalysisPreviewState {
   id: string;
   name: string;
   color: string;
   type: KnowledgeGraphPageType;
   neighborCount: number;
   memorySelectionLabel: string;
-  showMemoryPreview: boolean;
-  showMetricPreview: boolean;
-  showUtilityPreview: boolean;
-  showGlobalDebugPreview: boolean;
   datasetHighlighted?: boolean;
   datasetHighlightColor?: string;
   properties: KnowledgeGraphNodeProperties;
@@ -53,6 +63,7 @@ export type KnowledgeGraphNodeType = Node<KnowledgeGraphNodeData>;
 
 export interface KnowledgeGraphEdgeProperties {
   requiredMemory: number;
+  adaptationRequirements: KnowledgeAdaptationRequirements;
   lambda: number;
 }
 
@@ -65,16 +76,13 @@ export interface KnowledgeGraphEdgeMetrics {
   stagePreviews: KnowledgeStagePreview[];
 }
 
-export interface KnowledgeGraphEdgeData extends Record<string, unknown> {
+export interface KnowledgeGraphEdgeData
+  extends Record<string, unknown>, KnowledgeAnalysisPreviewState {
   id: string;
   kind: KnowledgeEdgeKind;
   memorySelectionLabel: string;
   source: KnowledgeGraphNodeData;
   target: KnowledgeGraphNodeData;
-  showMemoryPreview: boolean;
-  showMetricPreview: boolean;
-  showUtilityPreview: boolean;
-  showGlobalDebugPreview: boolean;
   hovered?: boolean;
   properties: KnowledgeGraphEdgeProperties;
   metrics: KnowledgeGraphEdgeMetrics;

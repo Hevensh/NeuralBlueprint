@@ -3,12 +3,45 @@ export type EdgeId = string;
 
 export type KnowledgeEdgeKind = 'dependency' | 'substitute' | 'interference';
 
+export type AdaptationRequirementValue = number;
+export type ReceptiveFieldBand =
+  | 'small'
+  | 'medium'
+  | 'large'
+  | 'extraLarge'
+  | 'global';
+export type DistanceIndexBand =
+  | 'none'
+  | 'short'
+  | 'medium'
+  | 'long'
+  | 'global';
+export type KnowledgeAdaptationRoute = 'receptiveField' | 'distanceIndex';
+
+export type ReceptiveFieldPoints<T = number> = Record<ReceptiveFieldBand, T>;
+export type DistanceIndexPoints<T = number> = Record<DistanceIndexBand, T>;
+
+export type KnowledgeAdaptationPoints<T = number> = {
+  receptiveField: ReceptiveFieldPoints<T>;
+  distanceIndex: DistanceIndexPoints<T>;
+};
+
+export type KnowledgeAdaptationRequirements =
+  KnowledgeAdaptationPoints<AdaptationRequirementValue>;
+
+export type KnowledgeAdaptationMatch = {
+  receptiveField: number;
+  distanceIndex: number;
+  combined: number;
+};
+
 export type KnowledgeNode = {
   kind: 'node';
   id: NodeId;
   label: string;
   dataAmount: number;
   requiredMemory: number;
+  adaptationRequirements: KnowledgeAdaptationRequirements;
   overfitCoefficient: number;
   lossMin: number;
   lossMax: number;
@@ -21,6 +54,7 @@ export type KnowledgeNode = {
 
 export type KnowledgeEdgeProperties = {
   requiredMemory: number;
+  adaptationRequirements: KnowledgeAdaptationRequirements;
   overfitCoefficient: number;
   lambda: number;
 };
@@ -61,6 +95,7 @@ export type KnowledgeMemoryBudgetPool = {
   id: string;
   inferenceStages: number[];
   memoryPoint: number;
+  adaptationCapability: KnowledgeAdaptationPoints;
   varianceLogDistance?: number;
 };
 

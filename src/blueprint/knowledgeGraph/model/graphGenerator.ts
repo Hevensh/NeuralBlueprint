@@ -15,6 +15,7 @@ import type {
   NodeId,
   SubstituteEdge,
 } from './types';
+import { createEmptyAdaptationRequirements } from './adaptation';
 
 export type KnowledgeGraphGenerationOptions = {
   minNodes?: number;
@@ -158,6 +159,7 @@ export function createGeneratedKnowledgeNode(
     label,
     dataAmount: clippedNormalInt(random, 90, 10, 1, 120),
     requiredMemory: clippedNormalInt(random, 30, 2, 24, 36),
+    adaptationRequirements: createEmptyAdaptationRequirements(),
     overfitCoefficient: coefficient(random),
     lossMin: Number(lossMin.toFixed(5)),
     lossMax: Number(lossMax.toFixed(5)),
@@ -483,6 +485,7 @@ function createEdgeProperties(
 ): KnowledgeEdgeProperties {
   return {
     requiredMemory: clippedNormalInt(random, mean, standardDeviation, min, max),
+    adaptationRequirements: createEmptyAdaptationRequirements(),
     overfitCoefficient: coefficient(random),
     lambda: coefficient(random),
   };

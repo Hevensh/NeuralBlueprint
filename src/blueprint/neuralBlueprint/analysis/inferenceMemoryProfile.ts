@@ -261,14 +261,14 @@ function getRatio(value: number, total: number) {
 }
 
 function repetitionSignature(data: ModuleNodeData) {
-  const memory = data.stats?.adaptation.repetition.memory;
-  return memory
+  const capability = data.stats?.adaptation.repetition.effective;
+  return capability
     ? [
-      memory.small,
-      memory.medium,
-      memory.large,
-      memory.extraLarge,
-      memory.global,
+      capability.small,
+      capability.medium,
+      capability.large,
+      capability.extraLarge,
+      capability.global,
     ]
     : ['', '', '', '', ''];
 }
@@ -319,17 +319,17 @@ function weightedRepetitionAdaptationPoints(
 
   return providers.reduce<InferenceRepetitionAdaptationPoints>(
     (total, node) => {
-      const memory = node.stats?.adaptation.repetition.memory;
+      const capability = node.stats?.adaptation.repetition.effective;
       const weight = weights.get(node.id)?.weight ?? 1;
-      if (!memory) return total;
+      if (!capability) return total;
 
       return {
-        small: total.small + sanitizePoint(memory.small) * weight,
-        medium: total.medium + sanitizePoint(memory.medium) * weight,
-        large: total.large + sanitizePoint(memory.large) * weight,
+        small: total.small + sanitizePoint(capability.small) * weight,
+        medium: total.medium + sanitizePoint(capability.medium) * weight,
+        large: total.large + sanitizePoint(capability.large) * weight,
         extraLarge: total.extraLarge
-          + sanitizePoint(memory.extraLarge) * weight,
-        global: total.global + sanitizePoint(memory.global) * weight,
+          + sanitizePoint(capability.extraLarge) * weight,
+        global: total.global + sanitizePoint(capability.global) * weight,
       };
     },
     emptyRepetitionAdaptationPoints(),

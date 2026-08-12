@@ -43,8 +43,13 @@ export interface RepetitionStats {
   potential: RepetitionRank;
   /** Capability currently usable under the forward effective-rank bottleneck. */
   effective: RepetitionRank;
-  /** Learnable memory capacity after combining with backward effective rank. */
-  memory: RepetitionRank;
+}
+export interface DistanceIndexRank {
+  none: number;
+  short: number;
+  medium: number;
+  long: number;
+  global: number;
 }
 export interface ModuleRankStats {
   /** Structural rank of the module output. */
@@ -69,6 +74,8 @@ export interface ModuleDistributionStats {
 }
 export interface ModuleAdaptationStats {
   repetition: RepetitionStats;
+  /** Static forward capability. Propagation rules are intentionally pending. */
+  distanceIndex: DistanceIndexRank;
 }
 export type ModuleLockedProperty =
   | 'outFeatures'
@@ -163,7 +170,6 @@ export interface ModuleBaseNodeData<
   locked?: ModuleNodeLock;
   memoryPoint?: number;
   inferencePoint?: number;
-  showRepetitionAnalysis?: boolean;
   sumInputPairStats?: SumInputPairStats[];
   backwardOutputPairStats?: BackwardOutputPairStats[];
 }

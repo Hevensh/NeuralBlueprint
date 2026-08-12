@@ -11,6 +11,7 @@ import { KnowledgeGraphEdge } from './KnowledgeGraphEdge';
 import { KnowledgeGraphNode } from './KnowledgeGraphNode';
 import type { KnowledgeDataset } from './model/datasetSplit';
 import type {
+  KnowledgeAnalysisPreviewState,
   KnowledgeGraphEdgeType,
   KnowledgeGraphNodeType,
 } from './KnowledgeGraphNodeTypes';
@@ -23,15 +24,11 @@ const edgeTypes = {
   knowledgeGraphEdge: KnowledgeGraphEdge,
 };
 
-interface KnowledgeGraphViewProps {
+interface KnowledgeGraphViewProps extends KnowledgeAnalysisPreviewState {
   nodes: KnowledgeGraphNodeType[];
   edges: KnowledgeGraphEdgeType[];
   selectedNodeId: string | null;
   selectedEdgeId: string | null;
-  showMemoryPreview: boolean;
-  showMetricPreview: boolean;
-  showUtilityPreview: boolean;
-  showGlobalDebugPreview: boolean;
   previewDataset: KnowledgeDataset | null;
   topOverlay?: ReactNode;
   lossHistory: LossHistoryPoint[];
@@ -49,6 +46,8 @@ export function KnowledgeGraphView({
   showMemoryPreview,
   showMetricPreview,
   showUtilityPreview,
+  showReceptiveFieldPreview,
+  showDistanceIndexPreview,
   showGlobalDebugPreview,
   previewDataset,
   topOverlay,
@@ -68,6 +67,8 @@ export function KnowledgeGraphView({
         showMemoryPreview,
         showMetricPreview,
         showUtilityPreview,
+        showReceptiveFieldPreview,
+        showDistanceIndexPreview,
         showGlobalDebugPreview,
         datasetHighlighted: Boolean(
           previewDataset
@@ -83,6 +84,8 @@ export function KnowledgeGraphView({
       showMemoryPreview,
       showMetricPreview,
       showUtilityPreview,
+      showReceptiveFieldPreview,
+      showDistanceIndexPreview,
       showGlobalDebugPreview,
     ],
   );
@@ -95,6 +98,8 @@ export function KnowledgeGraphView({
         showMemoryPreview,
         showMetricPreview,
         showUtilityPreview,
+        showReceptiveFieldPreview,
+        showDistanceIndexPreview,
         showGlobalDebugPreview,
         hovered: edge.id === hoveredEdgeId,
       },
@@ -106,6 +111,8 @@ export function KnowledgeGraphView({
       showMemoryPreview,
       showMetricPreview,
       showUtilityPreview,
+      showReceptiveFieldPreview,
+      showDistanceIndexPreview,
       showGlobalDebugPreview,
     ],
   );

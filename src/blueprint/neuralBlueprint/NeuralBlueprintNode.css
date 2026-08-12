@@ -78,13 +78,15 @@
 
 .neural-blueprint-node-preview-item.rank-analysis-preview,
 .neural-blueprint-node-preview-item.variance-analysis-preview,
-.neural-blueprint-node-preview-item.repetition-analysis-preview {
+.neural-blueprint-node-preview-item.repetition-analysis-preview,
+.neural-blueprint-node-preview-item.distance-index-analysis-preview {
   display: none;
 }
 
 .canvas-wrap[data-rank-analysis="true"] .neural-blueprint-node-preview-item.rank-analysis-preview,
 .canvas-wrap[data-variance-analysis="true"] .neural-blueprint-node-preview-item.variance-analysis-preview,
-.canvas-wrap[data-repetition-analysis="true"] .neural-blueprint-node-preview-item.repetition-analysis-preview {
+.canvas-wrap[data-repetition-analysis="true"] .neural-blueprint-node-preview-item.repetition-analysis-preview,
+.canvas-wrap[data-distance-index-analysis="true"] .neural-blueprint-node-preview-item.distance-index-analysis-preview {
   display: flex;
 }
 

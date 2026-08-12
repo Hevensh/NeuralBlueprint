@@ -154,8 +154,8 @@ function cloneStats(stats: ModuleStats | undefined) {
       repetition: {
         potential: { ...stats.adaptation.repetition.potential },
         effective: { ...stats.adaptation.repetition.effective },
-        memory: { ...stats.adaptation.repetition.memory },
       },
+      distanceIndex: { ...stats.adaptation.distanceIndex },
     },
     inputElementCorr: stats.inputElementCorr
       ? { ...stats.inputElementCorr }

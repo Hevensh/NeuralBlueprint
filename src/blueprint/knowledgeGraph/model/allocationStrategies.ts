@@ -1,5 +1,6 @@
 import {
   clearAllocatedMemory,
+  entityPoolAdaptationCompatibility,
   entityRequiredMemory,
   getTrainingEntities,
   readEntityPoolStageMemory,
@@ -157,7 +158,15 @@ function allocateRandomly(
     const stage = pool.inferenceStages[
       Math.floor(random() * pool.inferenceStages.length)
     ];
-    const entity = entities[Math.floor(random() * entities.length)];
+    const entityWeights = entities.map((entity) => (
+      entityPoolAdaptationCompatibility(memory, entity, pool.id)
+    ));
+    const entityIndex = weightedIndex(entityWeights, random);
+    if (entityIndex < 0) {
+      remaining[poolIndex] = 0;
+      continue;
+    }
+    const entity = entities[entityIndex];
     writeEntityPoolStageMemory(
       memory,
       entity,
