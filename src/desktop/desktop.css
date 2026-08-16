@@ -228,3 +228,63 @@ body,
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+
+.desktop-settings-switch-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  border-radius: 10px;
+  background: rgba(8, 47, 73, 0.28);
+}
+
+.desktop-settings-switch-row span {
+  display: grid;
+  gap: 4px;
+}
+
+.desktop-settings-switch-row strong {
+  color: #cbd5e1;
+  font-size: 12px;
+}
+
+.desktop-settings-switch-row small {
+  color: #64748b;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.desktop-settings-switch-row input {
+  width: 38px;
+  height: 21px;
+  appearance: none;
+  border: 1px solid rgba(148, 163, 184, 0.42);
+  border-radius: 999px;
+  background: rgba(30, 41, 59, 0.82);
+  cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease;
+}
+
+.desktop-settings-switch-row input::after {
+  display: block;
+  width: 15px;
+  height: 15px;
+  margin: 2px;
+  border-radius: 50%;
+  background: #94a3b8;
+  content: '';
+  transition: transform 0.16s ease, background 0.16s ease;
+}
+
+.desktop-settings-switch-row input:checked {
+  border-color: rgba(45, 212, 191, 0.72);
+  background: rgba(13, 148, 136, 0.56);
+}
+
+.desktop-settings-switch-row input:checked::after {
+  background: #ccfbf1;
+  transform: translateX(17px);
+}

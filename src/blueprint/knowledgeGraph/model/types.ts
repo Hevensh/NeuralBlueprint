@@ -1,38 +1,25 @@
+import type {
+  SpatialAdaptationCapability,
+  SpatialAdaptationRequirements,
+} from '../../SpatialAdaptationTypes';
+
 export type NodeId = string;
 export type EdgeId = string;
 
 export type KnowledgeEdgeKind = 'dependency' | 'substitute' | 'interference';
 
 export type AdaptationRequirementValue = number;
-export type ReceptiveFieldBand =
-  | 'small'
-  | 'medium'
-  | 'large'
-  | 'extraLarge'
-  | 'global';
-export type DistanceIndexBand =
-  | 'none'
-  | 'short'
-  | 'medium'
-  | 'long'
-  | 'global';
-export type KnowledgeAdaptationRoute = 'receptiveField' | 'distanceIndex';
-
-export type ReceptiveFieldPoints<T = number> = Record<ReceptiveFieldBand, T>;
-export type DistanceIndexPoints<T = number> = Record<DistanceIndexBand, T>;
-
-export type KnowledgeAdaptationPoints<T = number> = {
-  receptiveField: ReceptiveFieldPoints<T>;
-  distanceIndex: DistanceIndexPoints<T>;
-};
-
 export type KnowledgeAdaptationRequirements =
-  KnowledgeAdaptationPoints<AdaptationRequirementValue>;
+  SpatialAdaptationRequirements<AdaptationRequirementValue>;
 
-export type KnowledgeAdaptationMatch = {
-  receptiveField: number;
-  distanceIndex: number;
-  combined: number;
+export type KnowledgeAdaptationBalance = {
+  comparedCellCount: number;
+  maxGap: number;
+  meanGap: number;
+  maxSurplus: number;
+  meanSurplus: number;
+  balance: number;
+  factor: number;
 };
 
 export type KnowledgeNode = {
@@ -87,15 +74,18 @@ export type KnowledgeLossPoint = {
   epoch: number;
   trainLoss: number;
   valLoss: number | null;
+  trainAccuracy?: number;
+  valAccuracy?: number | null;
 };
 
 export type MemoryProfileSource = 'preset' | 'blueprint';
+export type OptimizerKind = 'sgd' | 'adam';
 
 export type KnowledgeMemoryBudgetPool = {
   id: string;
   inferenceStages: number[];
   memoryPoint: number;
-  adaptationCapability: KnowledgeAdaptationPoints;
+  adaptationCapability: SpatialAdaptationCapability;
   varianceLogDistance?: number;
 };
 

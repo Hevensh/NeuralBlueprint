@@ -19,11 +19,18 @@ export function computeStageTrainingSignal(
   utilities: UtilityReport,
   stage: number,
 ): TrainingSignal {
-  const report = utilities.stages[stage];
-  const metric = entity.kind === 'node'
-    ? report?.nodes[entity.id]
-    : report?.edges[entity.id];
-  return metric ?? emptySignal();
+  const reachableMetrics = utilities.stages
+    .filter((report) => report.stage >= stage)
+    .flatMap((report) => {
+      const metric = entity.kind === 'node'
+        ? report.nodes[entity.id]
+        : report.edges[entity.id];
+      return metric ? [metric] : [];
+    });
+
+  return reachableMetrics.reduce<TrainingSignal>((best, metric) => (
+    metric.total > best.total ? metric : best
+  ), emptySignal());
 }
 
 function emptySignal(): TrainingSignal {

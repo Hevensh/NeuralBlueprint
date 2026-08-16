@@ -13,6 +13,7 @@ import {
 } from './spatial';
 import { getForwardPoolingMoments } from './poolingMoments';
 import { getDistributionTransitionSaturation } from './utils/math';
+import { globalizeSpatialView } from '../spatialView';
 
 export function forwardGlobalPoolingStats(
   node: GlobalPoolingNodeData,
@@ -57,6 +58,7 @@ export function forwardGlobalPoolingStats(
     },
     distribution: moments,
     shape,
+    spatialView: globalizeSpatialView(input.spatialView),
     adaptation: {
       repetition: preserveRepetitionStats(input, effectiveRank),
       distanceIndex: createEmptyDistanceIndexRank(),

@@ -1,5 +1,5 @@
 import type { GameTime } from '../game/gameTypes';
-import { useLanguage } from '../i18n/LanguageContext';
+import { useLanguage } from '../i18n/useLanguage';
 import { getAcademicTime } from './academicTime';
 
 export function AcademicTimeIndicator({ time }: { time: GameTime }) {

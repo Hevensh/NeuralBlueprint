@@ -13,6 +13,7 @@ import {
   type TrainingCurveSnapshot,
 } from '../../dataStorage/trainingCurveStorage';
 import type { TrainingProcessTaskSnapshot } from '../taskGuide/taskGuideSnapshot';
+import { TrainingResourceWindow } from './TrainingResourceWindow';
 
 export function TrainingProcessWorkspace({
   controller,
@@ -116,12 +117,15 @@ export function TrainingProcessWorkspace({
         <TrainingConfigurationControls
           {...controller.trainingControls}
           disabled={selectedSnapshotId !== null}
-          showAllocationButtons={features.showAllocationButtons}
+          showAllocationButtons={features.showAllocationButtons
+            && !controller.statistics.pretraining}
         />
+        <TrainingResourceWindow {...controller.trainingResources} />
         <TrainingStatistics
           epoch={visibleEpoch}
           history={visibleHistory}
           loss={controller.statistics.loss}
+          pretraining={controller.statistics.pretraining}
         />
       </aside>
 

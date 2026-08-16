@@ -1,6 +1,6 @@
 import type { NodeProps } from '@xyflow/react';
 import type { DesktopIconNodeType } from './desktopTypes';
-import { useLanguage } from '../i18n/LanguageContext';
+import { useLanguage } from '../i18n/useLanguage';
 import { getDesktopFileDisplayName } from './desktopFileNames';
 import { getFileIcon } from './fileIcons';
 

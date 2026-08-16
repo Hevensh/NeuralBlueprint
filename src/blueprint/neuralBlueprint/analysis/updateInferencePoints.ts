@@ -3,13 +3,15 @@ import type {
   LinearNodeData,
   ModuleBaseNode,
   ModuleNodeData,
+  PatchEmbeddingNodeData,
+  ResNetStageNodeData,
 } from '../ModuleBaseNodeTypes';
 import {
   collectInferenceModelIslands,
   computeInferenceGroupProfile,
 } from './inferenceMemoryProfile';
 
-type TrainableNodeData = LinearNodeData | CNNNodeData;
+type TrainableNodeData = LinearNodeData | CNNNodeData | PatchEmbeddingNodeData | ResNetStageNodeData;
 
 export function updateInferencePoints(nodes: ModuleBaseNode[]) {
   nodes.forEach((node) => {
@@ -25,11 +27,13 @@ export function updateInferencePoints(nodes: ModuleBaseNode[]) {
       return;
     }
 
-    data.memoryPoint = (
-      data.stats?.rank.effectiveRank ?? Number.NaN
-    ) * (
-      data.statsBackward?.rank.effectiveRank ?? Number.NaN
-    );
+    data.memoryPoint = data.kind === 'ResNetStage'
+      ? sumInternalMemoryPoint(data.internalConvs ?? [])
+      : (
+          data.stats?.rank.effectiveRank ?? Number.NaN
+        ) * (
+          data.statsBackward?.rank.effectiveRank ?? Number.NaN
+        );
     data.inferencePoint = undefined;
 
     if (!data.inferenceTopologyOrder?.size) return;
@@ -46,7 +50,11 @@ export function updateInferencePoints(nodes: ModuleBaseNode[]) {
         || !Number.isFinite(data.memoryPoint)
       ) return;
 
-      const key = getInferenceOrderKey(data.inferenceTopologyOrder);
+      const key = getInferenceOrderKey(
+        data.kind === 'ResNetStage'
+          ? data.internalInferenceTopologyOrder
+          : data.inferenceTopologyOrder,
+      );
       const group = groups.get(key) ?? [];
       group.push(data);
       groups.set(key, group);
@@ -67,8 +75,20 @@ export function updateInferencePoints(nodes: ModuleBaseNode[]) {
   });
 }
 
+function sumInternalMemoryPoint(
+  internals: Array<{ memoryPoint?: number }>,
+) {
+  return internals.reduce(
+    (sum, internal) => sum + Math.max(0, internal.memoryPoint ?? 0),
+    0,
+  );
+}
+
 function isTrainableNode(data: ModuleNodeData): data is TrainableNodeData {
-  return data.kind === 'Linear' || data.kind === 'CNN';
+  return data.kind === 'Linear'
+    || data.kind === 'CNN'
+    || data.kind === 'PatchEmbedding'
+    || data.kind === 'ResNetStage';
 }
 
 function getInferenceOrderKey(orders: Set<number> | undefined) {

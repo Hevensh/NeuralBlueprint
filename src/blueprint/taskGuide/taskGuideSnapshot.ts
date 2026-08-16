@@ -31,7 +31,7 @@ export interface NeuralBlueprintTaskSnapshot {
 export interface TrainingProcessTaskSnapshot {
   modelInitialized: boolean;
   epoch: number;
-  trainSteps: number;
+  trainEpochs: number;
   savedCurveCount?: number;
   bestValLoss?: number;
   savedBestValLoss?: number;
@@ -42,6 +42,7 @@ const MODULE_KINDS: ModuleBaseNodeKind[] = [
   '3DInput',
   'Linear',
   'CNN',
+  'PatchEmbedding',
   'Pooling',
   'Flatten',
   'GlobalPooling',

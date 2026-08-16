@@ -2,7 +2,12 @@ import type {
   DesktopFile,
   DesktopFileDefinition,
 } from '../desktop/desktopTypes';
-import { configFileTask1, configFileTask2 } from './configs';
+import {
+  configFileCnnScaleExperiment,
+  configFileTask1,
+  configFileTask2,
+  configFileTask3,
+} from './configs';
 
 export const DESKTOP_FILE_DEFINITIONS: DesktopFileDefinition[] = [
   {
@@ -17,6 +22,62 @@ export const DESKTOP_FILE_DEFINITIONS: DesktopFileDefinition[] = [
     visible: true,
     dependencyFileIds: [],
     initialPosition: { x: 0, y: 1 },
+  },
+  {
+    id: 'cnn_scale12_baseline',
+    name: 'CNN Scale: 3x3 Baseline',
+    localizedNames: {
+      en: 'CNN Scale: 3x3 Baseline',
+      zh: 'CNN 尺度：3x3 基线',
+    },
+    type: 'nbp',
+    deletable: false,
+    visible: true,
+    dependencyFileIds: [],
+    initialPosition: { x: 0, y: 2 },
+    config: configFileCnnScaleExperiment,
+  },
+  {
+    id: 'cnn_scale12_multisize',
+    name: 'CNN Scale: Multi-size',
+    localizedNames: {
+      en: 'CNN Scale: Multi-size',
+      zh: 'CNN 尺度：多尺寸',
+    },
+    type: 'nbp',
+    deletable: false,
+    visible: true,
+    dependencyFileIds: [],
+    initialPosition: { x: 1, y: 2 },
+    config: configFileCnnScaleExperiment,
+  },
+  {
+    id: 'task3_cifar_scratch',
+    name: 'Task 3A: CIFAR-10 ResNet-18 (Scratch)',
+    localizedNames: {
+      en: 'Task 3A: CIFAR-10 ResNet-18 (Scratch)',
+      zh: '任务 3A：CIFAR-10 ResNet-18（从头训练）',
+    },
+    type: 'nbp',
+    deletable: false,
+    visible: true,
+    dependencyFileIds: [],
+    initialPosition: { x: 3, y: 1 },
+    config: configFileTask3,
+  },
+  {
+    id: 'task3_cifar_pretrained',
+    name: 'Task 3B: CIFAR-10 ResNet-18 (Pretrained)',
+    localizedNames: {
+      en: 'Task 3B: CIFAR-10 ResNet-18 (Pretrained)',
+      zh: '任务 3B：CIFAR-10 ResNet-18（预训练）',
+    },
+    type: 'nbp',
+    deletable: false,
+    visible: true,
+    dependencyFileIds: [],
+    initialPosition: { x: 4, y: 1 },
+    config: configFileTask3,
   },
   {
     id: 'task1',

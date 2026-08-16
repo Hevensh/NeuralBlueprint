@@ -14,7 +14,7 @@ import {
   type EdgeChange,
   type NodeChange,
 } from '@xyflow/react';
-import { type Dispatch, type DragEvent, type SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type Dispatch, type DragEvent, type ReactNode, type SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   loadNeuralBlueprintGraph,
   saveNeuralBlueprintGraph,
@@ -28,6 +28,7 @@ import {
 import { updateState } from './analysis/updateState';
 import {
   MODULE_BASE_NODE_DRAG_TYPE,
+  MODULE_BASE_NODE_PRESET_DRAG_TYPE,
 } from './NeuralBlueprintLeftPanel';
 import { NeuralBlueprintNode } from './NeuralBlueprintNode';
 import type {
@@ -40,9 +41,10 @@ import type {
   ModuleNodeData,
 } from './ModuleBaseNodeTypes';
 import {
-  createModuleNodeData,
   isModuleBaseNodeKind,
 } from './moduleNodeFactory';
+import { createDroppedModuleGroup } from './moduleDropFactory';
+import type { ModulePalettePreset } from './moduleRegistry';
 import {
   animateNodePositions,
   getArrangeAnimationDuration,
@@ -96,6 +98,7 @@ interface NeuralBlueprintCanvasInnerProp {
   showVarianceAnalysis: boolean;
   showRepetitionAnalysis: boolean;
   showDistanceIndexAnalysis: boolean;
+  topOverlay?: ReactNode;
   setSelectedNode: Dispatch<SetStateAction<ModuleNodeData | null>>;
   onTaskSnapshotChange?: (snapshot: NeuralBlueprintTaskSnapshot) => void;
 }
@@ -111,6 +114,7 @@ export function NeuralBlueprintCanvasInner({
   showVarianceAnalysis,
   showRepetitionAnalysis,
   showDistanceIndexAnalysis,
+  topOverlay,
   setSelectedNode,
   onTaskSnapshotChange,
 }: NeuralBlueprintCanvasInnerProp) {
@@ -298,39 +302,30 @@ export function NeuralBlueprintCanvasInner({
     setSelectedNodeId,
   ]);
 
-  const createModuleBaseNode = useCallback((kind: ModuleBaseNodeKind, position: { x: number; y: number }) => {
+  const createModuleBaseNode = useCallback((
+    kind: ModuleBaseNodeKind,
+    position: { x: number; y: number },
+    palettePreset?: ModulePalettePreset,
+  ) => {
     pushHistory();
-    const id = `${kind}_${Date.now()}`;
-    const data = createModuleNodeData(kind, {
-      id,
-      name: kind,
-      type: PageType.NeuralBlueprint,
-    });
-    const node: ModuleBaseNode = {
-      id,
-      type: PageType.NeuralBlueprint,
-      position: {
-        x: position.x - 70,
-        y: position.y - 28,
-      },
-      data,
-      draggable: true,
-      selectable: true,
-    };
-
-    const nextNodes = updateState([
+    const created = createDroppedModuleGroup(kind, position, palettePreset);
+    const createdNodes = created.nodes;
+    const createdEdges = created.edges;
+    const nextEdges = [...edges, ...createdEdges];
+    const nextNodes = updateState(rebuildNodeLinks([
       ...nodes.map((currentNode) => ({ ...currentNode, selected: false })),
-      {
-        ...node,
-        selected: true,
-      },
-    ]);
-    const nextSelectedNode = nextNodes.find((currentNode) => currentNode.id === id)?.data ?? data;
+      ...createdNodes,
+    ], nextEdges));
+    const selectedNode = createdNodes[0];
+    const nextSelectedNode = nextNodes.find(
+      (currentNode) => currentNode.id === selectedNode.id,
+    )?.data ?? selectedNode.data;
 
-    setSelectedNodeId(id);
+    setSelectedNodeId(selectedNode.id);
     setSelectedNode(nextSelectedNode);
+    setEdges(nextEdges);
     setNodes(nextNodes);
-  }, [nodes, pushHistory, setNodes, setSelectedNode, setSelectedNodeId]);
+  }, [edges, nodes, pushHistory, setEdges, setNodes, setSelectedNode, setSelectedNodeId]);
 
   const handleNodesChange = useCallback((changes: NodeChange<ModuleBaseNode>[]) => {
     const unlockedChanges = changes.filter((change) => (
@@ -528,6 +523,13 @@ export function NeuralBlueprintCanvasInner({
     const kind = event.dataTransfer.getData(MODULE_BASE_NODE_DRAG_TYPE);
     if (!isModuleBaseNodeKind(kind)) return;
     if (!availableModuleKinds.includes(kind)) return;
+    const presetValue = event.dataTransfer.getData(
+      MODULE_BASE_NODE_PRESET_DRAG_TYPE,
+    );
+    const palettePreset: ModulePalettePreset | undefined =
+      presetValue === 'pretrained-resnet-stage'
+        ? presetValue
+        : undefined;
 
     createModuleBaseNode(
       kind,
@@ -535,6 +537,7 @@ export function NeuralBlueprintCanvasInner({
         x: event.clientX,
         y: event.clientY,
       }),
+      palettePreset,
     );
   }, [availableModuleKinds, createModuleBaseNode, screenToFlowPosition]);
 
@@ -585,6 +588,7 @@ export function NeuralBlueprintCanvasInner({
       >
         <Background />
       </ReactFlow>
+      {topOverlay}
       <CorrelationOverlay
         lines={[...correlationLines, ...inferenceMemoryAggregationLines]}
       />

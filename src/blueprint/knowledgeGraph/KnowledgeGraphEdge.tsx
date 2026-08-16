@@ -36,8 +36,8 @@ export function KnowledgeGraphEdge({
   const showPreview = data?.showMemoryPreview
     || data?.showMetricPreview
     || data?.showUtilityPreview
-    || data?.showReceptiveFieldPreview
-    || data?.showDistanceIndexPreview
+    || data?.showScalePreview
+    || data?.showIndexPreview
     || data?.showGlobalDebugPreview;
   const hovered = data?.hovered || previewHovered;
 
@@ -92,16 +92,16 @@ export function KnowledgeGraphEdge({
             {data.showUtilityPreview && (
               <span>U {formatTrainingSignal(data.metrics.training.total)}</span>
             )}
-            {data.showReceptiveFieldPreview && (
+            {data.showScalePreview && (
               <AdaptationRequirementPreview
                 requirements={data.properties.adaptationRequirements}
-                route="receptiveField"
+                route="scale"
               />
             )}
-            {data.showDistanceIndexPreview && (
+            {data.showIndexPreview && (
               <AdaptationRequirementPreview
                 requirements={data.properties.adaptationRequirements}
-                route="distanceIndex"
+                route="index"
               />
             )}
             {data.showGlobalDebugPreview && (

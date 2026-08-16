@@ -6,6 +6,7 @@ import type {
 import { createEmptyRepetitionStats } from '../repetitionRank';
 import { createEmptyDistanceIndexRank } from '../distanceIndexRank';
 import { EPS } from './utils/constants';
+import { createSpatialViewFromShape } from '../spatialView';
 
 export function forwardInputStats(
   node: InputNodeData | ThreeDInputNodeData,
@@ -26,6 +27,15 @@ export function forwardInputStats(
       negativeRate: 0,
     };
 
+  const shape = {
+    time: node.kind === '3DInput'
+      ? normalizeInputDimension(node.time)
+      : 'absent' as const,
+    channels: rank,
+    height: node.kind === '3DInput' ? normalizeInputDimension(node.height) : 'absent' as const,
+    width: node.kind === '3DInput' ? normalizeInputDimension(node.width) : 'absent' as const,
+  };
+
   return {
     status: 'valid',
     rank: {
@@ -35,12 +45,8 @@ export function forwardInputStats(
       saturation: effectiveRank / Math.max(rank, EPS),
       minRank: rank,
     },
-    shape: {
-      time: 'absent',
-      channels: rank,
-      height: node.kind === '3DInput' ? normalizeInputDimension(node.height) : 'absent',
-      width: node.kind === '3DInput' ? normalizeInputDimension(node.width) : 'absent',
-    },
+    shape,
+    spatialView: createSpatialViewFromShape(shape),
     adaptation: {
       repetition: createEmptyRepetitionStats(),
       distanceIndex: createEmptyDistanceIndexRank(),
@@ -49,6 +55,10 @@ export function forwardInputStats(
   };
 }
 
-function normalizeInputDimension(value: ThreeDInputNodeData['height']) {
-  return value === 'unknown' ? value : Math.max(1, Math.round(value));
+function normalizeInputDimension(
+  value: ThreeDInputNodeData['height'] | ThreeDInputNodeData['time'],
+) {
+  return value === 'unknown' || value === 'absent'
+    ? value
+    : Math.max(1, Math.round(value));
 }

@@ -57,6 +57,54 @@ export function inferSpatialOutputShape(
   };
 }
 
+export function inferPatchEmbeddingShape(
+  input: ModuleStats,
+  outputChannels: number,
+  patchHeight: number,
+  patchWidth: number,
+  strideHeight: number,
+  strideWidth: number,
+): {
+  shape: ModuleTensorShape;
+  gridShape: ModuleTensorShape;
+} | null {
+  const inputShape = readTensorShape(input);
+  const height = outputSize(
+    inputShape.height,
+    patchHeight,
+    strideHeight,
+    0,
+    1,
+  );
+  const width = outputSize(
+    inputShape.width,
+    patchWidth,
+    strideWidth,
+    0,
+    1,
+  );
+  if (height === null || width === null) return null;
+  const tokenCount = multiplyPresentDimensions([
+    inputShape.time,
+    height,
+    width,
+  ]);
+  return {
+    shape: {
+      time: tokenCount,
+      channels: Math.max(1, Math.round(outputChannels)),
+      height: 'absent',
+      width: 'absent',
+    },
+    gridShape: {
+      time: inputShape.time,
+      channels: Math.max(1, Math.round(outputChannels)),
+      height,
+      width,
+    },
+  };
+}
+
 export function flattenTensorShape(shape: ModuleTensorShape) {
   const dimensions = DIMENSION_KEYS
     .map((key) => shape[key])
@@ -149,4 +197,15 @@ function outputSize(
     ) / safeStride + 1,
   );
   return output >= 1 ? output : null;
+}
+
+function multiplyPresentDimensions(
+  dimensions: ModuleDimension[],
+): ModuleDimension {
+  const present = dimensions.filter((dimension) => dimension !== 'absent');
+  if (present.some((dimension) => dimension === 'unknown')) return 'unknown';
+  return present.reduce<number>(
+    (product, dimension) => product * (dimension as number),
+    1,
+  );
 }

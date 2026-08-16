@@ -79,9 +79,9 @@ export function createTask1GuideTextEn({
           title: 'Open Training',
           hint: 'Switch to the Training Process tab.',
         },
-        setTrainSteps: {
-          title: 'Set Train Steps',
-          hint: `Set Train Steps to ${trainEpochs}.`,
+        setTrainEpochs: {
+          title: 'Set Train Epochs',
+          hint: `Set Train Epochs to ${trainEpochs}.`,
         },
         train: {
           title: 'Train',

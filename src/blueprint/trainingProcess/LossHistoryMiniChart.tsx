@@ -1,5 +1,5 @@
 import { useRef, useState, type PointerEvent } from 'react';
-import { useLabels } from '../../i18n/LanguageContext';
+import { useLabels } from '../../i18n/useLanguage';
 import './TrainingProcess.css';
 
 export type LossHistoryPoint = {

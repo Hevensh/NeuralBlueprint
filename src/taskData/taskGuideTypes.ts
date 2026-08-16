@@ -157,7 +157,7 @@ export type TrainingTaskFlagName = 'modelInitialized';
 
 export type TrainingTaskStatName =
   | 'epoch'
-  | 'trainSteps'
+  | 'trainEpochs'
   | 'savedCurveCount'
   | 'bestValLoss'
   | 'savedBestValLoss';

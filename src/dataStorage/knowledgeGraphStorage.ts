@@ -6,10 +6,11 @@ import type {
   KnowledgeGraphMemory,
   KnowledgeLossPoint,
   KnowledgeNode,
+  OptimizerKind,
 } from '../blueprint/knowledgeGraph/model/types';
 import { appStorage } from './storageAdapter';
 
-const STORAGE_PREFIX = 'knowledgeGraph:v13:';
+const STORAGE_PREFIX = 'knowledgeGraph:v21:';
 
 export type KnowledgeGraphSessionState = {
   graphDefinition: KnowledgeGraphDefinition;
@@ -24,22 +25,25 @@ export type KnowledgeGraphSessionState = {
   modelInitialized: boolean;
   networkProfileSignature: string;
   ui: KnowledgeGraphUiState;
+  pretraining?: {
+    source: string;
+  };
 };
 
 export type KnowledgeGraphUiState = {
   showMemory: boolean;
   showMetrics: boolean;
   showUtility: boolean;
-  showReceptiveField: boolean;
-  showDistanceIndex: boolean;
+  showScale: boolean;
+  showIndex: boolean;
 };
 
 export const DEFAULT_KNOWLEDGE_GRAPH_UI: KnowledgeGraphUiState = {
   showMemory: true,
   showMetrics: true,
   showUtility: true,
-  showReceptiveField: false,
-  showDistanceIndex: false,
+  showScale: false,
+  showIndex: false,
 };
 
 export type KnowledgeGraphViewport = {
@@ -49,9 +53,10 @@ export type KnowledgeGraphViewport = {
 };
 
 export type TrainingControlState = {
+  optimizer: OptimizerKind;
   learningRate: number;
   regularizationRate: number;
-  trainSteps: number;
+  trainEpochs: number;
   initializationSeed: string;
 };
 

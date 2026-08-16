@@ -1,17 +1,108 @@
 .training-process-canvas {
   display: grid;
-  place-items: center;
+  align-items: center;
   box-sizing: border-box;
   padding: 24px;
+  overflow: auto;
   background:
     radial-gradient(circle at 50% 0%, rgba(20, 184, 166, 0.16), transparent 48%),
     linear-gradient(145deg, #020617, #0f172a 58%, #111827);
 }
 
-.training-loss-chart {
+.training-resource-trigger {
   position: relative;
-  transform: translateY(-48px);
+  z-index: 1;
+  margin-top: 14px;
+}
+
+.training-resource-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.training-resource-summary > div,
+.training-resource-breakdown > div {
+  display: grid;
+  gap: 5px;
+  padding: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.46);
+}
+
+.training-resource-summary span,
+.training-resource-breakdown span,
+.training-vram-caption span {
+  color: #64748b;
+  font-size: 10px;
+}
+
+.training-resource-summary strong,
+.training-resource-breakdown strong,
+.training-vram-caption strong {
+  color: #dbeafe;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.training-vram-chart {
+  margin-top: 16px;
+}
+
+.training-vram-track {
+  height: 30px;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 7px;
+  background: rgba(15, 23, 42, 0.7);
+}
+
+.training-vram-used {
+  width: var(--resource-ratio, 0%);
+  height: 100%;
+  background: linear-gradient(90deg, rgba(13, 148, 136, 0.74), rgba(34, 211, 238, 0.84));
+  box-shadow: 4px 0 18px rgba(34, 211, 238, 0.32);
+}
+
+.training-vram-used.overflow {
+  background: linear-gradient(90deg, rgba(190, 24, 93, 0.78), rgba(251, 113, 133, 0.9));
+}
+
+.training-vram-caption {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+
+.training-resource-breakdown {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 16px;
+}
+
+.training-resource-breakdown > div {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.training-history-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
   width: min(920px, 100%);
+  margin: auto;
+}
+
+.training-history-grid > :only-child {
+  width: min(920px, 100%);
+  justify-self: center;
+}
+
+.training-metric-chart {
+  position: relative;
+  width: 100%;
   box-sizing: border-box;
   padding: 18px 20px;
   border: 1px solid rgba(45, 212, 191, 0.34);
@@ -23,31 +114,31 @@
   color: #cbd5e1;
 }
 
-.training-loss-chart-header,
-.training-loss-chart-legend {
+.training-metric-chart-header,
+.training-metric-chart-legend {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
 }
 
-.training-loss-chart-header strong {
+.training-metric-chart-header strong {
   color: #e2e8f0;
   font-size: 14px;
 }
 
-.training-loss-chart-header span,
-.training-loss-chart-legend span {
+.training-metric-chart-header span,
+.training-metric-chart-legend span {
   color: #94a3b8;
   font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
 
-.training-loss-chart svg {
+.training-metric-chart svg {
   display: block;
   width: 100%;
-  height: min(430px, calc(100vh - 250px));
-  min-height: 280px;
+  height: auto;
+  max-height: min(430px, calc(100vh - 250px));
   margin-top: 8px;
   overflow: visible;
 }
@@ -154,11 +245,11 @@
   color: #cbd5e1;
 }
 
-.training-loss-chart-legend {
+.training-metric-chart-legend {
   justify-content: flex-end;
 }
 
-.training-loss-chart-legend span::before {
+.training-metric-chart-legend span::before {
   display: inline-block;
   width: 20px;
   margin-right: 6px;
@@ -167,7 +258,7 @@
   vertical-align: middle;
 }
 
-.training-loss-chart-legend .validation::before {
+.training-metric-chart-legend .validation::before {
   border-color: #fb7185;
   border-top-style: dashed;
 }

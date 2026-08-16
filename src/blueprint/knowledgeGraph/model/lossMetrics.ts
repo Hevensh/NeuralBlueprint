@@ -21,11 +21,15 @@ export type EntityOverfitMetrics = {
 export type NodeLossMetrics = EntityOverfitMetrics & {
   trainLoss: number;
   valLoss: number;
+  trainAccuracy?: number;
+  valAccuracy?: number;
 };
 
 export type KnowledgeLossReport = {
   graphTrainLoss: number;
   graphValLoss: number;
+  graphTrainAccuracy?: number;
+  graphValAccuracy?: number;
   nodes: Record<NodeId, NodeLossMetrics>;
   edges: Record<EdgeId, EntityOverfitMetrics>;
 };
@@ -88,6 +92,36 @@ export function computeNodeValLoss(effectiveMastery: number, lossMin: number, lo
   return lossMax - clamp01(effectiveMastery) * (lossMax - lossMin);
 }
 
+export function computeEstimatedAccuracy(
+  mastery: number,
+  classCount: number,
+  difficulty: number,
+  ceiling: number,
+  accuracyCurve: 'power' | 'saturating' = 'power',
+  curveStrength = difficulty,
+  curveExponent = 1,
+) {
+  const chance = 1 / Math.max(2, Math.round(classCount));
+  const upper = Math.max(chance, Math.min(1, ceiling));
+  const normalizedMastery = accuracyCurve === 'saturating'
+    ? saturatingAccuracy(clamp01(mastery), curveStrength, curveExponent)
+    : Math.pow(clamp01(mastery), Math.max(0.1, difficulty));
+  return chance + (upper - chance) * normalizedMastery;
+}
+
+function saturatingAccuracy(
+  mastery: number,
+  strength: number,
+  exponent: number,
+) {
+  const gain = Math.max(0.1, strength);
+  const saturation = clamp01(
+    (1 - Math.exp(-gain * mastery))
+    / (1 - Math.exp(-gain)),
+  );
+  return Math.pow(saturation, Math.max(0.1, exponent));
+}
+
 function edgeOverfitMetrics(
   memory: number,
   requiredMemory: number,
@@ -126,6 +160,29 @@ export function computeKnowledgeLossReport(
     const overfitRate = finalStage?.overfitRate[node.id] ?? 0;
     const trainLoss = computeNodeTrainLoss(trainEffectiveMastery, overfitRate, allocatedMemory, trainEffectiveRequiredMemory, node.lossMin, node.lossMax);
     const valLoss = computeNodeValLoss(valEffectiveMastery, node.lossMin, node.lossMax);
+    const evaluation = datasetSplit?.evaluation;
+    const trainAccuracy = evaluation
+      ? computeEstimatedAccuracy(
+          trainEffectiveMastery,
+          evaluation.classCount,
+          evaluation.difficulty,
+          evaluation.ceiling,
+          evaluation.accuracyCurve,
+          evaluation.curveStrength,
+          evaluation.curveExponent,
+        )
+      : undefined;
+    const valAccuracy = evaluation
+      ? computeEstimatedAccuracy(
+          valEffectiveMastery,
+          evaluation.classCount,
+          evaluation.difficulty,
+          evaluation.ceiling,
+          evaluation.accuracyCurve,
+          evaluation.curveStrength,
+          evaluation.curveExponent,
+        )
+      : undefined;
 
     return [
       node.id,
@@ -135,6 +192,8 @@ export function computeKnowledgeLossReport(
         effectiveMastery: valEffectiveMastery,
         trainLoss,
         valLoss,
+        trainAccuracy,
+        valAccuracy,
       },
     ] as const;
   });
@@ -152,10 +211,35 @@ export function computeKnowledgeLossReport(
   };
   const trainWeight = normalizedSplitWeight('train');
   const valWeight = normalizedSplitWeight('val');
+  const graphTrainAccuracy = datasetSplit?.evaluation
+    ? graphAccuracy(
+        graphNodes.map((node) => trainEstimate.mastery[node.id] ?? 0),
+        graphNodes.map((_node, index) => trainWeight(index)),
+        graphNodes.map((node) => nodes[node.id]?.trainAccuracy ?? 0),
+        datasetSplit.evaluation,
+      )
+    : undefined;
+  const graphValAccuracy = datasetSplit?.evaluation
+    ? graphAccuracy(
+        graphNodes.map((node) => valEstimate.mastery[node.id] ?? 0),
+        graphNodes.map((_node, index) => valWeight(index)),
+        graphNodes.map((node) => nodes[node.id]?.valAccuracy ?? 0),
+        datasetSplit.evaluation,
+      )
+    : undefined;
+  const capacityLoss = computeCapacityLoss(
+    memory.availableMemoryPoints,
+    datasetSplit?.capacity,
+  );
 
   return {
-    graphTrainLoss: graphNodes.reduce((sum, node, index) => sum + trainWeight(index) * (nodes[node.id]?.trainLoss ?? 0), 0),
-    graphValLoss: graphNodes.reduce((sum, node, index) => sum + valWeight(index) * (nodes[node.id]?.valLoss ?? 0), 0),
+    graphTrainLoss: graphNodes.reduce((sum, node, index) => sum + trainWeight(index) * (nodes[node.id]?.trainLoss ?? 0), 0)
+      + capacityLoss.underfit,
+    graphValLoss: graphNodes.reduce((sum, node, index) => sum + valWeight(index) * (nodes[node.id]?.valLoss ?? 0), 0)
+      + capacityLoss.underfit
+      + capacityLoss.overfit,
+    graphTrainAccuracy,
+    graphValAccuracy,
     nodes,
     edges: Object.fromEntries(
       [
@@ -177,4 +261,51 @@ export function computeKnowledgeLossReport(
       ]),
     ),
   };
+}
+
+function computeCapacityLoss(
+  memoryPoints: number,
+  capacity: DatasetSplitResult['capacity'],
+) {
+  const optimal = capacity?.optimalMemoryPoints;
+  if (!optimal || optimal <= 0 || memoryPoints <= 0) {
+    return { underfit: 0, overfit: 0 };
+  }
+
+  const logRatio = Math.log2(memoryPoints / optimal);
+  return logRatio < 0
+    ? {
+        underfit: (capacity.undercapacityLossScale ?? 0) * logRatio ** 2,
+        overfit: 0,
+      }
+    : {
+        underfit: 0,
+        overfit: (capacity.excessCapacityLossScale ?? 0) * logRatio ** 2,
+      };
+}
+
+function graphAccuracy(
+  mastery: number[],
+  weights: number[],
+  nodeAccuracy: number[],
+  evaluation: NonNullable<DatasetSplitResult['evaluation']>,
+) {
+  if (evaluation.accuracyCurve !== 'saturating') {
+    return nodeAccuracy.reduce((sum, value, index) => (
+      sum + (weights[index] ?? 0) * value
+    ), 0);
+  }
+
+  const graphMastery = mastery.reduce((sum, value, index) => (
+    sum + (weights[index] ?? 0) * clamp01(value)
+  ), 0);
+  return computeEstimatedAccuracy(
+    graphMastery,
+    evaluation.classCount,
+    evaluation.difficulty,
+    evaluation.ceiling,
+    evaluation.accuracyCurve,
+    evaluation.curveStrength,
+    evaluation.curveExponent,
+  );
 }

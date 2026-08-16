@@ -7,7 +7,7 @@ import type { KnowledgeLossPoint } from './types';
 import { computeKnowledgeLossReport } from './lossMetrics';
 import { cloneKnowledgeGraphMemory } from './memoryState';
 import {
-  entityPoolAdaptationCompatibility,
+  entityPoolAdaptationFactor,
   entityRequiredMemory,
   getTrainingEntities,
   poolAllocatedMemory,
@@ -24,12 +24,14 @@ import type {
   KnowledgeGraphDefinition,
   KnowledgeGraphMemory,
   KnowledgeMemoryBudgetPool,
+  OptimizerKind,
 } from './types';
 
 export type TrainingSimulationOptions = {
+  optimizer: OptimizerKind;
   learningRate: number;
   regularizationRate: number;
-  steps: number;
+  epochs: number;
   datasetCollection: KnowledgeDatasetCollection;
   trainingRandomState: number;
 };
@@ -49,14 +51,15 @@ export function runTrainingSimulation(
   let nextEpoch = Math.max(0, Math.floor(epoch));
   let randomState = options.trainingRandomState;
   const history = [...lossHistory];
-  const steps = Math.max(1, Math.floor(options.steps));
-  const learningFraction = rateToFraction(15, options.learningRate);
+  const epochs = Math.max(1, Math.floor(options.epochs));
   const datasetSplit = splitEnabledKnowledgeDatasets(
     graph,
     options.datasetCollection,
   );
+  const learningFraction = rateToFraction(15, options.learningRate)
+    * (datasetSplit.evaluation?.learningEfficiency ?? 1);
 
-  for (let step = 0; step < steps; step += 1) {
+  for (let epochIndex = 0; epochIndex < epochs; epochIndex += 1) {
     const random = () => {
       randomState = (randomState + 0x6d2b79f5) >>> 0;
       let value = randomState;
@@ -65,10 +68,11 @@ export function runTrainingSimulation(
       return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
     };
 
-    nextMemory = trainOneStep(
+    nextMemory = trainOneEpoch(
       graph,
       nextMemory,
       learningFraction,
+      options.optimizer,
       options.regularizationRate,
       datasetSplit,
       random,
@@ -87,10 +91,11 @@ export function runTrainingSimulation(
   };
 }
 
-function trainOneStep(
+function trainOneEpoch(
   graph: KnowledgeGraphDefinition,
   memory: KnowledgeGraphMemory,
   learningFraction: number,
+  optimizer: OptimizerKind,
   regularizationRate: number,
   datasetSplit: DatasetSplitResult,
   random: () => number,
@@ -128,11 +133,15 @@ function trainOneStep(
     (sum, entity) => sum + entityRequiredMemory(entity),
     0,
   );
+  const learnableFreeMemory = Math.min(
+    totalFreeMemory,
+    totalRequiredMemory * 2,
+  );
   const learningBudget = Math.min(
     totalFreeMemory,
     Math.round(
       learningFraction
-      * Math.sqrt(totalRequiredMemory * totalFreeMemory),
+      * Math.sqrt(totalRequiredMemory * learnableFreeMemory),
     ),
   );
   let distributedBudget = 0;
@@ -153,7 +162,7 @@ function trainOneStep(
         entity,
       }))
     ));
-    const learningFactor = poolVarianceLearningFactor(pool);
+    const learningFactor = poolOptimizationFactor(pool, optimizer);
     if (learningFactor <= 0) return;
     const noAllocationWeight = 1 / learningFactor;
 
@@ -164,7 +173,7 @@ function trainOneStep(
           entity,
           utilities,
           stage,
-        ).total * entityPoolAdaptationCompatibility(
+        ).total * entityPoolAdaptationFactor(
           next,
           entity,
           pool.id,
@@ -192,6 +201,7 @@ function trainOneStep(
     next,
     entities,
     regularizationRate,
+    optimizer,
     random,
   );
   return next;
@@ -201,6 +211,7 @@ function regularizeMemory(
   memory: KnowledgeGraphMemory,
   entities: KnowledgeEntity[],
   regularizationRate: number,
+  optimizer: OptimizerKind,
   random: () => number,
 ) {
   const totalRequiredMemory = entities.reduce(
@@ -210,73 +221,95 @@ function regularizeMemory(
   const memorySupplyRatio = totalRequiredMemory > 0
     ? memory.availableMemoryPoints / totalRequiredMemory
     : 0;
+  const compressedSupplySurplus = Math.log1p(
+    Math.max(0, memorySupplyRatio - 1),
+  );
   const baseLowerRatio = Math.max(
     0,
     0.7 - 0.1 * regularizationRate,
   );
-  const lowerRatio = baseLowerRatio * (1 + 0.3 * memorySupplyRatio);
+  const lowerRatio = baseLowerRatio * (
+    1 + 0.12 * compressedSupplySurplus
+  );
   const upperRatio = 1.5 * lowerRatio;
-  memory.budgetPools.forEach((pool) => {
-    const poolRatio = memory.availableMemoryPoints > 0
-      ? pool.memoryPoint / memory.availableMemoryPoints
-      : 1 / Math.max(1, memory.budgetPools.length);
-    const regularizationFactor = poolVarianceLearningFactor(pool);
-    const poolLowerRatio = lowerRatio * regularizationFactor;
-    const poolUpperRatio = upperRatio * regularizationFactor;
-
-    entities.forEach((entity) => {
-      const allocated = readEntityPoolMemory(memory, entity, pool.id);
-      const target = Math.round(
-        entityRequiredMemory(entity)
-        * poolRatio
-        * (
-          poolLowerRatio
-          + random() * (poolUpperRatio - poolLowerRatio)
-        ),
-      );
-      removeByPoolStageRoulette(
-        memory,
-        entity,
-        pool.id,
-        Math.max(0, allocated - target),
-        random,
-      );
-    });
+  entities.forEach((entity) => {
+    const allocated = memory.budgetPools.reduce((sum, pool) => (
+      sum + readEntityPoolMemory(memory, entity, pool.id)
+    ), 0);
+    const weightedAdaptationFactor = memory.budgetPools.reduce(
+      (sum, pool) => {
+        const poolRatio = memory.availableMemoryPoints > 0
+          ? pool.memoryPoint / memory.availableMemoryPoints
+          : 1 / Math.max(1, memory.budgetPools.length);
+        return sum + poolRatio * entityPoolAdaptationFactor(
+          memory,
+          entity,
+          pool.id,
+        );
+      },
+      0,
+    );
+    const target = Math.round(
+      entityRequiredMemory(entity)
+      * (
+        lowerRatio
+        + random() * (upperRatio - lowerRatio)
+      )
+      * weightedAdaptationFactor,
+    );
+    const excess = Math.max(0, allocated - target);
+    removeEntityMemoryRoulette(
+      memory,
+      entity,
+      Math.round(excess),
+      optimizer,
+      random,
+    );
   });
 }
 
-function removeByPoolStageRoulette(
+function removeEntityMemoryRoulette(
   memory: KnowledgeGraphMemory,
   entity: KnowledgeEntity,
-  poolId: string,
   count: number,
+  optimizer: OptimizerKind,
   random: () => number,
 ) {
   for (let removed = 0; removed < count; removed += 1) {
-    const stages = memory.stageTables.filter((table) => (
-      table.allocations[poolId]
-      && (
-        readEntityPoolStageMemory(
+    const slots = memory.budgetPools.flatMap((pool) => (
+      pool.inferenceStages.flatMap((stage) => {
+        const allocated = readEntityPoolStageMemory(
           memory,
           entity,
-          poolId,
-          table.stage,
-        ) > 0
-      )
+          pool.id,
+          stage,
+        );
+        return allocated > 0
+          ? [{ pool, stage, allocated }]
+          : [];
+      })
     ));
-    if (stages.length === 0) return;
-    const stage = stages[Math.floor(random() * stages.length)];
+    if (slots.length === 0) return;
+    const totalWeight = slots.reduce((sum, slot) => (
+      sum + slot.allocated * poolOptimizationFactor(slot.pool, optimizer)
+    ), 0);
+    let cursor = random() * totalWeight;
+    const slot = slots.find((candidate) => {
+      cursor -= candidate.allocated
+        * poolOptimizationFactor(candidate.pool, optimizer);
+      return cursor <= 0;
+    }) ?? slots.at(-1)!;
     const allocated = readEntityPoolStageMemory(
       memory,
       entity,
-      poolId,
-      stage.stage,
+      slot.pool.id,
+      slot.stage,
     );
     writeEntityPoolStageMemory(
       memory,
       entity,
-      poolId,
-      stage.stage,
+      slot.pool.id,
+      slot.stage,
       allocated - 1,
     );
   }
@@ -292,8 +325,23 @@ function readEntityPoolMemory(
   ), 0);
 }
 
-function poolVarianceLearningFactor(pool: KnowledgeMemoryBudgetPool) {
-  return varianceLogDistanceToLearningFactor(pool.varianceLogDistance);
+function poolOptimizationFactor(
+  pool: KnowledgeMemoryBudgetPool,
+  optimizer: OptimizerKind,
+) {
+  return optimizerVarianceLearningFactor(
+    optimizer,
+    pool.varianceLogDistance,
+  );
+}
+
+export function optimizerVarianceLearningFactor(
+  optimizer: OptimizerKind,
+  varianceLogDistance: number | undefined,
+) {
+  return optimizer === 'adam'
+    ? 1
+    : varianceLogDistanceToLearningFactor(varianceLogDistance);
 }
 
 function evaluateLoss(
@@ -326,6 +374,8 @@ function evaluateLoss(
     epoch,
     trainLoss: loss.graphTrainLoss,
     valLoss: validate ? loss.graphValLoss : null,
+    trainAccuracy: loss.graphTrainAccuracy,
+    valAccuracy: validate ? loss.graphValAccuracy ?? null : null,
   };
 }
 

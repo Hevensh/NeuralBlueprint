@@ -1,13 +1,13 @@
 import type {
   KnowledgeEntity,
-  KnowledgeAdaptationMatch,
+  KnowledgeAdaptationBalance,
   KnowledgeGraphDefinition,
   KnowledgeMemoryAllocation,
   KnowledgeMemoryBudgetPool,
   KnowledgeGraphMemory,
 } from './types';
 import {
-  computeAdaptationMatch,
+  computeAdaptationBalance,
 } from './adaptation';
 
 export function getTrainingEntities(graph: KnowledgeGraphDefinition): KnowledgeEntity[] {
@@ -83,30 +83,30 @@ export function writeEntityMemory(
   writeAcrossSlots(state, entity, integerMemory(amount), slots);
 }
 
-export function entityPoolAdaptationMatch(
+export function entityPoolAdaptationBalance(
   memory: KnowledgeGraphMemory,
   entity: KnowledgeEntity,
   poolId: string,
-): KnowledgeAdaptationMatch {
+): KnowledgeAdaptationBalance {
   const pool = memory.budgetPools.find((candidate) => candidate.id === poolId);
   return pool
-    ? computeAdaptationMatch(
+    ? computeAdaptationBalance(
         pool.adaptationCapability,
         entityAdaptationRequirements(entity),
       )
-    : createEmptyAdaptationMatch();
+    : createNeutralAdaptationBalance();
 }
 
-export function entityPoolAdaptationCompatibility(
+export function entityPoolAdaptationFactor(
   memory: KnowledgeGraphMemory,
   entity: KnowledgeEntity,
   poolId: string,
 ) {
-  return entityPoolAdaptationMatch(
+  return entityPoolAdaptationBalance(
     memory,
     entity,
     poolId,
-  ).combined;
+  ).factor;
 }
 
 export function entityAdaptationRequirements(entity: KnowledgeEntity) {
@@ -115,11 +115,15 @@ export function entityAdaptationRequirements(entity: KnowledgeEntity) {
     : entity.properties.adaptationRequirements;
 }
 
-function createEmptyAdaptationMatch(): KnowledgeAdaptationMatch {
+function createNeutralAdaptationBalance(): KnowledgeAdaptationBalance {
   return {
-    receptiveField: 0,
-    distanceIndex: 0,
-    combined: 0,
+    comparedCellCount: 0,
+    maxGap: 0,
+    meanGap: 0,
+    maxSurplus: 0,
+    meanSurplus: 0,
+    balance: 0,
+    factor: 1,
   };
 }
 
@@ -134,10 +138,6 @@ export function writeEntityPoolStageMemory(
   if (!allocation) return;
   const values = entity.kind === 'node' ? allocation.nodes : allocation.edges;
   const current = values[entity.id] ?? 0;
-  if (entityPoolAdaptationCompatibility(state, entity, poolId) <= 0) {
-    values[entity.id] = 0;
-    return;
-  }
   const remaining = Math.max(
     0,
     poolCapacity(state, poolId) - (poolAllocatedMemory(state, poolId) - current),
@@ -293,7 +293,7 @@ function slotOpportunity(
   slot: PoolStageSlot,
 ) {
   return poolRemaining(memory, slot.pool.id)
-    * entityPoolAdaptationCompatibility(memory, entity, slot.pool.id);
+    * entityPoolAdaptationFactor(memory, entity, slot.pool.id);
 }
 
 function poolRemaining(memory: KnowledgeGraphMemory, poolId: string) {

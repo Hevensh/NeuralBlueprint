@@ -1,5 +1,4 @@
 import { PageType } from '../../../blueprint/PageTypes';
-import { DEFAULT_OUTPUT_DIM } from '../../../blueprint/neuralBlueprint/moduleNodeFactory';
 import type { AppLanguage } from '../../../i18n/labels';
 import type { BlueprintTaskFeatureConfig } from '../../blueprintFeatureConfig';
 import type { TaskFileConfig } from '../../taskFileTypes';
@@ -20,16 +19,18 @@ const TASK2_INPUT_EFFECTIVE_RANK = 16;
 const TASK2_OUTPUT_DIM = 2;
 const TASK2_TRAIN_EPOCHS = 100;
 const TASK2_RETRY_EPOCHS = 500;
-const TASK2_TARGET_VAL_LOSS = 0.5;
-const TASK2_TUNED_HIDDEN_DIM = DEFAULT_OUTPUT_DIM + 1;
+const TASK2_TARGET_VAL_LOSS = 0.35;
+const TASK2_TUNED_HIDDEN_DIM = 256;
 
 export const configFileTask2: BlueprintTaskFeatureConfig = {
   neuralBlueprint: {
     canOpenTab: true,
     availableModuleKinds: ['Linear', 'ReLU'],
-    showBackwardAnalysisControl: true,
-    showVarianceAnalysisToggle: true,
-    showRankAnalysisToggle: true,
+    showBackwardAnalysisControl: false,
+    showVarianceAnalysisToggle: false,
+    showRankAnalysisToggle: false,
+    showRepetitionAnalysisToggle: false,
+    showDistanceIndexAnalysisToggle: false,
   },
   knowledgeGraph: {
     canOpenTab: true,
@@ -95,10 +96,18 @@ export const configTask2: TaskFileConfig = {
         kind: 'dependency',
         source: 'linear_feature',
         target: 'relu_breakpoint',
+        requiredMemory: 16,
+        lambda: 0.1,
+        overfitCoefficient: 1,
       },
     ],
     datasets: [
       {
+        capacity: {
+          optimalMemoryPoints: 440,
+          undercapacityLossScale: 0.54,
+          excessCapacityLossScale: 0.3,
+        },
         nodeDataAmounts: {
           nonlinear_pattern: 140,
           linear_feature: 90,
@@ -401,13 +410,13 @@ export function createGuideTask2(language: AppLanguage): TaskGuideConfig {
             },
           },
           {
-            title: text.steps.trainAndSave.setTrainSteps.title,
-            hint: text.steps.trainAndSave.setTrainSteps.hint,
-            target: 'training-train-steps',
+            title: text.steps.trainAndSave.setTrainEpochs.title,
+            hint: text.steps.trainAndSave.setTrainEpochs.hint,
+            target: 'training-train-epochs',
             placement: 'right',
             completeWhen: {
               type: 'trainingStat',
-              stat: 'trainSteps',
+              stat: 'trainEpochs',
               min: TASK2_TRAIN_EPOCHS,
             },
           },
@@ -515,6 +524,7 @@ export function createGuideTask2(language: AppLanguage): TaskGuideConfig {
 function createTask2GuideText(language: AppLanguage): Task2GuideText {
   const values = {
     targetValLoss: TASK2_TARGET_VAL_LOSS,
+    tunedHiddenDim: TASK2_TUNED_HIDDEN_DIM,
     trainEpochs: TASK2_TRAIN_EPOCHS,
     retryEpochs: TASK2_RETRY_EPOCHS,
   };

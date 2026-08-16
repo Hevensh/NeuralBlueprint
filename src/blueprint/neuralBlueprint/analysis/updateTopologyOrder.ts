@@ -84,6 +84,8 @@ function normalizeFixedOutputRank(node: ModuleNodeData): ModuleNodeData {
     && node.kind !== '3DInput'
     && node.kind !== 'Linear'
     && node.kind !== 'CNN'
+    && node.kind !== 'ResNetStage'
+    && node.kind !== 'PatchEmbedding'
   ) return node;
 
   const outFeatures = Number.isFinite(node.outFeatures)

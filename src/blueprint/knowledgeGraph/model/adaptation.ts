@@ -1,52 +1,43 @@
+import {
+  SPATIAL_ADAPTATION_ROUTES,
+  SPATIAL_AXES,
+  SPATIAL_BANDS,
+  addSpatialAdaptationCapability,
+  cloneSpatialAdaptationCapability,
+  createAxisSpatialAdaptation,
+  createSpatialAdaptationCapability,
+  createSpatialBandPoints,
+  type AxisSpatialAdaptation,
+  type SpatialAdaptationCapability,
+  type SpatialAdaptationRequirements,
+  type SpatialAdaptationRoute,
+  type SpatialAxis,
+  type SpatialBand,
+} from '../../SpatialAdaptationTypes';
 import type {
   AdaptationRequirementValue,
-  DistanceIndexBand,
-  KnowledgeAdaptationMatch,
-  KnowledgeAdaptationPoints,
+  KnowledgeAdaptationBalance,
   KnowledgeAdaptationRequirements,
-  KnowledgeAdaptationRoute,
-  ReceptiveFieldBand,
 } from './types';
 
-type AdaptationBand = ReceptiveFieldBand | DistanceIndexBand;
+const MIN_RATIO = 0.01;
+const MAX_RATIO = 2;
+const GAP_MAX_WEIGHT = 0.75;
+const GAP_MEAN_WEIGHT = 0.25;
+const SURPLUS_MAX_WEIGHT = 0.5;
+const SURPLUS_MEAN_WEIGHT = 0.5;
+const MAX_SURPLUS_LOG_BONUS = Math.log2(1.1);
 
-export const RECEPTIVE_FIELD_BANDS = [
-  'small',
-  'medium',
-  'large',
-  'extraLarge',
-  'global',
-] as const;
+export { SPATIAL_ADAPTATION_ROUTES, SPATIAL_AXES, SPATIAL_BANDS };
+export type { SpatialAdaptationRoute, SpatialAxis, SpatialBand };
 
-export const DISTANCE_INDEX_BANDS = [
-  'none',
-  'short',
-  'medium',
-  'long',
-  'global',
-] as const;
-
-export function createEmptyAdaptationPoints(): KnowledgeAdaptationPoints {
-  return {
-    receptiveField: {
-      small: 0,
-      medium: 0,
-      large: 0,
-      extraLarge: 0,
-      global: 0,
-    },
-    distanceIndex: {
-      none: 0,
-      short: 0,
-      medium: 0,
-      long: 0,
-      global: 0,
-    },
-  };
-}
+export const createEmptyBandPoints = createSpatialBandPoints;
+export const createEmptyAxisAdaptation = createAxisSpatialAdaptation;
+export const createEmptyAdaptationCapability =
+  createSpatialAdaptationCapability;
 
 export function createEmptyAdaptationRequirements(): KnowledgeAdaptationRequirements {
-  return createEmptyAdaptationPoints();
+  return {};
 }
 
 export function normalizeAdaptationRequirement(
@@ -55,83 +46,118 @@ export function normalizeAdaptationRequirement(
   return Math.max(0, Math.round(Number.isFinite(value) ? value : 0));
 }
 
-export function cloneAdaptationPoints(
-  points: KnowledgeAdaptationPoints,
-): KnowledgeAdaptationPoints {
-  return {
-    receptiveField: { ...points.receptiveField },
-    distanceIndex: { ...points.distanceIndex },
-  };
+export function cloneAdaptationCapability(
+  capability: SpatialAdaptationCapability,
+): SpatialAdaptationCapability {
+  return cloneSpatialAdaptationCapability(capability);
 }
 
-export function computeAdaptationMatch(
-  capability: KnowledgeAdaptationPoints,
-  requirements: KnowledgeAdaptationRequirements,
-): KnowledgeAdaptationMatch {
-  const receptiveField = routeMatch(
-    capability,
-    requirements,
-    'receptiveField',
-    RECEPTIVE_FIELD_BANDS,
+export function cloneAdaptationRequirements(
+  requirements: SpatialAdaptationRequirements,
+): SpatialAdaptationRequirements {
+  return Object.fromEntries(
+    SPATIAL_AXES.flatMap((axis) => {
+      const requirement = requirements[axis];
+      return requirement
+        ? [[axis, cloneAxisAdaptation(requirement)]]
+        : [];
+    }),
   );
-  const distanceIndex = routeMatch(
-    capability,
-    requirements,
-    'distanceIndex',
-    DISTANCE_INDEX_BANDS,
-  );
-  const hasReceptiveFieldRequirement = routeRequirementTotal(
-    requirements,
-    'receptiveField',
-    RECEPTIVE_FIELD_BANDS,
-  ) > 0;
-  const hasDistanceIndexRequirement = routeRequirementTotal(
-    requirements,
-    'distanceIndex',
-    DISTANCE_INDEX_BANDS,
-  ) > 0;
-
-  return {
-    receptiveField,
-    distanceIndex,
-    combined: !hasReceptiveFieldRequirement && !hasDistanceIndexRequirement
-      ? 1
-      : 1 - (1 - receptiveField) * (1 - distanceIndex),
-  };
 }
 
-export function readAdaptationPoint(
-  points: KnowledgeAdaptationPoints,
-  route: KnowledgeAdaptationRoute,
-  band: AdaptationBand,
-) {
-  return (points[route] as Record<string, number>)[band] ?? 0;
-}
+export function computeAdaptationBalance(
+  capability: SpatialAdaptationCapability,
+  requirements: SpatialAdaptationRequirements,
+): KnowledgeAdaptationBalance {
+  const cells = SPATIAL_AXES.flatMap((axis) => {
+    const axisRequirement = requirements[axis];
+    if (!axisRequirement) return [];
 
-function routeMatch(
-  capability: KnowledgeAdaptationPoints,
-  requirements: KnowledgeAdaptationRequirements,
-  route: KnowledgeAdaptationRoute,
-  bands: readonly AdaptationBand[],
-) {
-  const required = routeRequirementTotal(requirements, route, bands);
-  if (required <= 0) return 0;
-  const covered = bands.reduce((sum, band) => (
-    sum + Math.min(
-      readAdaptationPoint(capability, route, band),
-      readAdaptationPoint(requirements, route, band),
-    )
-  ), 0);
-  return Math.max(0, Math.min(1, covered / required));
-}
+    return SPATIAL_ADAPTATION_ROUTES.flatMap((route) => (
+      SPATIAL_BANDS.flatMap((band) => {
+        const requirement = sanitizePoint(axisRequirement[route][band]);
+        if (requirement <= 0) return [];
+        const available = sanitizePoint(capability[axis][route][band]);
+        const ratio = clamp(available / requirement, MIN_RATIO, MAX_RATIO);
+        const signed = Math.log2(ratio);
+        return [{
+          requirement,
+          gap: Math.max(0, -signed),
+          surplus: Math.max(0, signed),
+        }];
+      })
+    ));
+  });
 
-function routeRequirementTotal(
-  requirements: KnowledgeAdaptationRequirements,
-  route: KnowledgeAdaptationRoute,
-  bands: readonly AdaptationBand[],
-) {
-  return bands.reduce(
-    (sum, band) => sum + readAdaptationPoint(requirements, route, band),
+  if (cells.length === 0) return neutralAdaptationBalance();
+
+  const totalWeight = cells.reduce(
+    (sum, cell) => sum + cell.requirement,
     0,
   );
+  const maxGap = Math.max(...cells.map((cell) => cell.gap));
+  const meanGap = weightedMean(cells, totalWeight, 'gap');
+  const maxSurplus = Math.max(...cells.map((cell) => cell.surplus));
+  const meanSurplus = weightedMean(cells, totalWeight, 'surplus');
+  const gapScore = GAP_MAX_WEIGHT * maxGap + GAP_MEAN_WEIGHT * meanGap;
+  const surplusScore = SURPLUS_MAX_WEIGHT * maxSurplus
+    + SURPLUS_MEAN_WEIGHT * meanSurplus;
+  const balance = -gapScore + MAX_SURPLUS_LOG_BONUS * surplusScore;
+
+  return {
+    comparedCellCount: cells.length,
+    maxGap,
+    meanGap,
+    maxSurplus,
+    meanSurplus,
+    balance,
+    factor: 2 ** balance,
+  };
+}
+
+export function addAdaptationCapability(
+  left: SpatialAdaptationCapability,
+  right: SpatialAdaptationCapability,
+): SpatialAdaptationCapability {
+  return addSpatialAdaptationCapability(left, right);
+}
+
+function neutralAdaptationBalance(): KnowledgeAdaptationBalance {
+  return {
+    comparedCellCount: 0,
+    maxGap: 0,
+    meanGap: 0,
+    maxSurplus: 0,
+    meanSurplus: 0,
+    balance: 0,
+    factor: 1,
+  };
+}
+
+function cloneAxisAdaptation(
+  adaptation: AxisSpatialAdaptation,
+): AxisSpatialAdaptation {
+  return {
+    scale: { ...adaptation.scale },
+    index: { ...adaptation.index },
+  };
+}
+
+function weightedMean(
+  cells: Array<{ requirement: number; gap: number; surplus: number }>,
+  totalWeight: number,
+  key: 'gap' | 'surplus',
+) {
+  return totalWeight > 0
+    ? cells.reduce((sum, cell) => sum + cell[key] * cell.requirement, 0)
+      / totalWeight
+    : 0;
+}
+
+function sanitizePoint(value: number) {
+  return Math.max(0, Number.isFinite(value) ? value : 0);
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
 }

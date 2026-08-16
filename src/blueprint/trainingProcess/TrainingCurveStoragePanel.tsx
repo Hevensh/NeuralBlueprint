@@ -1,5 +1,5 @@
 import type { TrainingCurveSnapshot } from '../../dataStorage/trainingCurveStorage';
-import { useLabels } from '../../i18n/LanguageContext';
+import { useLabels } from '../../i18n/useLanguage';
 
 export function TrainingCurveStoragePanel({
   snapshots,
@@ -40,7 +40,7 @@ export function TrainingCurveStoragePanel({
         onClick={onSave}
         type="button"
       >
-        {labels.recordLossHistory}
+        {labels.recordTrainingHistory}
       </button>
       <button
         className={`action-button ${selectedSnapshotId === null ? 'primary' : ''

@@ -23,9 +23,10 @@ import {
   resetAllFileStorage,
 } from '../dataStorage/fileReset';
 import type { GameTime } from '../game/gameTypes';
+import type { AppSettings } from '../dataStorage/appSettingsStorage';
 import type { FileWorkspaceType, OpenFileType } from '../dataStorage/systemType';
 import { createInitialDesktopFiles } from '../taskData/desktopDefaults';
-import { useLanguage } from '../i18n/LanguageContext';
+import { useLanguage } from '../i18n/useLanguage';
 import { AcademicTimeIndicator } from '../time/AcademicTimeIndicator';
 import {
   isDesktopFileVisible,
@@ -39,15 +40,19 @@ import { DesktopSettingsDialog } from './DesktopSettingsDialog';
 import type { DesktopFile, DesktopIconNodeType } from './desktopTypes';
 
 interface DesktopCanvasProp {
+  appSettings: AppSettings;
   gameTime: GameTime;
   openFile: OpenFileType;
   onReturnToLab: () => void;
+  setAppSettings: (settings: AppSettings) => void;
 }
 
 export function DesktopCanvas({
+  appSettings,
   gameTime,
   openFile,
   onReturnToLab,
+  setAppSettings,
 }: DesktopCanvasProp) {
   const { labels } = useLanguage();
   const [selectedFile, setSelectedFile] = useState<DesktopFile | null>(null);
@@ -337,11 +342,13 @@ export function DesktopCanvas({
 
         {settingsOpen && (
           <DesktopSettingsDialog
+            appSettings={appSettings}
             onClose={() => setSettingsOpen(false)}
             onExit={exitApplication}
             onResetCurrent={resetAllFiles}
             resetDescription={labels.desktop.settingsDialog.resetDesktopDescription}
             resetLabel={labels.desktop.settingsDialog.resetDesktop}
+            setAppSettings={setAppSettings}
           />
         )}
       </div>

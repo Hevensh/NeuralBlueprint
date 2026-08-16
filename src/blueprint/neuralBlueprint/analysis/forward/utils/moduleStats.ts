@@ -38,6 +38,7 @@ export function getDisconnectedStats(node: ModuleNodeData): ModuleStats {
     || node.kind === 'Dropout'
     || node.kind === 'Output'
     || node.kind === 'Pooling'
+    || node.kind === 'Normalization'
     || node.kind === 'Flatten'
     || node.kind === 'GlobalPooling'
   ) {
@@ -101,7 +102,7 @@ function getRetainedRank(node: ModuleNodeData) {
   const rank = node.kind === 'Output'
     ? node.neededOutputDim
     : (
-        node.kind === 'Input' || node.kind === '3DInput' || node.kind === 'Linear' || node.kind === 'CNN'
+        node.kind === 'Input' || node.kind === '3DInput' || node.kind === 'Linear' || node.kind === 'CNN' || node.kind === 'ResNetStage' || node.kind === 'PatchEmbedding'
       )
         ? node.outFeatures
         : node.stats?.rank.outputRank;

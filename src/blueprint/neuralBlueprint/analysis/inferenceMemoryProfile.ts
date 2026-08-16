@@ -3,22 +3,32 @@ import type {
   LinearNodeData,
   ModuleBaseNode,
   ModuleNodeData,
+  PatchEmbeddingNodeData,
+  ResNetStageNodeData,
 } from '../ModuleBaseNodeTypes';
 import type {
-  InferenceAdaptationPoints,
-  InferenceDistanceAdaptationPoints,
   InferenceMemoryGroup,
   InferenceMemoryModel,
   InferenceMemoryProfile,
-  InferenceRepetitionAdaptationPoints,
   InferenceMemoryStageSegment,
 } from '../../InferenceMemoryProfileTypes';
+import type {
+  SpatialAdaptationCapability,
+  SpatialBandPoints,
+} from '../../SpatialAdaptationTypes';
+import {
+  addSpatialAdaptationCapability,
+  createSpatialAdaptationCapability,
+  createSpatialBandPoints,
+  mapSpatialAdaptationCapability,
+  SPATIAL_AXES,
+} from '../../SpatialAdaptationTypes';
 import { computeVarianceLogDistance } from '../../InferenceMemoryVariance';
 import { buildArrangeReachabilityMaps } from '../utils/arrangeNodesUtils';
+import { spatialViewAxisPoints } from './spatialView';
+import { estimateTrainingResourceProfile } from './trainingResources';
 
 export type {
-  InferenceAdaptationPoints,
-  InferenceDistanceAdaptationPoints,
   InferenceMemoryAggregationPair,
   InferenceMemoryGroup,
   InferenceMemoryModel,
@@ -26,10 +36,9 @@ export type {
   InferenceMemoryProfile,
   InferenceMemoryStage,
   InferenceMemoryStageSegment,
-  InferenceRepetitionAdaptationPoints,
 } from '../../InferenceMemoryProfileTypes';
 
-type TrainableNodeData = LinearNodeData | CNNNodeData;
+type TrainableNodeData = LinearNodeData | CNNNodeData | PatchEmbeddingNodeData | ResNetStageNodeData;
 
 export function buildInferenceMemoryModels(
   nodes: ModuleBaseNode[],
@@ -69,7 +78,11 @@ export function buildInferenceMemoryProfile(
       || (data.memoryPoint as number) <= 0
     ) return;
 
-    const inferenceStages = [...data.inferenceTopologyOrder].sort(
+    const inferenceStages = [...(
+      data.kind === 'ResNetStage'
+        ? data.internalInferenceTopologyOrder ?? data.inferenceTopologyOrder
+        : data.inferenceTopologyOrder
+    )].sort(
       (left, right) => left - right,
     );
     const id = inferenceStages.join(',');
@@ -94,7 +107,9 @@ export function buildInferenceMemoryProfile(
         nodeIds: group.nodes.map((node) => node.id),
         inferenceStages: group.inferenceStages,
         memoryPoint: Math.floor(stats.memoryPoint),
-        adaptationPoints: floorAdaptationPoints(stats.adaptationPoints),
+        adaptationCapability: floorSpatialCapability(
+          stats.adaptationCapability,
+        ),
         varianceLogDistance: stats.varianceLogDistance,
         nodeWeights: stats.nodeWeights,
         aggregationPairs: stats.aggregationPairs,
@@ -106,14 +121,21 @@ export function buildInferenceMemoryProfile(
     (sum, group) => sum + group.memoryPoint,
     0,
   );
-  const totalAdaptationPoints = baseGroups.reduce(
-    (total, group) => addAdaptationPoints(total, group.adaptationPoints),
-    emptyAdaptationPoints(),
+  const totalAdaptationCapability = baseGroups.reduce(
+    (total, group) => addSpatialAdaptationCapability(
+      total,
+      group.adaptationCapability,
+    ),
+    createSpatialAdaptationCapability(),
   );
   const groups = baseGroups.map((group) => ({
     ...group,
     ratio: getRatio(group.memoryPoint, totalMemoryPoint),
   }));
+  const aggregationWeightByNodeId = computePretrainingAggregationWeights(
+    groups,
+    nodeData,
+  );
   const stageSegments = new Map<number, InferenceMemoryStageSegment[]>();
 
   groups.forEach((group) => {
@@ -124,8 +146,8 @@ export function buildInferenceMemoryProfile(
       segments.push({
         groupId: group.id,
         memoryPoint: allocatedMemoryPoint,
-        adaptationPoints: scaleAdaptationPoints(
-          group.adaptationPoints,
+        adaptationCapability: scaleSpatialCapability(
+          group.adaptationCapability,
           1 / group.inferenceStages.length,
         ),
         ratio: getRatio(allocatedMemoryPoint, totalMemoryPoint),
@@ -141,18 +163,18 @@ export function buildInferenceMemoryProfile(
         (sum, segment) => sum + segment.memoryPoint,
         0,
       );
-      const adaptationPoints = segments.reduce(
-        (total, segment) => addAdaptationPoints(
+      const adaptationCapability = segments.reduce(
+        (total, segment) => addSpatialAdaptationCapability(
           total,
-          segment.adaptationPoints,
+          segment.adaptationCapability,
         ),
-        emptyAdaptationPoints(),
+        createSpatialAdaptationCapability(),
       );
 
       return {
         stage,
         memoryPoint,
-        adaptationPoints,
+        adaptationCapability,
         ratio: getRatio(memoryPoint, totalMemoryPoint),
         segments,
       };
@@ -160,11 +182,81 @@ export function buildInferenceMemoryProfile(
 
   return {
     networkSignature: createNetworkSignature(nodes),
+    pretrainingModules: nodeData.flatMap((data) => {
+      if (
+        data.kind !== 'ResNetStage'
+        || data.pretrainingOrder <= 0
+        || data.pretrainedDependencyMemoryPoints <= 0
+      ) return [];
+      const inferenceStages = [
+        ...(data.internalInferenceTopologyOrder
+          ?? data.inferenceTopologyOrder
+          ?? []),
+      ].sort((left, right) => left - right);
+      return inferenceStages.length > 0
+        ? [{
+            nodeId: data.id,
+            order: Math.floor(data.pretrainingOrder),
+            memoryPointsPerDependency: Math.floor(
+              data.pretrainedDependencyMemoryPoints,
+            ),
+            aggregationWeight: Math.max(
+              0,
+              aggregationWeightByNodeId.get(data.id) ?? 1,
+            ),
+            inferenceStages,
+          }]
+        : [];
+    }),
     totalMemoryPoint,
-    totalAdaptationPoints,
+    totalAdaptationCapability,
     groups,
     stages,
+    trainingResources: estimateTrainingResourceProfile(nodes),
   };
+}
+
+function computePretrainingAggregationWeights(
+  groups: InferenceMemoryGroup[],
+  nodes: ModuleNodeData[],
+) {
+  const transferByNodeId = new Map(nodes.flatMap((node) => (
+    node.kind === 'ResNetStage'
+      && node.pretrainingOrder > 0
+      && node.pretrainedDependencyMemoryPoints > 0
+      ? [[node.id, {
+          order: Math.floor(node.pretrainingOrder),
+          memoryPoints: Math.floor(node.pretrainedDependencyMemoryPoints),
+        }] as const]
+      : []
+  )));
+  const weights = new Map<string, number>();
+
+  groups.forEach((group) => {
+    const pretrainedNodeIds = group.nodeIds.filter((nodeId) => (
+      transferByNodeId.has(nodeId)
+    ));
+    pretrainedNodeIds.forEach((nodeId) => {
+      const transfer = transferByNodeId.get(nodeId);
+      const correlationSum = group.aggregationPairs.reduce((sum, pair) => {
+        const otherNodeId = pair.leftNodeId === nodeId
+          ? pair.rightNodeId
+          : pair.rightNodeId === nodeId
+            ? pair.leftNodeId
+            : undefined;
+        const otherTransfer = otherNodeId === undefined
+          ? undefined
+          : transferByNodeId.get(otherNodeId);
+        return transfer !== undefined
+          && otherTransfer?.order === transfer.order
+          && otherTransfer.memoryPoints === transfer.memoryPoints
+          ? sum + Math.max(0, pair.rho)
+          : sum;
+      }, 0);
+      weights.set(nodeId, 1 / (1 + correlationSum));
+    });
+  });
+  return weights;
 }
 
 function createNetworkSignature(nodes: ModuleBaseNode[]) {
@@ -200,6 +292,7 @@ function nodeConfigSignature(data: ModuleNodeData) {
         data.outFeatures,
         data.inputEffectiveRank,
         data.normalizationMode,
+        data.time,
         data.height,
         data.width,
       ];
@@ -220,6 +313,26 @@ function nodeConfigSignature(data: ModuleNodeData) {
         data.stride,
         data.padding,
         data.dilation,
+        data.initializationMode,
+        data.biasInitializationMode,
+      ];
+    case 'ResNetStage':
+      return [
+        data.outFeatures,
+        data.blockCount,
+        data.stride,
+        data.pretrainingOrder,
+        data.pretrainedDependencyMemoryPoints,
+        data.initializationMode,
+        data.biasInitializationMode,
+      ];
+    case 'PatchEmbedding':
+      return [
+        data.outFeatures,
+        data.patchHeight,
+        data.patchWidth,
+        data.strideHeight,
+        data.strideWidth,
         data.initializationMode,
         data.biasInitializationMode,
       ];
@@ -283,12 +396,7 @@ export function computeInferenceGroupProfile(
 
   return {
     memoryPoint: weightedMemoryPoint(nodes, aggregation.weights),
-    adaptationPoints: {
-      repetition: weightedRepetitionAdaptationPoints(nodes, allNodes),
-      // Distance propagation has not been defined yet. Keep the resource
-      // explicit and truthfully empty instead of estimating it from repetition.
-      distance: emptyDistanceAdaptationPoints(),
-    },
+    adaptationCapability: weightedSpatialCapability(nodes, allNodes),
     varianceLogDistance: weightedVarianceLogDistance(nodes, normalizedWeights),
     nodeWeights,
     aggregationPairs: aggregation.pairs,
@@ -308,32 +416,53 @@ function weightedMemoryPoint(
   }, 0);
 }
 
-function weightedRepetitionAdaptationPoints(
+function weightedSpatialCapability(
   nodes: TrainableNodeData[],
   allNodes: ModuleNodeData[],
 ) {
   const providers = nodes.filter(
-    (node): node is CNNNodeData => node.kind === 'CNN',
+    (node): node is CNNNodeData | PatchEmbeddingNodeData | ResNetStageNodeData => (
+      node.kind === 'CNN'
+      || node.kind === 'PatchEmbedding'
+      || node.kind === 'ResNetStage'
+    ),
   );
   const weights = computeGroupAggregation(providers, allNodes).weights;
 
-  return providers.reduce<InferenceRepetitionAdaptationPoints>(
+  const distance = providers.reduce<SpatialBandPoints>(
     (total, node) => {
-      const capability = node.stats?.adaptation.repetition.effective;
+      const capability = node.stats?.adaptation.distanceIndex;
       const weight = weights.get(node.id)?.weight ?? 1;
       if (!capability) return total;
 
       return {
-        small: total.small + sanitizePoint(capability.small) * weight,
+        small: total.small + sanitizePoint(capability.short) * weight,
         medium: total.medium + sanitizePoint(capability.medium) * weight,
-        large: total.large + sanitizePoint(capability.large) * weight,
-        extraLarge: total.extraLarge
-          + sanitizePoint(capability.extraLarge) * weight,
+        large: total.large + sanitizePoint(capability.long) * weight,
+        extraLarge: total.extraLarge,
         global: total.global + sanitizePoint(capability.global) * weight,
       };
     },
-    emptyRepetitionAdaptationPoints(),
+    createSpatialBandPoints(),
   );
+  const capability = createSpatialAdaptationCapability();
+  providers.forEach((node) => {
+    if (!node.stats?.spatialView) return;
+    const weight = weights.get(node.id)?.weight ?? 1;
+    SPATIAL_AXES.forEach((axis) => {
+      const points = spatialViewAxisPoints(node.stats!.spatialView, axis);
+      Object.entries(points).forEach(([band, value]) => {
+        const key = band as keyof SpatialBandPoints;
+        capability[axis].scale[key] += sanitizePoint(value) * weight;
+      });
+    });
+  });
+
+  // Distance-index propagation is still symmetric until directional index
+  // modules are introduced; view scale is already derived per T/H/W axis.
+  capability.height.index = { ...distance };
+  capability.width.index = { ...distance };
+  return capability;
 }
 
 function weightedVarianceLogDistance(
@@ -557,91 +686,26 @@ function computeGroupAggregation(
 }
 
 function isTrainableNode(data: ModuleNodeData): data is TrainableNodeData {
-  return data.kind === 'Linear' || data.kind === 'CNN';
+  return data.kind === 'Linear'
+    || data.kind === 'CNN'
+    || data.kind === 'PatchEmbedding'
+    || data.kind === 'ResNetStage';
 }
 
-function emptyRepetitionAdaptationPoints(): InferenceRepetitionAdaptationPoints {
-  return {
-    small: 0,
-    medium: 0,
-    large: 0,
-    extraLarge: 0,
-    global: 0,
-  };
+function floorSpatialCapability(
+  capability: SpatialAdaptationCapability,
+): SpatialAdaptationCapability {
+  return mapSpatialAdaptationCapability(capability, Math.floor);
 }
 
-function emptyDistanceAdaptationPoints(): InferenceDistanceAdaptationPoints {
-  return {
-    none: 0,
-    short: 0,
-    medium: 0,
-    long: 0,
-    global: 0,
-  };
-}
-
-function emptyAdaptationPoints(): InferenceAdaptationPoints {
-  return {
-    repetition: emptyRepetitionAdaptationPoints(),
-    distance: emptyDistanceAdaptationPoints(),
-  };
-}
-
-function floorAdaptationPoints(
-  points: InferenceAdaptationPoints,
-): InferenceAdaptationPoints {
-  return mapAdaptationPoints(points, Math.floor);
-}
-
-function scaleAdaptationPoints(
-  points: InferenceAdaptationPoints,
+function scaleSpatialCapability(
+  capability: SpatialAdaptationCapability,
   scale: number,
-): InferenceAdaptationPoints {
-  return mapAdaptationPoints(points, (value) => value * scale);
-}
-
-function mapAdaptationPoints(
-  points: InferenceAdaptationPoints,
-  map: (value: number) => number,
-): InferenceAdaptationPoints {
-  return {
-    repetition: {
-      small: map(points.repetition.small),
-      medium: map(points.repetition.medium),
-      large: map(points.repetition.large),
-      extraLarge: map(points.repetition.extraLarge),
-      global: map(points.repetition.global),
-    },
-    distance: {
-      none: map(points.distance.none),
-      short: map(points.distance.short),
-      medium: map(points.distance.medium),
-      long: map(points.distance.long),
-      global: map(points.distance.global),
-    },
-  };
-}
-
-function addAdaptationPoints(
-  left: InferenceAdaptationPoints,
-  right: InferenceAdaptationPoints,
-): InferenceAdaptationPoints {
-  return {
-    repetition: {
-      small: left.repetition.small + right.repetition.small,
-      medium: left.repetition.medium + right.repetition.medium,
-      large: left.repetition.large + right.repetition.large,
-      extraLarge: left.repetition.extraLarge + right.repetition.extraLarge,
-      global: left.repetition.global + right.repetition.global,
-    },
-    distance: {
-      none: left.distance.none + right.distance.none,
-      short: left.distance.short + right.distance.short,
-      medium: left.distance.medium + right.distance.medium,
-      long: left.distance.long + right.distance.long,
-      global: left.distance.global + right.distance.global,
-    },
-  };
+): SpatialAdaptationCapability {
+  return mapSpatialAdaptationCapability(
+    capability,
+    (value) => value * scale,
+  );
 }
 
 function sanitizePoint(value: number) {

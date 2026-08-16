@@ -2,7 +2,6 @@ import type {
   ModuleStats,
   PoolingNodeData,
 } from '../../ModuleBaseNodeTypes';
-import { poolRepetitionStats } from '../repetitionRank';
 import { createEmptyDistanceIndexRank } from '../distanceIndexRank';
 import { getForwardPoolingMoments } from './poolingMoments';
 import {
@@ -12,6 +11,10 @@ import {
 } from './spatial';
 import { EPS } from './utils/constants';
 import { getDistributionTransitionSaturation } from './utils/math';
+import {
+  advanceSpatialView,
+  spatialViewRepetitionStats,
+} from '../spatialView';
 
 export function forwardPoolingStats(
   node: PoolingNodeData,
@@ -38,6 +41,11 @@ export function forwardPoolingStats(
   const effectiveRank = node.poolMode === 'average'
     ? input.rank.effectiveRank
     : rank * saturation;
+  const spatialView = advanceSpatialView(input.spatialView, shape, {
+    kernel: { height: node.kernelSize, width: node.kernelSize },
+    stride: { height: node.stride, width: node.stride },
+    learned: false,
+  });
 
   return {
     ...input,
@@ -56,12 +64,9 @@ export function forwardPoolingStats(
     },
     distribution: moments,
     shape,
+    spatialView,
     adaptation: {
-      repetition: poolRepetitionStats(
-        input,
-        node.kernelSize,
-        effectiveRank,
-      ),
+      repetition: spatialViewRepetitionStats(spatialView),
       distanceIndex: createEmptyDistanceIndexRank(),
     },
   };

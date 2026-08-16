@@ -24,8 +24,8 @@ export function KnowledgeGraphWorkspace({
     showMemory,
     showMetrics,
     showUtility,
-    showReceptiveField,
-    showDistanceIndex,
+    showScale,
+    showIndex,
   } = controller.analysisPreview;
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [previewDataset, setPreviewDataset] =
@@ -62,7 +62,8 @@ export function KnowledgeGraphWorkspace({
         />
         <TrainingConfigurationControls
           {...controller.trainingControls}
-          showAllocationButtons={features.showAllocationButtons}
+          showAllocationButtons={features.showAllocationButtons
+            && !controller.statistics.pretraining}
         />
         <CurrentStatistics {...controller.statistics} />
       </aside>
@@ -75,8 +76,8 @@ export function KnowledgeGraphWorkspace({
         showMemoryPreview={showMemoryPreview}
         showMetricPreview={showMetricPreview}
         showUtilityPreview={showUtilityPreview}
-        showReceptiveFieldPreview={showReceptiveField}
-        showDistanceIndexPreview={showDistanceIndex}
+        showScalePreview={showScale}
+        showIndexPreview={showIndex}
         showGlobalDebugPreview={showGlobalDebugPreview}
         previewDataset={previewDataset ?? selectedDataset}
         topOverlay={(
@@ -107,8 +108,8 @@ export function KnowledgeGraphWorkspace({
         showMemory={showMemoryPreview}
         showMetrics={showMetricPreview}
         showUtility={showUtilityPreview}
-        showReceptiveField={showReceptiveField}
-        showDistanceIndex={showDistanceIndex}
+        showScale={showScale}
+        showIndex={showIndex}
         onShowMemoryChange={() => controller.setAnalysisPreview({
           showMemory: !showMemory,
         })}
@@ -116,11 +117,11 @@ export function KnowledgeGraphWorkspace({
         onShowUtilityChange={() => controller.setAnalysisPreview({
           showUtility: !showUtility,
         })}
-        onShowReceptiveFieldChange={() => controller.setAnalysisPreview({
-          showReceptiveField: !showReceptiveField,
+        onShowScaleChange={() => controller.setAnalysisPreview({
+          showScale: !showScale,
         })}
-        onShowDistanceIndexChange={() => controller.setAnalysisPreview({
-          showDistanceIndex: !showDistanceIndex,
+        onShowIndexChange={() => controller.setAnalysisPreview({
+          showIndex: !showIndex,
         })}
         onMemoryChange={controller.setNodeMemory}
         onEdgeMemoryChange={controller.setEdgeMemory}
@@ -130,6 +131,8 @@ export function KnowledgeGraphWorkspace({
         onEdgeAdaptationRequirementChange={
           controller.setEdgeAdaptationRequirement
         }
+        onNodeAdaptationAxisChange={controller.setNodeAdaptationAxis}
+        onEdgeAdaptationAxisChange={controller.setEdgeAdaptationAxis}
         onInferenceStageChange={controller.inferenceStage.onChange}
       />
     </>

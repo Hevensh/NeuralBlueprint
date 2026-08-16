@@ -5,6 +5,7 @@ import type {
   ModuleBaseNode,
   ModuleDimension,
   ModuleTensorShape,
+  SpatialViewStats,
 } from './ModuleBaseNodeTypes';
 
 export function NeuralBlueprintNode({
@@ -52,7 +53,7 @@ export function NeuralBlueprintNode({
       <div className="neural-blueprint-node-name">{data.name}</div>
       <div className="neural-blueprint-node-preview">
         <ShapePreview
-          alwaysShowSpatial={data.kind === 'CNN' || data.kind === 'Pooling'}
+          alwaysShowSpatial={data.kind === 'CNN' || data.kind === 'ResNetStage' || data.kind === 'Pooling'}
           fallback={outputDim}
           preferFallback={!isBackward && data.stats?.status !== 'valid'}
           shape={data.stats?.shape}
@@ -62,15 +63,17 @@ export function NeuralBlueprintNode({
         <NodePreviewItem className="rank-analysis-preview" label="sat" value={saturation} />
         <NodePreviewItem className="variance-analysis-preview" label="mean" value={mean} />
         <NodePreviewItem className="variance-analysis-preview" label="std" value={standardDeviation} />
-        <NodePreviewItem className="repetition-analysis-preview" label="rep-S" value={formatFixed(hasNoInputConnection ? undefined : data.stats?.adaptation.repetition.effective.small, 2)} />
-        <NodePreviewItem className="repetition-analysis-preview" label="rep-M" value={formatFixed(hasNoInputConnection ? undefined : data.stats?.adaptation.repetition.effective.medium, 2)} />
-        <NodePreviewItem className="repetition-analysis-preview" label="rep-L" value={formatFixed(hasNoInputConnection ? undefined : data.stats?.adaptation.repetition.effective.large, 2)} />
-        <NodePreviewItem className="repetition-analysis-preview" label="rep-XL" value={formatFixed(hasNoInputConnection ? undefined : data.stats?.adaptation.repetition.effective.extraLarge, 2)} />
-        <NodePreviewItem className="repetition-analysis-preview" label="rep-G" value={formatFixed(hasNoInputConnection ? undefined : data.stats?.adaptation.repetition.effective.global, 2)} />
-        <NodePreviewItem className="distance-index-analysis-preview" label="idx-N" value={formatFixed(hasNoInputConnection ? undefined : data.stats?.adaptation.distanceIndex.none, 2)} />
+        <NodePreviewItem className="repetition-analysis-preview" label="RF" value={formatViewReach(data.stats?.spatialView)} />
+        <NodePreviewItem className="repetition-analysis-preview" label="view" value={formatFixed(hasNoInputConnection ? undefined : data.stats?.spatialView.viewRank, 0)} />
+        <NodePreviewItem className="repetition-analysis-preview" label="sca-S" value={formatFixed(hasNoInputConnection ? undefined : data.stats?.adaptation.repetition.effective.small, 2)} />
+        <NodePreviewItem className="repetition-analysis-preview" label="sca-M" value={formatFixed(hasNoInputConnection ? undefined : data.stats?.adaptation.repetition.effective.medium, 2)} />
+        <NodePreviewItem className="repetition-analysis-preview" label="sca-L" value={formatFixed(hasNoInputConnection ? undefined : data.stats?.adaptation.repetition.effective.large, 2)} />
+        <NodePreviewItem className="repetition-analysis-preview" label="sca-XL" value={formatFixed(hasNoInputConnection ? undefined : data.stats?.adaptation.repetition.effective.extraLarge, 2)} />
+        <NodePreviewItem className="repetition-analysis-preview" label="sca-G" value={formatFixed(hasNoInputConnection ? undefined : data.stats?.adaptation.repetition.effective.global, 2)} />
         <NodePreviewItem className="distance-index-analysis-preview" label="idx-S" value={formatFixed(hasNoInputConnection ? undefined : data.stats?.adaptation.distanceIndex.short, 2)} />
         <NodePreviewItem className="distance-index-analysis-preview" label="idx-M" value={formatFixed(hasNoInputConnection ? undefined : data.stats?.adaptation.distanceIndex.medium, 2)} />
         <NodePreviewItem className="distance-index-analysis-preview" label="idx-L" value={formatFixed(hasNoInputConnection ? undefined : data.stats?.adaptation.distanceIndex.long, 2)} />
+        <NodePreviewItem className="distance-index-analysis-preview" label="idx-XL" value={formatFixed(hasNoInputConnection ? undefined : 0, 2)} />
         <NodePreviewItem className="distance-index-analysis-preview" label="idx-G" value={formatFixed(hasNoInputConnection ? undefined : data.stats?.adaptation.distanceIndex.global, 2)} />
       </div>
       <Handle
@@ -188,7 +191,15 @@ function shouldShowSpatialInputRequirement(
   data: ModuleBaseNode['data'],
   isBackward: boolean,
 ) {
-  if (isBackward || (data.kind !== 'CNN' && data.kind !== 'Pooling')) {
+  if (
+    isBackward
+    || (
+      data.kind !== 'CNN'
+      && data.kind !== 'ResNetStage'
+      && data.kind !== 'Pooling'
+      && data.kind !== 'PatchEmbedding'
+    )
+  ) {
     return false;
   }
 
@@ -204,6 +215,14 @@ function shouldShowSpatialInputRequirement(
   return !inputShape
     || inputShape.height === 'absent'
     || inputShape.width === 'absent';
+}
+
+function formatViewReach(view: SpatialViewStats | undefined) {
+  if (!view) return '---';
+  const values = [view.axes.time, view.axes.height, view.axes.width]
+    .filter((axis) => axis.positions !== 'absent')
+    .map((axis) => formatDimension(axis.reach));
+  return values.length > 0 ? values.join('×') : '---';
 }
 
 function requiresInputConnection(data: ModuleBaseNode['data']) {

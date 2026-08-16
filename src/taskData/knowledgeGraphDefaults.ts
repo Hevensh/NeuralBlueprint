@@ -31,9 +31,10 @@ export const DEFAULT_NETWORK_CAPABILITY = {
 };
 
 export const DEFAULT_TRAINING_CONTROLS = {
+  optimizer: 'sgd' as const,
   learningRate: -3,
   regularizationRate: -4,
-  trainSteps: 10,
+  trainEpochs: 10,
 };
 
 export const EMPTY_KNOWLEDGE_GRAPH: KnowledgeGraphDefinition = {
@@ -69,9 +70,10 @@ export function createKnowledgeGraphSession(
       : createEmptyKnowledgeDatasetCollection()),
     graphControls: DEFAULT_GRAPH_CONTROLS,
     trainingControls: {
+      optimizer: DEFAULT_TRAINING_CONTROLS.optimizer,
       learningRate: DEFAULT_TRAINING_CONTROLS.learningRate,
       regularizationRate: DEFAULT_TRAINING_CONTROLS.regularizationRate,
-      trainSteps: DEFAULT_TRAINING_CONTROLS.trainSteps,
+      trainEpochs: DEFAULT_TRAINING_CONTROLS.trainEpochs,
       initializationSeed: DEFAULT_NETWORK_CAPABILITY.initializationSeed,
     },
     trainingRandomState: createTrainingRandomState(

@@ -1,5 +1,5 @@
 import { NumberField } from '../../NumberField';
-import { useLabels } from '../../i18n/LanguageContext';
+import { useLabels } from '../../i18n/useLanguage';
 import type {
   KnowledgeGraphEdgeData,
   KnowledgeGraphNodeData,
@@ -8,6 +8,7 @@ import { formatTrainingSignal } from './formatTrainingSignal';
 import {
   KnowledgeAdaptationProperties,
   type AdaptationChange,
+  type AdaptationAxisChange,
 } from './KnowledgeAdaptationProperties';
 
 interface KnowledgeDetailPanelProps {
@@ -21,17 +22,19 @@ interface KnowledgeDetailPanelProps {
   showMemory: boolean;
   showMetrics: boolean;
   showUtility: boolean;
-  showReceptiveField: boolean;
-  showDistanceIndex: boolean;
+  showScale: boolean;
+  showIndex: boolean;
   onShowMemoryChange: () => void;
   onShowMetricsChange: () => void;
   onShowUtilityChange: () => void;
-  onShowReceptiveFieldChange: () => void;
-  onShowDistanceIndexChange: () => void;
+  onShowScaleChange: () => void;
+  onShowIndexChange: () => void;
   onMemoryChange: (nodeId: string, memory: number) => void;
   onEdgeMemoryChange: (edgeId: string, memory: number) => void;
   onNodeAdaptationRequirementChange: AdaptationChange;
   onEdgeAdaptationRequirementChange: AdaptationChange;
+  onNodeAdaptationAxisChange: AdaptationAxisChange;
+  onEdgeAdaptationAxisChange: AdaptationAxisChange;
   onInferenceStageChange: (stage: number) => void;
 }
 
@@ -46,17 +49,19 @@ export function KnowledgeDetailPanel({
   showMemory,
   showMetrics,
   showUtility,
-  showReceptiveField,
-  showDistanceIndex,
+  showScale,
+  showIndex,
   onShowMemoryChange,
   onShowMetricsChange,
   onShowUtilityChange,
-  onShowReceptiveFieldChange,
-  onShowDistanceIndexChange,
+  onShowScaleChange,
+  onShowIndexChange,
   onMemoryChange,
   onEdgeMemoryChange,
   onNodeAdaptationRequirementChange,
   onEdgeAdaptationRequirementChange,
+  onNodeAdaptationAxisChange,
+  onEdgeAdaptationAxisChange,
   onInferenceStageChange,
 }: KnowledgeDetailPanelProps) {
   const labels = useLabels().knowledgeGraph.detail;
@@ -94,14 +99,14 @@ export function KnowledgeDetailPanel({
           />
         )}
         <AnalysisToggle
-          active={showReceptiveField}
-          label={labels.receptiveFieldAnalysis}
-          onChange={onShowReceptiveFieldChange}
+          active={showScale}
+          label={labels.scaleAnalysis}
+          onChange={onShowScaleChange}
         />
         <AnalysisToggle
-          active={showDistanceIndex}
-          label={labels.distanceIndexAnalysis}
-          onChange={onShowDistanceIndexChange}
+          active={showIndex}
+          label={labels.indexAnalysis}
+          onChange={onShowIndexChange}
         />
       </div>
       {selectedEdge
@@ -111,10 +116,11 @@ export function KnowledgeDetailPanel({
             showMemory={showMemory}
             showMetrics={showMetrics}
             showUtility={showUtility}
-            showReceptiveField={showReceptiveField}
-            showDistanceIndex={showDistanceIndex}
+            showScale={showScale}
+            showIndex={showIndex}
             onMemoryChange={onEdgeMemoryChange}
             onAdaptationRequirementChange={onEdgeAdaptationRequirementChange}
+            onAdaptationAxisChange={onEdgeAdaptationAxisChange}
           />
         )
         : selectedNode
@@ -124,10 +130,11 @@ export function KnowledgeDetailPanel({
               showMemory={showMemory}
               showMetrics={showMetrics}
               showUtility={showUtility}
-              showReceptiveField={showReceptiveField}
-              showDistanceIndex={showDistanceIndex}
+              showScale={showScale}
+              showIndex={showIndex}
               onMemoryChange={onMemoryChange}
               onAdaptationRequirementChange={onNodeAdaptationRequirementChange}
+              onAdaptationAxisChange={onNodeAdaptationAxisChange}
             />
           )
           : <div className="property-empty">{labels.noElementSelected}</div>}
@@ -192,19 +199,21 @@ function EdgeProperties({
   showMemory,
   showMetrics,
   showUtility,
-  showReceptiveField,
-  showDistanceIndex,
+  showScale,
+  showIndex,
   onMemoryChange,
   onAdaptationRequirementChange,
+  onAdaptationAxisChange,
 }: {
   selectedEdge: KnowledgeGraphEdgeData;
   showMemory: boolean;
   showMetrics: boolean;
   showUtility: boolean;
-  showReceptiveField: boolean;
-  showDistanceIndex: boolean;
+  showScale: boolean;
+  showIndex: boolean;
   onMemoryChange: (edgeId: string, memory: number) => void;
   onAdaptationRequirementChange: AdaptationChange;
+  onAdaptationAxisChange: AdaptationAxisChange;
 }) {
   const labels = useLabels().knowledgeGraph.detail;
   const { metrics } = selectedEdge;
@@ -252,8 +261,9 @@ function EdgeProperties({
       <KnowledgeAdaptationProperties
         entityId={selectedEdge.id}
         requirements={selectedEdge.properties.adaptationRequirements}
-        showDistanceIndex={showDistanceIndex}
-        showReceptiveField={showReceptiveField}
+        showIndex={showIndex}
+        showScale={showScale}
+        onAxisChange={onAdaptationAxisChange}
         onRequirementChange={onAdaptationRequirementChange}
       />
     </div>
@@ -265,19 +275,21 @@ function NodeProperties({
   showMemory,
   showMetrics,
   showUtility,
-  showReceptiveField,
-  showDistanceIndex,
+  showScale,
+  showIndex,
   onMemoryChange,
   onAdaptationRequirementChange,
+  onAdaptationAxisChange,
 }: {
   selectedNode: KnowledgeGraphNodeData;
   showMemory: boolean;
   showMetrics: boolean;
   showUtility: boolean;
-  showReceptiveField: boolean;
-  showDistanceIndex: boolean;
+  showScale: boolean;
+  showIndex: boolean;
   onMemoryChange: (nodeId: string, memory: number) => void;
   onAdaptationRequirementChange: AdaptationChange;
+  onAdaptationAxisChange: AdaptationAxisChange;
 }) {
   const labels = useLabels().knowledgeGraph.detail;
   const { metrics } = selectedNode;
@@ -327,8 +339,9 @@ function NodeProperties({
       <KnowledgeAdaptationProperties
         entityId={selectedNode.id}
         requirements={selectedNode.properties.adaptationRequirements}
-        showDistanceIndex={showDistanceIndex}
-        showReceptiveField={showReceptiveField}
+        showIndex={showIndex}
+        showScale={showScale}
+        onAxisChange={onAdaptationAxisChange}
         onRequirementChange={onAdaptationRequirementChange}
       />
       <Value label={labels.trainLoss} value={format(metrics.trainLoss)} />

@@ -1,10 +1,10 @@
 import type {
   KnowledgeAdaptationRequirements,
-  KnowledgeAdaptationRoute,
 } from './model/types';
 import {
-  DISTANCE_INDEX_BANDS,
-  RECEPTIVE_FIELD_BANDS,
+  SPATIAL_AXES,
+  SPATIAL_BANDS,
+  type SpatialAdaptationRoute,
 } from './model/adaptation';
 
 export function AdaptationRequirementPreview({
@@ -14,19 +14,26 @@ export function AdaptationRequirementPreview({
 }: {
   className?: string;
   requirements: KnowledgeAdaptationRequirements;
-  route: KnowledgeAdaptationRoute;
+  route: SpatialAdaptationRoute;
 }) {
-  const bands = route === 'receptiveField'
-    ? RECEPTIVE_FIELD_BANDS
-    : DISTANCE_INDEX_BANDS;
+  const activeAxes = SPATIAL_AXES.filter((axis) => requirements[axis]);
+  if (activeAxes.length === 0) return null;
   return (
     <span className={className}>
-      {route === 'receptiveField' ? 'RF' : 'DI'}{' '}
-      {bands.map((band) => format(
-        (requirements[route] as Record<string, number>)[band] ?? 0,
-      )).join(' ')}
+      {activeAxes.map((axis) => (
+        <span className="knowledge-adaptation-preview-row" key={axis}>
+          {route === 'scale' ? 'S' : 'I'}-{axisLabel(axis)}{' '}
+          {SPATIAL_BANDS.map((band) => format(
+            requirements[axis]?.[route][band] ?? 0,
+          )).join(' ')}
+        </span>
+      ))}
     </span>
   );
+}
+
+function axisLabel(axis: typeof SPATIAL_AXES[number]) {
+  return axis === 'time' ? 'T' : axis === 'height' ? 'H' : 'W';
 }
 
 function format(value: number) {

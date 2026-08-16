@@ -19,6 +19,15 @@ export interface AcademicTime {
   minute: number;
 }
 
+export function advanceGameTime(time: GameTime, minutes: number): GameTime {
+  const totalMinutes = Math.max(0, Math.floor(time.minuteOfDay))
+    + Math.max(0, Math.floor(minutes));
+  return {
+    day: Math.max(1, Math.floor(time.day)) + Math.floor(totalMinutes / 1440),
+    minuteOfDay: totalMinutes % 1440,
+  };
+}
+
 export function getAcademicTime(time: GameTime): AcademicTime {
   const dayIndex = Math.max(0, Math.floor(time.day) - 1);
   const minuteOfDay = Math.max(0, Math.floor(time.minuteOfDay));

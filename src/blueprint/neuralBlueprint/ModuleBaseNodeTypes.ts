@@ -6,7 +6,10 @@ export type ModuleBaseNodeKind =
   | '3DInput'
   | 'Linear'
   | 'CNN'
+  | 'ResNetStage'
+  | 'PatchEmbedding'
   | 'Pooling'
+  | 'Normalization'
   | 'Flatten'
   | 'GlobalPooling'
   | 'ReLU'
@@ -24,12 +27,38 @@ export type InputNormalizationMode = '0-1' | 'standard';
 export type LinearInitializationMode = 'standard_normal' | 'xavier_normal';
 export type BiasInitializationMode = 'zeros' | 'standard_normal';
 export type PoolMode = 'max' | 'average';
+export type FeatureNormalizationMode = 'batch' | 'layer';
 export type ModuleDimension = number | 'unknown' | 'absent';
 export interface ModuleTensorShape {
   time: ModuleDimension;
   channels: ModuleDimension;
   height: ModuleDimension;
   width: ModuleDimension;
+}
+export type SpatialAxis = 'time' | 'height' | 'width';
+export interface SpatialAxisViewStats {
+  /** Size of the original input axis measured in source coordinates. */
+  sourceSize: ModuleDimension;
+  /** Number of positions on the current feature grid before token flattening. */
+  positions: ModuleDimension;
+  /** Distance between adjacent current positions in source coordinates. */
+  jump: ModuleDimension;
+  /** Source-coordinate span visible from one current position. */
+  reach: ModuleDimension;
+}
+export interface PatchFrame {
+  sourceShape: Record<SpatialAxis, ModuleDimension>;
+  gridShape: Record<SpatialAxis, ModuleDimension>;
+  patchSize: Record<SpatialAxis, number>;
+  stride: Record<SpatialAxis, number>;
+  flattenOrder: SpatialAxis[];
+}
+export interface SpatialViewStats {
+  axes: Record<SpatialAxis, SpatialAxisViewStats>;
+  /** Joint independent local samples available to a learned spatial module. */
+  viewRank: number;
+  /** Original-coordinate mapping retained after a spatial grid becomes tokens. */
+  patchFrame?: PatchFrame;
 }
 export interface RepetitionRank {
   small: number;
@@ -92,6 +121,7 @@ export interface ModuleStats {
   rank: ModuleRankStats;
   /** Tensor shape carried alongside channel-rank analysis. */
   shape: ModuleTensorShape;
+  spatialView: SpatialViewStats;
   distribution: ModuleDistributionStats;
   adaptation: ModuleAdaptationStats;
 
@@ -181,6 +211,8 @@ export interface InputModuleConfig {
 }
 
 export interface ThreeDInputModuleConfig extends InputModuleConfig {
+  /** Omitted and `absent` both mean an image input without a time axis. */
+  time?: ModuleDimension;
   height: Exclude<ModuleDimension, 'absent'>;
   width: Exclude<ModuleDimension, 'absent'>;
 }
@@ -204,11 +236,54 @@ export interface CNNModuleConfig {
   useBias: boolean;
 }
 
+export interface ResNetStageModuleConfig {
+  initializationMode: LinearInitializationMode;
+  biasInitializationMode: BiasInitializationMode;
+  outFeatures: number;
+  /** ResNet BasicBlocks inside this visible stage. */
+  blockCount: number;
+  /** Spatial stride of the first block; later blocks always use stride 1. */
+  stride: number;
+  useBias: boolean;
+  /** 1-based order in a pretrained model; 0 means scratch/unassigned. */
+  pretrainingOrder: number;
+  /** Transfer memory contributed to each dependency at the matching depth. */
+  pretrainedDependencyMemoryPoints: number;
+}
+
+export interface ResNetInternalConvAnalysis {
+  id: string;
+  blockIndex: number;
+  branch: 'main' | 'projection';
+  inputChannels: number;
+  outputChannels: number;
+  kernelSize: number;
+  stride: number;
+  stats: ModuleStats;
+  statsBackward?: ModuleStatsBackward;
+  memoryPoint?: number;
+}
+
+export interface PatchEmbeddingModuleConfig {
+  initializationMode: LinearInitializationMode;
+  biasInitializationMode: BiasInitializationMode;
+  outFeatures: number;
+  patchHeight: number;
+  patchWidth: number;
+  strideHeight: number;
+  strideWidth: number;
+  useBias: boolean;
+}
+
 export interface PoolingModuleConfig {
   poolMode: PoolMode;
   kernelSize: number;
   stride: number;
   padding: number;
+}
+
+export interface NormalizationModuleConfig {
+  normalizationMode: FeatureNormalizationMode;
 }
 
 export interface GlobalPoolingModuleConfig {
@@ -231,7 +306,10 @@ export interface ModuleConfigByKind {
   '3DInput': ThreeDInputModuleConfig;
   Linear: LinearModuleConfig;
   CNN: CNNModuleConfig;
+  ResNetStage: ResNetStageModuleConfig;
+  PatchEmbedding: PatchEmbeddingModuleConfig;
   Pooling: PoolingModuleConfig;
+  Normalization: NormalizationModuleConfig;
   Flatten: Record<string, never>;
   GlobalPooling: GlobalPoolingModuleConfig;
   ReLU: Record<string, never>;
@@ -248,6 +326,7 @@ export interface ThreeDInputNodeData
   normalizationMode: InputNormalizationMode;
   outFeatures: number;
   inputEffectiveRank: number;
+  time: ModuleDimension;
   height: Exclude<ModuleDimension, 'absent'>;
   width: Exclude<ModuleDimension, 'absent'>;
 }
@@ -258,8 +337,22 @@ export interface LinearNodeData
 export interface CNNNodeData
   extends ModuleBaseNodeData<'CNN'>, CNNModuleConfig {}
 
+export interface ResNetStageNodeData
+  extends ModuleBaseNodeData<'ResNetStage'>, ResNetStageModuleConfig {
+  /** Runtime-only expansion used by analysis; never persisted. */
+  internalConvs?: ResNetInternalConvAnalysis[];
+  /** Runtime-only stages occupied by internal convolutions. */
+  internalInferenceTopologyOrder?: Set<number>;
+}
+
+export interface PatchEmbeddingNodeData
+  extends ModuleBaseNodeData<'PatchEmbedding'>, PatchEmbeddingModuleConfig {}
+
 export interface PoolingNodeData
   extends ModuleBaseNodeData<'Pooling'>, PoolingModuleConfig {}
+
+export interface NormalizationNodeData
+  extends ModuleBaseNodeData<'Normalization'>, NormalizationModuleConfig {}
 
 export interface FlattenNodeData extends ModuleBaseNodeData<'Flatten'> {
   readonly kind: 'Flatten';
@@ -289,7 +382,10 @@ export type ModuleNodeData =
   | ThreeDInputNodeData
   | LinearNodeData
   | CNNNodeData
+  | ResNetStageNodeData
+  | PatchEmbeddingNodeData
   | PoolingNodeData
+  | NormalizationNodeData
   | FlattenNodeData
   | GlobalPoolingNodeData
   | ReLUNodeData

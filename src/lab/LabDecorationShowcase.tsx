@@ -1,6 +1,6 @@
 import { DECORATION_COLORS, DECORATION_SPECS } from './decorations/decorationCatalog';
 import type { LabDeskDecoration } from './decorations/decorationTypes';
-import { useLanguage } from '../i18n/LanguageContext';
+import { useLanguage } from '../i18n/useLanguage';
 import { LabCommonTable } from './LabFurniture';
 import type { LabFurniturePlacement } from './labSceneLayout';
 

@@ -1,21 +1,25 @@
 import {
   LANGUAGE_OPTIONS,
 } from '../i18n/labels';
-import { useLanguage } from '../i18n/LanguageContext';
+import { useLanguage } from '../i18n/useLanguage';
 import { PropertyDropdown } from '../PropertyDropdown';
+import type { AppSettings } from '../dataStorage/appSettingsStorage';
 
 interface DesktopSettingsDialogProps {
+  appSettings: AppSettings;
   developerActionDescription?: string;
   developerActionLabel?: string;
   onClose: () => void;
   onDeveloperAction?: () => void;
-  onExit: () => void;
-  onResetCurrent: () => void;
-  resetDescription: string;
-  resetLabel: string;
+  onExit?: () => void;
+  onResetCurrent?: () => void;
+  resetDescription?: string;
+  resetLabel?: string;
+  setAppSettings: (settings: AppSettings) => void;
 }
 
 export function DesktopSettingsDialog({
+  appSettings,
   developerActionDescription,
   developerActionLabel,
   onClose,
@@ -24,6 +28,7 @@ export function DesktopSettingsDialog({
   onResetCurrent,
   resetDescription,
   resetLabel,
+  setAppSettings,
 }: DesktopSettingsDialogProps) {
   const {
     language,
@@ -65,6 +70,23 @@ export function DesktopSettingsDialog({
           />
         </div>
 
+        <label className="desktop-settings-switch-row">
+          <span>
+            <strong>{dialogLabels.waitForTraining}</strong>
+            <small>{dialogLabels.waitForTrainingDescription}</small>
+          </span>
+          <input
+            checked={appSettings.waitForTraining}
+            onChange={(event) => setAppSettings({
+              ...appSettings,
+              waitForTraining: event.target.checked,
+            })}
+            role="switch"
+            type="checkbox"
+          />
+        </label>
+
+        {(onDeveloperAction || onResetCurrent || onExit) && (
         <div className="desktop-settings-exit">
           <strong className="desktop-settings-section-title">
             {dialogLabels.developerOptions}
@@ -81,24 +103,33 @@ export function DesktopSettingsDialog({
               </button>
             </>
           )}
-          <p>{resetDescription}</p>
-          <button
-            className="action-button"
-            onClick={onResetCurrent}
-            type="button"
-          >
-            {resetLabel}
-          </button>
+          {onResetCurrent && resetDescription && resetLabel && (
+            <>
+              <p>{resetDescription}</p>
+              <button
+                className="action-button"
+                onClick={onResetCurrent}
+                type="button"
+              >
+                {resetLabel}
+              </button>
+            </>
+          )}
 
-          <p>{dialogLabels.exitDescription}</p>
-          <button
-            className="action-button danger"
-            onClick={onExit}
-            type="button"
-          >
-            {dialogLabels.exit}
-          </button>
+          {onExit && (
+            <>
+              <p>{dialogLabels.exitDescription}</p>
+              <button
+                className="action-button danger"
+                onClick={onExit}
+                type="button"
+              >
+                {dialogLabels.exit}
+              </button>
+            </>
+          )}
         </div>
+        )}
       </section>
     </div>
   );

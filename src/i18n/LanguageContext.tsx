@@ -1,24 +1,17 @@
 import {
-  createContext,
-  useContext,
   useMemo,
   useState,
   type ReactNode,
 } from 'react';
 import { loadAppLanguage, saveAppLanguage } from './languageStorage';
-import type { AppLabelSet } from './label.en';
+import {
+  LanguageContext,
+  type LanguageContextValue,
+} from './languageContextValue';
 import {
   UI_LABELS,
   type AppLanguage,
 } from './labels';
-
-interface LanguageContextValue {
-  language: AppLanguage;
-  labels: AppLabelSet;
-  setLanguage: (language: AppLanguage) => void;
-}
-
-const LanguageContext = createContext<LanguageContextValue | null>(null);
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<AppLanguage>(loadAppLanguage);
@@ -36,16 +29,4 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       {children}
     </LanguageContext.Provider>
   );
-}
-
-export function useLanguage() {
-  const value = useContext(LanguageContext);
-  if (!value) {
-    throw new Error('useLanguage must be used inside LanguageProvider.');
-  }
-  return value;
-}
-
-export function useLabels() {
-  return useLanguage().labels;
 }

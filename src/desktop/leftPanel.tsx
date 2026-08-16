@@ -4,7 +4,7 @@ import { getFileIcon } from './fileIcons';
 import {
   getDesktopFileTypeLabels,
 } from '../i18n/labels';
-import { useLanguage } from '../i18n/LanguageContext';
+import { useLanguage } from '../i18n/useLanguage';
 
 export const DESKTOP_FILE_DRAG_TYPE = 'application/neural-blueprint-desktop-file';
 

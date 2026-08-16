@@ -1,14 +1,16 @@
 import {
   clearAllocatedMemory,
-  entityPoolAdaptationCompatibility,
+  entityPoolAdaptationFactor,
   entityRequiredMemory,
   getTrainingEntities,
+  readEntityTotalMemory,
   readEntityPoolStageMemory,
   writeEntityMemory,
   writeEntityPoolStageMemory,
 } from './memoryOperations';
 import {
   calculateNodeDependencyDepths,
+  calculateMaxDependencyDepth,
   entityDependencyStage,
 } from './dependencyDepth';
 import type { DatasetSplitResult } from './datasetSplit';
@@ -16,6 +18,9 @@ import { computeKnowledgeLossReport } from './lossMetrics';
 import { cloneKnowledgeGraphMemory } from './memoryState';
 import { createSeededRandom, sampleNormal } from './random';
 import { estimateStagedMastery } from './reasoning';
+import type {
+  InferencePretrainingModule,
+} from '../../InferenceMemoryProfileTypes';
 import type {
   KnowledgeEntity,
   KnowledgeGraphDefinition,
@@ -97,20 +102,89 @@ export function perfectAllocation(
 export function transferAllocation(
   graph: KnowledgeGraphDefinition,
   memory: KnowledgeGraphMemory,
-  seed: string,
-  stabilityPercent: number,
 ) {
   const next = perfectAllocation(graph, memory);
-  const nodeEntities = Object.values(graph.nodes);
-  const random = randomFromSeed(seed);
-  clearAllocatedMemory(next, nodeEntities);
-  allocateRandomly(
-    next,
-    nodeEntities,
-    random,
-    stabilityPointCount(next, stabilityPercent, random),
-  );
+  clearAllocatedMemory(next, Object.values(graph.nodes));
   return next;
+}
+
+export function clearAllocation(
+  graph: KnowledgeGraphDefinition,
+  memory: KnowledgeGraphMemory,
+) {
+  const next = cloneKnowledgeGraphMemory(memory);
+  clearAllocatedMemory(next, getTrainingEntities(graph));
+  return next;
+}
+
+export function applyPretrainedModuleAllocation(
+  graph: KnowledgeGraphDefinition,
+  memory: KnowledgeGraphMemory,
+  modules: InferencePretrainingModule[],
+) {
+  const next = cloneKnowledgeGraphMemory(memory);
+  clearAllocatedMemory(next, graph.depEdges);
+  const orderedModules = modules
+    .filter((module) => (
+      module.order > 0
+      && module.memoryPointsPerDependency > 0
+      && module.aggregationWeight > 0
+      && module.inferenceStages.length > 0
+    ))
+    .sort((left, right) => (
+      left.order - right.order
+      || left.nodeId.localeCompare(right.nodeId)
+    ));
+
+  const depths = calculateNodeDependencyDepths(graph);
+  const maxDependencyDepth = calculateMaxDependencyDepth(graph);
+
+  orderedModules.forEach((module) => {
+    const matchingDepth = module.order - 1;
+    const edges = graph.depEdges.filter((edge) => (
+      dependencyStage(edge) === matchingDepth
+    ));
+    const stages = [...module.inferenceStages].sort((left, right) => left - right);
+    const outputStage = stages.at(-1);
+    if (outputStage === undefined) return;
+    const poolId = `blueprint:${stages.join(',')}`;
+    const modulePoints = Math.max(
+      0,
+      Math.floor(
+        module.memoryPointsPerDependency * module.aggregationWeight,
+      ),
+    );
+
+    edges.forEach((edge) => {
+      const availablePoints = Math.max(
+        0,
+        entityRequiredMemory(edge) - readEntityTotalMemory(next, edge),
+      );
+      const transferredPoints = Math.min(modulePoints, availablePoints);
+      if (transferredPoints <= 0) return;
+      writeEntityPoolStageMemory(
+        next,
+        edge,
+        poolId,
+        outputStage,
+        readEntityPoolStageMemory(
+          next,
+          edge,
+          poolId,
+          outputStage,
+        ) + transferredPoints,
+      );
+    });
+  });
+  return next;
+
+  function dependencyStage(entity: KnowledgeEntity) {
+    return entityDependencyStage(
+      entity,
+      depths,
+      maxDependencyDepth,
+    );
+  }
 }
 
 export function evaluateAllocation(
@@ -159,7 +233,7 @@ function allocateRandomly(
       Math.floor(random() * pool.inferenceStages.length)
     ];
     const entityWeights = entities.map((entity) => (
-      entityPoolAdaptationCompatibility(memory, entity, pool.id)
+      entityPoolAdaptationFactor(memory, entity, pool.id)
     ));
     const entityIndex = weightedIndex(entityWeights, random);
     if (entityIndex < 0) {
@@ -189,25 +263,6 @@ function initializationPointCount(
     entities.reduce((sum, entity) => sum + entityRequiredMemory(entity), 0),
   );
   return Math.round(capacity * ratio);
-}
-
-function stabilityPointCount(
-  memory: KnowledgeGraphMemory,
-  stabilityPercent: number,
-  random: () => number,
-) {
-  const sampled = Math.max(
-    0,
-    Math.round(sampleNormal(
-      random,
-      stabilityPercent / 2,
-      Math.max(0.001, stabilityPercent / 20),
-    )),
-  );
-  return Math.min(
-    sampled,
-    Math.max(0, Math.floor(memory.availableMemoryPoints)),
-  );
 }
 
 function randomFromSeed(seed: string) {

@@ -7,6 +7,11 @@ import { LanguageProvider } from './i18n/LanguageContext';
 import { LabWorkspace } from './lab/LabWorkspace';
 import { loadGameProgress, saveGameProgress } from './dataStorage/gameStorage';
 import { loadDesktopFiles } from './dataStorage/desktopStorage';
+import {
+  loadAppSettings,
+  saveAppSettings,
+} from './dataStorage/appSettingsStorage';
+import { advanceGameTime } from './time/academicTime';
 
 const DEVELOPMENT_START_FILE_ID = 'experimental_nbp';
 
@@ -20,6 +25,7 @@ type SceneTransitionPhase = 'out' | 'in';
 
 export default function App() {
   const [gameProgress, setGameProgress] = useState(loadGameProgress);
+  const [appSettings, setAppSettings] = useState(loadAppSettings);
   const [scene, setScene] = useState<AppScene>(createInitialScene);
   const [transitionTarget, setTransitionTarget] =
     useState<SceneTransitionTarget>(null);
@@ -52,6 +58,17 @@ export default function App() {
     saveGameProgress(gameProgress);
   }, [gameProgress]);
 
+  useEffect(() => {
+    saveAppSettings(appSettings);
+  }, [appSettings]);
+
+  const advanceTrainingTime = useCallback((minutes: number) => {
+    setGameProgress((current) => ({
+      ...current,
+      time: advanceGameTime(current.time, minutes),
+    }));
+  }, []);
+
   const openFile = useCallback((workspace: FileWorkspaceType, file: DesktopFile) => {
     setScene({ type: 'file', activeFile: { workspace, file } });
   }, []);
@@ -68,27 +85,37 @@ export default function App() {
         <div className="app-scene-content" key={getSceneKey(scene)}>
           {scene.type === 'lab' ? (
             <LabWorkspace
+              appSettings={appSettings}
               gameProgress={gameProgress}
+              setAppSettings={setAppSettings}
               setGameProgress={setGameProgress}
               onOpenDesktop={() => transitionTo({ type: 'desktop' })}
             />
           ) : scene.type === 'desktop' ? (
             <DesktopCanvas
+              appSettings={appSettings}
               gameTime={gameProgress.time}
               openFile={openFile}
               onReturnToLab={() => transitionTo({ type: 'lab' })}
+              setAppSettings={setAppSettings}
             />
           ) : scene.activeFile.workspace === 'blueprint' ? (
             <BlueprintCanvas
+              appSettings={appSettings}
               key={scene.activeFile.file.id}
               file={scene.activeFile.file}
+              gameTime={gameProgress.time}
               closeFile={closeFile}
+              onAdvanceGameTime={advanceTrainingTime}
+              setAppSettings={setAppSettings}
             />
           ) : (
             <DesktopCanvas
+              appSettings={appSettings}
               gameTime={gameProgress.time}
               openFile={openFile}
               onReturnToLab={() => transitionTo({ type: 'lab' })}
+              setAppSettings={setAppSettings}
             />
           )}
         </div>

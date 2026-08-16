@@ -6,16 +6,30 @@ import type {
 } from './ModuleBaseNodeTypes';
 import { createEmptyRepetitionStats } from './analysis/repetitionRank';
 import { createEmptyDistanceIndexRank } from './analysis/distanceIndexRank';
+import { createSpatialViewFromShape } from './analysis/spatialView';
+import type { ModulePalettePreset } from './moduleRegistry';
 export { isModuleBaseNodeKind } from './moduleRegistry';
 
 export const DEFAULT_OUTPUT_DIM = 64;
 export const DEFAULT_INPUT_EFFECTIVE_RANK = 32;
 export const DEFAULT_3D_INPUT_CHANNELS = 3;
 export const DEFAULT_3D_INPUT_SIZE = 224;
+export const DEFAULT_PRETRAINED_DEPENDENCY_MEMORY_POINTS = 72;
+export const RESNET18_STAGE_SPECS = [
+  { outFeatures: 64, blockCount: 2, stride: 1 },
+  { outFeatures: 64, blockCount: 2, stride: 2 },
+  { outFeatures: 64, blockCount: 2, stride: 2 },
+  { outFeatures: 64, blockCount: 2, stride: 2 },
+] as const;
 
 export function createModuleNodeData(
   kind: ModuleBaseNodeKind,
   common: Pick<ModuleBaseNodeData, 'id' | 'name' | 'type'>,
+  options: {
+    palettePreset?: ModulePalettePreset;
+    pretrainingOrder?: number;
+    resNetStageIndex?: number;
+  } = {},
 ): ModuleNodeData {
   const base = {
     ...common,
@@ -45,6 +59,7 @@ export function createModuleNodeData(
         normalizationMode: '0-1',
         outFeatures: DEFAULT_3D_INPUT_CHANNELS,
         inputEffectiveRank: DEFAULT_3D_INPUT_CHANNELS,
+        time: 'absent',
         height: DEFAULT_3D_INPUT_SIZE,
         width: DEFAULT_3D_INPUT_SIZE,
       };
@@ -70,6 +85,47 @@ export function createModuleNodeData(
         dilation: 1,
         useBias: true,
       };
+    case 'ResNetStage': {
+      const isPretrained = options.palettePreset === 'pretrained-resnet-stage';
+      const stageIndex = Math.max(
+        1,
+        Math.min(
+          RESNET18_STAGE_SPECS.length,
+          Math.floor(options.resNetStageIndex ?? 1),
+        ),
+      );
+      const stageSpec = RESNET18_STAGE_SPECS[stageIndex - 1];
+      const pretrainingOrder = isPretrained
+        ? Math.max(1, Math.floor(options.pretrainingOrder ?? 1))
+        : 0;
+      return {
+        ...base,
+        kind,
+        initializationMode: 'xavier_normal',
+        biasInitializationMode: 'zeros',
+        outFeatures: stageSpec.outFeatures,
+        blockCount: stageSpec.blockCount,
+        stride: stageSpec.stride,
+        useBias: false,
+        pretrainingOrder,
+        pretrainedDependencyMemoryPoints: isPretrained
+          ? DEFAULT_PRETRAINED_DEPENDENCY_MEMORY_POINTS
+          : 0,
+      };
+    }
+    case 'PatchEmbedding':
+      return {
+        ...base,
+        kind,
+        initializationMode: 'xavier_normal',
+        biasInitializationMode: 'zeros',
+        outFeatures: 768,
+        patchHeight: 16,
+        patchWidth: 16,
+        strideHeight: 16,
+        strideWidth: 16,
+        useBias: true,
+      };
     case 'Pooling':
       return {
         ...base,
@@ -78,6 +134,12 @@ export function createModuleNodeData(
         kernelSize: 2,
         stride: 2,
         padding: 0,
+      };
+    case 'Normalization':
+      return {
+        ...base,
+        kind,
+        normalizationMode: 'batch',
       };
     case 'GlobalPooling':
       return {
@@ -143,11 +205,23 @@ function getDefaultStats(kind: ModuleBaseNodeKind): ModuleStats {
         repetition: createEmptyRepetitionStats(),
         distanceIndex: createEmptyDistanceIndexRank(),
       },
+      spatialView: createSpatialViewFromShape({
+        time: 'absent',
+        channels: rank,
+        height: kind === '3DInput' ? DEFAULT_3D_INPUT_SIZE : 'absent',
+        width: kind === '3DInput' ? DEFAULT_3D_INPUT_SIZE : 'absent',
+      }),
     };
   }
 
-  if (kind === 'Linear' || kind === 'CNN') {
-    const rank = kind === 'CNN' ? 32 : DEFAULT_OUTPUT_DIM;
+  if (kind === 'Linear' || kind === 'CNN' || kind === 'ResNetStage' || kind === 'PatchEmbedding') {
+    const rank = kind === 'CNN'
+      ? 32
+      : kind === 'ResNetStage'
+        ? 64
+      : kind === 'PatchEmbedding'
+        ? 768
+        : DEFAULT_OUTPUT_DIM;
     return {
       status: 'unknown',
       rank: {
@@ -164,15 +238,21 @@ function getDefaultStats(kind: ModuleBaseNodeKind): ModuleStats {
         negativeRate: Number.NaN,
       },
       shape: {
-        time: 'absent',
+        time: kind === 'PatchEmbedding' ? 'unknown' : 'absent',
         channels: rank,
-        height: kind === 'CNN' ? 'unknown' : 'absent',
-        width: kind === 'CNN' ? 'unknown' : 'absent',
+        height: kind === 'CNN' || kind === 'ResNetStage' ? 'unknown' : 'absent',
+        width: kind === 'CNN' || kind === 'ResNetStage' ? 'unknown' : 'absent',
       },
       adaptation: {
         repetition: createEmptyRepetitionStats(),
         distanceIndex: createEmptyDistanceIndexRank(),
       },
+      spatialView: createSpatialViewFromShape({
+        time: kind === 'PatchEmbedding' ? 'unknown' : 'absent',
+        channels: rank,
+        height: kind === 'CNN' || kind === 'ResNetStage' ? 'unknown' : 'absent',
+        width: kind === 'CNN' || kind === 'ResNetStage' ? 'unknown' : 'absent',
+      }),
     };
   }
 
@@ -201,5 +281,11 @@ function getDefaultStats(kind: ModuleBaseNodeKind): ModuleStats {
       repetition: createEmptyRepetitionStats(),
       distanceIndex: createEmptyDistanceIndexRank(),
     },
+    spatialView: createSpatialViewFromShape({
+      time: 'absent',
+      channels: 'unknown',
+      height: kind === 'Pooling' ? 'unknown' : 'absent',
+      width: kind === 'Pooling' ? 'unknown' : 'absent',
+    }),
   };
 }

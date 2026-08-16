@@ -1,4 +1,5 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
+import { useCallback } from 'react';
 import {
   getInferenceMemoryProfileSignature,
   type InferenceMemoryProfile,
@@ -19,31 +20,58 @@ import { createKnowledgeGraphSession } from '../../taskData/knowledgeGraphDefaul
 import { getTaskFileInitialState } from '../../taskData/fileInitialState';
 import { getControllerControls } from './controlState';
 import { estimateStagedMastery } from '../knowledgeGraph/model/reasoning';
+import type { OptimizerKind } from '../knowledgeGraph/model/types';
 import { buildKnowledgeGraphElements } from '../knowledgeGraph/buildKnowledgeGraphElements';
 import type { KnowledgeGraphNodeData } from '../knowledgeGraph/KnowledgeGraphNodeTypes';
 import { createBlueprintDataActions } from './blueprintDataActions';
 import { estimateUtilityReport } from '../knowledgeGraph/model/utilityEstimate';
+import {
+  applyPretrainedModuleAllocation,
+  clearAllocation,
+  initializeAllocation,
+} from '../knowledgeGraph/model/allocationStrategies';
+import { estimateTrainingRun } from '../neuralBlueprint/analysis/trainingResources';
+
+const REAL_MILLISECONDS_PER_GAME_MINUTE = 100;
+
+interface ActiveTrainingRun {
+  totalEpochs: number;
+  completedEpochs: number;
+  elapsedGameMinutes: number;
+  totalGameMinutes: number;
+  gameMinutesPerEpoch: number;
+}
 
 function createInitialState(fileId: string): KnowledgeGraphSessionState {
   const saved = loadKnowledgeGraphSession(fileId);
   if (saved) return saved;
-  const initialState = getTaskFileInitialState(fileId)?.knowledgeGraph;
-  return createKnowledgeGraphSession(
+  const taskInitialState = getTaskFileInitialState(fileId);
+  const initialState = taskInitialState?.knowledgeGraph;
+  return {
+    ...createKnowledgeGraphSession(
     initialState?.graphDefinition,
     initialState?.datasetCollection,
-  );
+    ),
+    pretraining: taskInitialState?.pretraining,
+  };
 }
 
 export function useBlueprintDataController({
   fileId,
   inferenceMemoryProfile,
+  onAdvanceGameTime,
+  waitForTraining,
 }: {
   fileId: string;
   inferenceMemoryProfile: InferenceMemoryProfile;
+  onAdvanceGameTime: (minutes: number) => void;
+  waitForTraining: boolean;
 }) {
   const [state, setState] = useState(() => createInitialState(fileId));
   const stateRef = useRef(state);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [activeTrainingRun, setActiveTrainingRun] =
+    useState<ActiveTrainingRun | null>(null);
   const controls = getControllerControls(state);
   const stats = useMemo(
     () => calculateKnowledgeStats(state.graphDefinition, state.memory),
@@ -131,6 +159,48 @@ export function useBlueprintDataController({
     setSelectedNodeId,
     inferenceMemoryProfile,
   });
+  const trainingRunEstimate = useMemo(() => estimateTrainingRun(
+    inferenceMemoryProfile.trainingResources,
+    datasetSplit.samples.train,
+    controls.training.optimizer,
+  ), [
+    controls.training.optimizer,
+    datasetSplit.samples.train,
+    inferenceMemoryProfile.trainingResources,
+  ]);
+  const startTraining = useCallback(() => {
+    if (!state.modelInitialized || activeTrainingRun) return;
+    if (!trainingRunEstimate.fitsInVram) return;
+
+    const totalEpochs = Math.max(1, Math.floor(controls.training.trainEpochs));
+    const totalGameMinutes = totalEpochs
+      * trainingRunEstimate.gameMinutesPerEpoch;
+    if (!waitForTraining) {
+      actions.runTrainingEpochs(totalEpochs);
+      onAdvanceGameTime(totalGameMinutes);
+      return;
+    }
+
+    setActiveTrainingRun({
+      totalEpochs,
+      completedEpochs: 0,
+      elapsedGameMinutes: 0,
+      totalGameMinutes,
+      gameMinutesPerEpoch: trainingRunEstimate.gameMinutesPerEpoch,
+    });
+  }, [
+    actions,
+    activeTrainingRun,
+    controls.training.trainEpochs,
+    onAdvanceGameTime,
+    state.modelInitialized,
+    trainingRunEstimate.fitsInVram,
+    trainingRunEstimate.gameMinutesPerEpoch,
+    waitForTraining,
+  ]);
+  const activePretraining = inferenceMemoryProfile.pretrainingModules.length > 0
+    ? state.pretraining ?? { source: 'ResNet module preset' }
+    : undefined;
 
   useEffect(() => {
     stateRef.current = state;
@@ -144,22 +214,41 @@ export function useBlueprintDataController({
       const hasResolvedProfile = signature.length > 0;
 
       setState((current) => {
-        const memory = syncBlueprintMemoryProfile(
+        let memory = syncBlueprintMemoryProfile(
           current.graphDefinition,
           current.memory,
           inferenceMemoryProfile,
         );
         const networkChanged = hasResolvedProfile
           && current.networkProfileSignature !== signature;
+        const shouldResetForNetworkChange = Boolean(
+          current.memory.memoryProfileSource === 'blueprint'
+          && hasResolvedProfile
+          && networkChanged,
+        );
+        if (shouldResetForNetworkChange) {
+          memory = inferenceMemoryProfile.pretrainingModules.length > 0
+            ? applyPretrainedModuleAllocation(
+                current.graphDefinition,
+                initializeAllocation(
+                  current.graphDefinition,
+                  memory,
+                  controls.network.initializationSeed,
+                ),
+                inferenceMemoryProfile.pretrainingModules,
+              )
+            : clearAllocation(current.graphDefinition, memory);
+        }
 
-        if (memory === current.memory && !networkChanged) return current;
+        if (memory === current.memory && !networkChanged && !shouldResetForNetworkChange) return current;
 
         return {
           ...current,
           memory,
           epoch: 0,
           lossHistory: [],
-          modelInitialized: false,
+          modelInitialized: shouldResetForNetworkChange
+            && inferenceMemoryProfile.pretrainingModules.length > 0,
           networkProfileSignature: hasResolvedProfile
             ? signature
             : current.networkProfileSignature,
@@ -167,7 +256,11 @@ export function useBlueprintDataController({
       });
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [inferenceMemoryProfile]);
+  }, [
+    controls.network.initializationSeed,
+    inferenceMemoryProfile,
+    state.memory.memoryProfileSource,
+  ]);
 
   useEffect(() => {
     const timer = window.setTimeout(
@@ -188,6 +281,52 @@ export function useBlueprintDataController({
       saveLatestState();
     };
   }, [fileId]);
+
+  useEffect(() => {
+    if (!activeTrainingRun) return;
+
+    if (!waitForTraining) {
+      const timer = window.setTimeout(() => {
+        const remainingEpochs = activeTrainingRun.totalEpochs
+          - activeTrainingRun.completedEpochs;
+        const remainingMinutes = activeTrainingRun.totalGameMinutes
+          - activeTrainingRun.elapsedGameMinutes;
+        if (remainingEpochs > 0) actions.runTrainingEpochs(remainingEpochs);
+        if (remainingMinutes > 0) onAdvanceGameTime(remainingMinutes);
+        setActiveTrainingRun(null);
+      }, 0);
+      return () => window.clearTimeout(timer);
+    }
+
+    const timer = window.setTimeout(() => {
+      const elapsedGameMinutes = Math.min(
+        activeTrainingRun.totalGameMinutes,
+        activeTrainingRun.elapsedGameMinutes + 1,
+      );
+      const completedEpochs = Math.min(
+        activeTrainingRun.totalEpochs,
+        Math.floor(
+          elapsedGameMinutes / activeTrainingRun.gameMinutesPerEpoch,
+        ),
+      );
+      const newEpochs = completedEpochs - activeTrainingRun.completedEpochs;
+      if (newEpochs > 0) actions.runTrainingEpochs(newEpochs);
+      onAdvanceGameTime(1);
+      setActiveTrainingRun(elapsedGameMinutes >= activeTrainingRun.totalGameMinutes
+        ? null
+        : {
+          ...activeTrainingRun,
+          completedEpochs,
+          elapsedGameMinutes,
+        });
+    }, REAL_MILLISECONDS_PER_GAME_MINUTE);
+    return () => window.clearTimeout(timer);
+  }, [
+    actions,
+    activeTrainingRun,
+    onAdvanceGameTime,
+    waitForTraining,
+  ]);
 
   return {
     elements,
@@ -241,20 +380,39 @@ export function useBlueprintDataController({
       onReset: actions.resetNetworkCapability,
     },
     trainingControls: {
+      optimizer: controls.training.optimizer,
       learningRate: controls.training.learningRate,
       regularizationRate: controls.training.regularizationRate,
-      trainSteps: controls.training.trainSteps,
-      trainDisabled: !state.modelInitialized,
+      trainEpochs: controls.training.trainEpochs,
+      trainDisabled: !state.modelInitialized
+        || Boolean(activeTrainingRun)
+        || !trainingRunEstimate.fitsInVram,
+      training: Boolean(activeTrainingRun),
+      trainingProgress: activeTrainingRun
+        ? activeTrainingRun.elapsedGameMinutes
+          / Math.max(1, activeTrainingRun.totalGameMinutes)
+        : 0,
+      trainingMinutes: controls.training.trainEpochs
+        * trainingRunEstimate.gameMinutesPerEpoch,
+      trainingMinutesPerEpoch: trainingRunEstimate.gameMinutesPerEpoch,
+      trainingResourceError: !inferenceMemoryProfile.trainingResources.valid
+        ? 'invalid-model' as const
+        : !trainingRunEstimate.fitsInVram
+          ? 'insufficient-vram' as const
+          : undefined,
       onLearningRateChange: (value: number) => (
         actions.updateTrainingControls({ learningRate: value })
+      ),
+      onOptimizerChange: (optimizer: OptimizerKind) => (
+        actions.updateTrainingControls({ optimizer })
       ),
       onRegularizationRateChange: (value: number) => (
         actions.updateTrainingControls({ regularizationRate: value })
       ),
-      onTrainStepsChange: (value: number) => (
-        actions.updateTrainingControls({ trainSteps: value })
+      onTrainEpochsChange: (value: number) => (
+        actions.updateTrainingControls({ trainEpochs: value })
       ),
-      onTrain: actions.runTrainingStep,
+      onTrain: startTraining,
       onTransfer: actions.applyTransferAllocation,
       onPerfect: actions.applyPerfectAllocation,
       onReset: actions.resetTrainingControls,
@@ -264,6 +422,11 @@ export function useBlueprintDataController({
       loss,
       dataset: datasetSplit,
       epoch: state.epoch,
+      pretraining: activePretraining,
+    },
+    trainingResources: {
+      profile: inferenceMemoryProfile.trainingResources,
+      run: trainingRunEstimate,
     },
     datasets: {
       collection: state.datasetCollection,
@@ -281,6 +444,8 @@ export function useBlueprintDataController({
     setEdgeMemory: actions.setEdgeMemory,
     setNodeAdaptationRequirement: actions.setNodeAdaptationRequirement,
     setEdgeAdaptationRequirement: actions.setEdgeAdaptationRequirement,
+    setNodeAdaptationAxis: actions.setNodeAdaptationAxis,
+    setEdgeAdaptationAxis: actions.setEdgeAdaptationAxis,
   };
 }
 

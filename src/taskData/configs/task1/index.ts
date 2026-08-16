@@ -19,9 +19,11 @@ export const configFileTask1: BlueprintTaskFeatureConfig = {
   neuralBlueprint: {
     canOpenTab: true,
     availableModuleKinds: ['Linear'],
-    showBackwardAnalysisControl: true,
-    showVarianceAnalysisToggle: true,
-    showRankAnalysisToggle: true,
+    showBackwardAnalysisControl: false,
+    showVarianceAnalysisToggle: false,
+    showRankAnalysisToggle: false,
+    showRepetitionAnalysisToggle: false,
+    showDistanceIndexAnalysisToggle: false,
   },
   knowledgeGraph: {
     canOpenTab: true,
@@ -243,13 +245,13 @@ export function createGuideTask1(language: AppLanguage): TaskGuideConfig {
             },
           },
           {
-            title: text.steps.trainEpochs.setTrainSteps.title,
-            hint: text.steps.trainEpochs.setTrainSteps.hint,
-            target: 'training-train-steps',
+            title: text.steps.trainEpochs.setTrainEpochs.title,
+            hint: text.steps.trainEpochs.setTrainEpochs.hint,
+            target: 'training-train-epochs',
             placement: 'right',
             completeWhen: {
               type: 'trainingStat',
-              stat: 'trainSteps',
+              stat: 'trainEpochs',
               min: TASK1_TRAIN_EPOCHS,
             },
           },

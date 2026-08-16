@@ -1,22 +1,13 @@
-import { useNodes, useReactFlow, type Edge } from '@xyflow/react';
+import { useReactFlow, type Edge } from '@xyflow/react';
 import {
   type ChangeEvent,
   type Dispatch,
   type SetStateAction,
-  useEffect,
-  useMemo,
 } from 'react';
-import {
-  EMPTY_INFERENCE_MEMORY_PROFILE,
-  type InferenceMemoryAggregationPair,
-  type InferenceMemoryProfile,
-} from '../InferenceMemoryProfileTypes';
 import type { ResolvedBlueprintTaskFeatureConfig } from '../../taskData/blueprintFeatureConfig';
 import { NumberField } from '../../NumberField';
-import { useLabels } from '../../i18n/LanguageContext';
-import { buildInferenceMemoryModels } from './analysis/inferenceMemoryProfile';
+import { useLabels } from '../../i18n/useLanguage';
 import { updateState } from './analysis/updateState';
-import { InferenceMemoryChart } from './InferenceMemoryChart';
 import { NeuralBlueprintModuleProperties } from './NeuralBlueprintModuleProperties';
 import type {
   ModuleAnalysisDirection,
@@ -25,13 +16,13 @@ import type {
   ModuleNodeData,
   ModuleTensorShape,
   ModuleDimension,
+  SpatialViewStats,
 } from './ModuleBaseNodeTypes';
 
 interface NeuralBlueprintRightPanelProp {
   analysisDirection: ModuleAnalysisDirection;
   features: ResolvedBlueprintTaskFeatureConfig['neuralBlueprint'];
   selectedNode: ModuleNodeData | null;
-  selectedInferenceModelId: string;
   showRankAnalysis: boolean;
   showVarianceAnalysis: boolean;
   showRepetitionAnalysis: boolean;
@@ -41,22 +32,13 @@ interface NeuralBlueprintRightPanelProp {
   setShowRepetitionAnalysis: Dispatch<SetStateAction<boolean>>;
   setShowDistanceIndexAnalysis: Dispatch<SetStateAction<boolean>>;
   setAnalysisDirection: Dispatch<SetStateAction<ModuleAnalysisDirection>>;
-  setSelectedInferenceModelId: (modelId: string) => void;
   setSelectedNode: Dispatch<SetStateAction<ModuleNodeData | null>>;
-  onActiveInferenceFocusChange: (
-    focus: {
-      nodeIds: string[];
-      aggregationPairs: InferenceMemoryAggregationPair[];
-    } | null
-  ) => void;
-  onInferenceMemoryProfileChange: (profile: InferenceMemoryProfile) => void;
 }
 
 export function NeuralBlueprintRightPanel({
   analysisDirection,
   features,
   selectedNode,
-  selectedInferenceModelId,
   showRankAnalysis,
   showVarianceAnalysis,
   showRepetitionAnalysis,
@@ -66,35 +48,13 @@ export function NeuralBlueprintRightPanel({
   setShowRepetitionAnalysis,
   setShowDistanceIndexAnalysis,
   setAnalysisDirection,
-  setSelectedInferenceModelId,
   setSelectedNode,
-  onActiveInferenceFocusChange,
-  onInferenceMemoryProfileChange,
 }: NeuralBlueprintRightPanelProp) {
-  const labels = useLabels().neuralBlueprint;
+  const allLabels = useLabels();
+  const labels = allLabels.neuralBlueprint;
   const propertyLabels = labels.propertiesPanel;
   const analysisLabels = labels.analysisControls;
   const { getNodes, setNodes } = useReactFlow<ModuleBaseNode, Edge>();
-  const nodes = useNodes<ModuleBaseNode>();
-  const inferenceMemoryModels = useMemo(
-    () => buildInferenceMemoryModels(nodes),
-    [nodes],
-  );
-  const effectiveInferenceModelId = inferenceMemoryModels.some((model) => (
-    model.id === selectedInferenceModelId
-  ))
-    ? selectedInferenceModelId
-    : inferenceMemoryModels[0]?.id ?? '';
-  const selectedInferenceModel = inferenceMemoryModels.find((model) => (
-    model.id === effectiveInferenceModelId
-  )) ?? null;
-  const inferenceMemoryProfile = selectedInferenceModel?.profile
-    ?? EMPTY_INFERENCE_MEMORY_PROFILE;
-
-  useEffect(() => {
-    onInferenceMemoryProfileChange(inferenceMemoryProfile);
-  }, [inferenceMemoryProfile, onInferenceMemoryProfileChange]);
-
   const updateSelectedNode = <TNode extends ModuleNodeData>(
     nodeData: TNode,
     patch: Partial<TNode>,
@@ -129,6 +89,8 @@ export function NeuralBlueprintRightPanel({
       && selectedNode.kind !== '3DInput'
       && selectedNode.kind !== 'Linear'
       && selectedNode.kind !== 'CNN'
+      && selectedNode.kind !== 'ResNetStage'
+      && selectedNode.kind !== 'PatchEmbedding'
     )) return;
 
     const rank = Math.round(value);
@@ -156,6 +118,11 @@ export function NeuralBlueprintRightPanel({
     selectedNode,
     'neededOutputDim',
   );
+  const showAnyAnalysisControl = features.showBackwardAnalysisControl
+    || features.showRankAnalysisToggle
+    || features.showVarianceAnalysisToggle
+    || features.showRepetitionAnalysisToggle
+    || features.showDistanceIndexAnalysisToggle;
 
   return (
     <aside
@@ -163,7 +130,7 @@ export function NeuralBlueprintRightPanel({
       data-analysis-direction={analysisDirection}
     >
       <div className="title">{propertyLabels.title}</div>
-      <div className="property-toggle-group">
+      {showAnyAnalysisControl && <div className="property-toggle-group">
         {features.showBackwardAnalysisControl && (
           <div className="top-bar-tabs property-direction-tabs">
             <button
@@ -218,7 +185,7 @@ export function NeuralBlueprintRightPanel({
             {analysisLabels.distanceIndexAnalysis}
           </button>
         )}
-      </div>
+      </div>}
       {selectedNode ? (
         <div className="property-panel">
           <label className="property-field">
@@ -235,7 +202,7 @@ export function NeuralBlueprintRightPanel({
             <div className="property-value">{selectedNode.kind}</div>
           </div>
 
-          {selectedNode.kind === 'Input' || selectedNode.kind === '3DInput' || selectedNode.kind === 'Linear' || selectedNode.kind === 'CNN' ? (
+          {selectedNode.kind === 'Input' || selectedNode.kind === '3DInput' || selectedNode.kind === 'Linear' || selectedNode.kind === 'CNN' || selectedNode.kind === 'ResNetStage' || selectedNode.kind === 'PatchEmbedding' ? (
             <NumberField
               label={propertyLabels.outputDim}
               disabled={outputDimLocked}
@@ -285,6 +252,34 @@ export function NeuralBlueprintRightPanel({
               </label>
             )}
 
+          {showRepetitionAnalysis && analysisDirection === 'forward' && (
+            <>
+              <div className="property-field">
+                <span className="property-label">{propertyLabels.viewReach}</span>
+                <div className="property-value">
+                  {formatSpatialReach(selectedNode.stats?.spatialView)}
+                </div>
+              </div>
+              <div className="property-field">
+                <span className="property-label">{propertyLabels.viewRank}</span>
+                <div className="property-value">
+                  {formatDecimalPropertyNumber(
+                    selectedNode.stats?.spatialView.viewRank,
+                    0,
+                  )}
+                </div>
+              </div>
+              {selectedNode.stats?.spatialView.patchFrame && (
+                <div className="property-field">
+                  <span className="property-label">{propertyLabels.patchGrid}</span>
+                  <div className="property-value">
+                    {formatSpatialGrid(selectedNode.stats.spatialView)}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
           <NeuralBlueprintModuleProperties
             effectiveRankDisabled={effectiveRankLocked}
             selectedNode={selectedNode}
@@ -331,17 +326,6 @@ export function NeuralBlueprintRightPanel({
       ) : (
         <div className="property-empty">{propertyLabels.noNodeSelected}</div>
       )}
-      {showRankAnalysis && features.showBackwardAnalysisControl && (
-        <InferenceMemoryChart
-          modelOptions={inferenceMemoryModels.map((model) => ({
-            id: model.id,
-            label: model.label,
-          }))}
-          onModelChange={setSelectedInferenceModelId}
-          onActiveGroupFocusChange={onActiveInferenceFocusChange}
-          profile={inferenceMemoryProfile}
-          selectedModelId={effectiveInferenceModelId}
-        />)}
     </aside>
   );
 }
@@ -373,6 +357,23 @@ function formatShapeDimension(dimension: ModuleDimension) {
   if (dimension === 'unknown') return '?';
   if (dimension === 'absent') return '';
   return String(dimension);
+}
+
+function formatSpatialReach(view: SpatialViewStats | undefined) {
+  if (!view) return '';
+  return ['time', 'height', 'width']
+    .map((axis) => view.axes[axis as keyof SpatialViewStats['axes']])
+    .filter((axis) => axis.positions !== 'absent')
+    .map((axis) => formatShapeDimension(axis.reach))
+    .join(' × ');
+}
+
+function formatSpatialGrid(view: SpatialViewStats) {
+  return ['time', 'height', 'width']
+    .map((axis) => view.axes[axis as keyof SpatialViewStats['axes']])
+    .filter((axis) => axis.positions !== 'absent')
+    .map((axis) => formatShapeDimension(axis.positions))
+    .join(' × ');
 }
 
 function hasLockedPatch<TNode extends ModuleNodeData>(

@@ -1,12 +1,14 @@
 export interface Task2GuideTextValues {
   trainEpochs: number;
   targetValLoss: number;
+  tunedHiddenDim: number;
   retryEpochs: number;
 }
 
 export function createTask2GuideTextEn({
   trainEpochs,
   targetValLoss,
+  tunedHiddenDim,
   retryEpochs,
 }: Task2GuideTextValues) {
   return {
@@ -89,9 +91,9 @@ export function createTask2GuideTextEn({
           title: 'Initialize Network',
           hint: 'Click Initialize Model.',
         },
-        setTrainSteps: {
-          title: 'Set Train Steps',
-          hint: `Set Train Steps to ${trainEpochs}.`,
+        setTrainEpochs: {
+          title: 'Set Train Epochs',
+          hint: `Set Train Epochs to ${trainEpochs}.`,
         },
         train: {
           title: 'Train',
@@ -108,7 +110,7 @@ export function createTask2GuideTextEn({
         hint: `Increase the first Linear output dim, retrain, and make Best Val Loss lower than ${targetValLoss}.`,
         info: {
           title: 'More hidden dimensions give the nonlinear fit more segments.',
-          body: 'The first Linear controls hidden width. If it is too small, ReLU has too few bends. Increase it, then retrain until validation loss is low enough.',
+          body: `The first Linear controls hidden width. Width 64 stays above 1.0 Best Val Loss, 128 reaches about 0.5, and ${tunedHiddenDim} reaches about 0.3. Going wider adds excess capacity and starts to overfit.`,
         },
         selectFirstLinear: {
           title: 'Select First Linear',
@@ -120,7 +122,7 @@ export function createTask2GuideTextEn({
         },
         setOutputDim: {
           title: 'Increase Output Dim',
-          hint: 'Increase this Linear node’s Output Dim.',
+          hint: `Set this Linear node’s Output Dim to ${tunedHiddenDim}.`,
         },
         initializeNetwork: {
           title: 'Reinitialize Network',

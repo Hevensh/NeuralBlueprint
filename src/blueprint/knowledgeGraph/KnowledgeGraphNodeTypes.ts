@@ -36,8 +36,8 @@ export interface KnowledgeAnalysisPreviewState {
   showMemoryPreview: boolean;
   showMetricPreview: boolean;
   showUtilityPreview: boolean;
-  showReceptiveFieldPreview: boolean;
-  showDistanceIndexPreview: boolean;
+  showScalePreview: boolean;
+  showIndexPreview: boolean;
   showGlobalDebugPreview: boolean;
 }
 

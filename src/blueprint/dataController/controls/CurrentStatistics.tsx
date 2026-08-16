@@ -1,7 +1,7 @@
 import type { DatasetSplitResult } from '../../knowledgeGraph/model/datasetSplit';
 import type { KnowledgeLossReport } from '../../knowledgeGraph/model/lossMetrics';
 import type { KnowledgeGraphStats } from '../../knowledgeGraph/model/types';
-import { useLabels } from '../../../i18n/LanguageContext';
+import { useLabels } from '../../../i18n/useLanguage';
 import { ControlGrid, ControlSection, StatValue } from './ControlSection';
 
 export interface CurrentStatisticsProps {

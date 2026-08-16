@@ -1,5 +1,5 @@
 import { NumberField } from '../../../NumberField';
-import { useLabels } from '../../../i18n/LanguageContext';
+import { useLabels } from '../../../i18n/useLanguage';
 import {
   ControlGrid,
   ControlSection,

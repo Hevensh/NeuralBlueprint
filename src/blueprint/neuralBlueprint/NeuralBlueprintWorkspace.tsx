@@ -1,18 +1,30 @@
-import { useCallback, useState } from 'react';
+import { useNodes } from '@xyflow/react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { loadNeuralBlueprintUi } from '../../dataStorage/neuralBlueprintStorage';
 import type { ResolvedBlueprintTaskFeatureConfig } from '../../taskData/blueprintFeatureConfig';
 import type {
   InferenceMemoryAggregationPair,
   InferenceMemoryProfile,
 } from '../InferenceMemoryProfileTypes';
+import { EMPTY_INFERENCE_MEMORY_PROFILE } from '../InferenceMemoryProfileTypes';
+import {
+  SPATIAL_AXES,
+  type SpatialAxis,
+} from '../SpatialAdaptationTypes';
 import type { NeuralBlueprintTaskSnapshot } from '../taskGuide/taskGuideSnapshot';
 import type {
   ModuleAnalysisDirection,
+  ModuleBaseNode,
   ModuleNodeData,
 } from './ModuleBaseNodeTypes';
+import { buildInferenceMemoryModels } from './analysis/inferenceMemoryProfile';
+import { InferenceMemorySelector } from './InferenceMemorySelector';
 import { NeuralBlueprintCanvasInner } from './NeuralBlueprintCanvasInner';
 import { NeuralBlueprintLeftPanel } from './NeuralBlueprintLeftPanel';
 import { NeuralBlueprintRightPanel } from './NeuralBlueprintRightPanel';
+
+const EMPTY_INFERENCE_NODE_IDS: string[] = [];
+const EMPTY_INFERENCE_AGGREGATION_PAIRS: InferenceMemoryAggregationPair[] = [];
 
 interface NeuralBlueprintWorkspaceProp {
   fileId: string;
@@ -32,6 +44,7 @@ export function NeuralBlueprintWorkspace({
   setSelectedInferenceModelId,
 }: NeuralBlueprintWorkspaceProp) {
   const [initialUi] = useState(() => loadNeuralBlueprintUi(fileId));
+  const nodes = useNodes<ModuleBaseNode>();
   const [selectedNode, setSelectedNode] = useState<ModuleNodeData | null>(null);
   const [activeInferenceFocus, setActiveInferenceFocus] =
     useState<InferenceMemoryFocus | null>(null);
@@ -63,6 +76,36 @@ export function NeuralBlueprintWorkspace({
     && showRepetitionAnalysis;
   const effectiveShowDistanceIndexAnalysis =
     features.showDistanceIndexAnalysisToggle && showDistanceIndexAnalysis;
+  const inferenceMemoryModels = useMemo(
+    () => buildInferenceMemoryModels(nodes),
+    [nodes],
+  );
+  const effectiveInferenceModelId = inferenceMemoryModels.some((model) => (
+    model.id === selectedInferenceModelId
+  ))
+    ? selectedInferenceModelId
+    : inferenceMemoryModels[0]?.id ?? '';
+  const inferenceMemoryProfile = inferenceMemoryModels.find((model) => (
+    model.id === effectiveInferenceModelId
+  ))?.profile ?? EMPTY_INFERENCE_MEMORY_PROFILE;
+  const selectedInferenceModel = inferenceMemoryModels.find((model) => (
+    model.id === effectiveInferenceModelId
+  ));
+  const inferenceSpatialAxes = useMemo(
+    () => getInferenceSpatialAxes(nodes, selectedInferenceModel?.sourceNodeIds),
+    [nodes, selectedInferenceModel?.sourceNodeIds],
+  );
+  const showInferenceScale = effectiveShowRepetitionAnalysis
+    && inferenceSpatialAxes.length > 0;
+  const showInferenceIndex = effectiveShowDistanceIndexAnalysis
+    && inferenceSpatialAxes.length > 0;
+  const showInferenceMemorySelector = effectiveShowRankAnalysis
+    || showInferenceScale
+    || showInferenceIndex;
+
+  useEffect(() => {
+    onInferenceMemoryProfileChange(inferenceMemoryProfile);
+  }, [inferenceMemoryProfile, onInferenceMemoryProfileChange]);
 
   return (
     <>
@@ -76,13 +119,32 @@ export function NeuralBlueprintWorkspace({
         availableModuleKinds={features.availableModuleKinds}
         fileId={fileId}
         activeInferenceAggregationPairs={
-          activeInferenceFocus?.aggregationPairs ?? []
+          activeInferenceFocus?.aggregationPairs
+            ?? EMPTY_INFERENCE_AGGREGATION_PAIRS
         }
-        activeInferenceNodeIds={activeInferenceFocus?.nodeIds ?? []}
+        activeInferenceNodeIds={
+          activeInferenceFocus?.nodeIds ?? EMPTY_INFERENCE_NODE_IDS
+        }
         showRankAnalysis={effectiveShowRankAnalysis}
         showVarianceAnalysis={effectiveShowVarianceAnalysis}
         showRepetitionAnalysis={effectiveShowRepetitionAnalysis}
         showDistanceIndexAnalysis={effectiveShowDistanceIndexAnalysis}
+        topOverlay={showInferenceMemorySelector ? (
+          <InferenceMemorySelector
+            modelOptions={inferenceMemoryModels.map((model) => ({
+              id: model.id,
+              label: model.label,
+            }))}
+            onActiveGroupFocusChange={updateActiveInferenceFocus}
+            onModelChange={setSelectedInferenceModelId}
+            profile={inferenceMemoryProfile}
+            selectedModelId={effectiveInferenceModelId}
+            showIndex={showInferenceIndex}
+            showMemory={effectiveShowRankAnalysis}
+            showScale={showInferenceScale}
+            spatialAxes={inferenceSpatialAxes}
+          />
+        ) : null}
         setSelectedNode={setSelectedNode}
         onTaskSnapshotChange={onTaskSnapshotChange}
       />
@@ -90,7 +152,6 @@ export function NeuralBlueprintWorkspace({
         analysisDirection={effectiveAnalysisDirection}
         features={features}
         selectedNode={selectedNode}
-        selectedInferenceModelId={selectedInferenceModelId}
         showRankAnalysis={effectiveShowRankAnalysis}
         showVarianceAnalysis={effectiveShowVarianceAnalysis}
         showRepetitionAnalysis={effectiveShowRepetitionAnalysis}
@@ -100,13 +161,25 @@ export function NeuralBlueprintWorkspace({
         setShowRepetitionAnalysis={setShowRepetitionAnalysis}
         setShowDistanceIndexAnalysis={setShowDistanceIndexAnalysis}
         setAnalysisDirection={setAnalysisDirection}
-        setSelectedInferenceModelId={setSelectedInferenceModelId}
         setSelectedNode={setSelectedNode}
-        onActiveInferenceFocusChange={updateActiveInferenceFocus}
-        onInferenceMemoryProfileChange={onInferenceMemoryProfileChange}
       />
     </>
   );
+}
+
+function getInferenceSpatialAxes(
+  nodes: ModuleBaseNode[],
+  sourceNodeIds: string[] | undefined,
+): SpatialAxis[] {
+  const sourceNodeIdSet = new Set(sourceNodeIds ?? []);
+  const sourceShapes = nodes
+    .filter((node) => sourceNodeIdSet.has(node.id))
+    .map((node) => node.data.stats?.shape)
+    .filter((shape) => shape !== undefined);
+
+  return SPATIAL_AXES.filter((axis) => sourceShapes.some(
+    (shape) => shape[axis] !== 'absent',
+  ));
 }
 
 interface InferenceMemoryFocus {

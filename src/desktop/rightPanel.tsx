@@ -1,6 +1,6 @@
 import type { ChangeEvent } from 'react';
 import type { DesktopFile } from './desktopTypes';
-import { useLanguage } from '../i18n/LanguageContext';
+import { useLanguage } from '../i18n/useLanguage';
 import { getDesktopFileTypeLabels } from '../i18n/labels';
 import { getDesktopFileDisplayName } from './desktopFileNames';
 

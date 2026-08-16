@@ -110,9 +110,24 @@
   background: rgba(76, 29, 149, 0.68);
 }
 
+.neural-blueprint-node.ResNetStage {
+  border-color: rgba(192, 132, 252, 0.7);
+  background: rgba(88, 28, 135, 0.72);
+}
+
+.neural-blueprint-node.PatchEmbedding {
+  border-color: rgba(196, 181, 253, 0.64);
+  background: rgba(91, 33, 182, 0.66);
+}
+
 .neural-blueprint-node.Pooling {
   border-color: rgba(244, 114, 182, 0.58);
   background: rgba(131, 24, 67, 0.62);
+}
+
+.neural-blueprint-node.Normalization {
+  border-color: rgba(45, 212, 191, 0.62);
+  background: rgba(17, 94, 89, 0.68);
 }
 
 .neural-blueprint-node.Flatten {

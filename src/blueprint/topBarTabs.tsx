@@ -1,5 +1,5 @@
 import { PageType, type PageType as BlueprintPageType } from './PageTypes';
-import { useLabels } from '../i18n/LanguageContext';
+import { useLabels } from '../i18n/useLanguage';
 
 const blueprintTabs: Array<{
   labelKey: 'neuralBlueprint' | 'knowledgeGraph' | 'trainingProcess';

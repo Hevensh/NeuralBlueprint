@@ -35,18 +35,22 @@ import {
   setSelectedInferenceStage,
 } from '../knowledgeGraph/model/memoryState';
 import { writeEntityMemory } from '../knowledgeGraph/model/memoryOperations';
-import { normalizeAdaptationRequirement } from '../knowledgeGraph/model/adaptation';
+import {
+  createEmptyAxisAdaptation,
+  normalizeAdaptationRequirement,
+  type SpatialAdaptationRoute,
+  type SpatialAxis,
+  type SpatialBand,
+} from '../knowledgeGraph/model/adaptation';
 import type {
   AdaptationRequirementValue,
-  DistanceIndexBand,
-  KnowledgeAdaptationRoute,
   KnowledgeEdge,
   KnowledgeEdgeKind,
   KnowledgeGraphDefinition,
   KnowledgeNode,
-  ReceptiveFieldBand,
 } from '../knowledgeGraph/model/types';
 import {
+  applyPretrainedModuleAllocation,
   evaluateAllocation,
   initializeAllocation,
   perfectAllocation,
@@ -299,8 +303,9 @@ export function createBlueprintDataActions({
 
   const setNodeAdaptationRequirement = (
     nodeId: string,
-    route: KnowledgeAdaptationRoute,
-    band: ReceptiveFieldBand | DistanceIndexBand,
+    axis: SpatialAxis,
+    route: SpatialAdaptationRoute,
+    band: SpatialBand,
     value: AdaptationRequirementValue,
   ) => {
     setState((current) => {
@@ -308,6 +313,7 @@ export function createBlueprintDataActions({
       if (!node) return current;
       const nextNode = withAdaptationRequirement(
         node,
+        axis,
         route,
         band,
         value,
@@ -324,8 +330,9 @@ export function createBlueprintDataActions({
 
   const setEdgeAdaptationRequirement = (
     edgeId: string,
-    route: KnowledgeAdaptationRoute,
-    band: ReceptiveFieldBand | DistanceIndexBand,
+    axis: SpatialAxis,
+    route: SpatialAdaptationRoute,
+    band: SpatialBand,
     value: AdaptationRequirementValue,
   ) => {
     setState((current) => ({
@@ -337,9 +344,51 @@ export function createBlueprintDataActions({
             ...edge,
             properties: withAdaptationRequirement(
               edge.properties,
+              axis,
               route,
               band,
               value,
+            ),
+          }
+          : edge,
+      ),
+    }));
+  };
+
+  const setNodeAdaptationAxis = (
+    nodeId: string,
+    axis: SpatialAxis,
+    enabled: boolean,
+  ) => {
+    setState((current) => {
+      const node = current.graphDefinition.nodes[nodeId];
+      if (!node) return current;
+      return {
+        ...current,
+        graphDefinition: replaceKnowledgeNode(
+          current.graphDefinition,
+          withAdaptationAxis(node, axis, enabled),
+        ),
+      };
+    });
+  };
+
+  const setEdgeAdaptationAxis = (
+    edgeId: string,
+    axis: SpatialAxis,
+    enabled: boolean,
+  ) => {
+    setState((current) => ({
+      ...current,
+      graphDefinition: mapKnowledgeEdges(
+        current.graphDefinition,
+        (edge) => edge.id === edgeId
+          ? {
+            ...edge,
+            properties: withAdaptationAxis(
+              edge.properties,
+              axis,
+              enabled,
             ),
           }
           : edge,
@@ -351,18 +400,24 @@ export function createBlueprintDataActions({
     setState((current) => ({ ...current, viewport }));
   };
 
-  const stabilityPercent = () => Math.max(
-    0,
-    Math.min(100, 17.5 + 2.5 * controls.training.learningRate),
-  );
 
   const initializeNeuralMemory = () => {
     setState((current) => {
-      const nextMemory = initializeAllocation(
+      let nextMemory = initializeAllocation(
         current.graphDefinition,
         current.memory,
         controls.network.initializationSeed,
       );
+      if (
+        nextMemory.memoryProfileSource === 'blueprint'
+        && inferenceMemoryProfile.pretrainingModules.length > 0
+      ) {
+        nextMemory = applyPretrainedModuleAllocation(
+          current.graphDefinition,
+          nextMemory,
+          inferenceMemoryProfile.pretrainingModules,
+        );
+      }
       const loss = evaluateAllocation(
         current.graphDefinition,
         nextMemory,
@@ -381,6 +436,8 @@ export function createBlueprintDataActions({
           epoch: 0,
           trainLoss: loss.graphTrainLoss,
           valLoss: loss.graphValLoss,
+          trainAccuracy: loss.graphTrainAccuracy,
+          valAccuracy: loss.graphValAccuracy,
         }],
         modelInitialized: true,
         networkProfileSignature: getInferenceMemoryProfileSignature(
@@ -390,7 +447,7 @@ export function createBlueprintDataActions({
     });
   };
 
-  const runTrainingStep = () => {
+  const runTrainingEpochs = (epochCount = controls.training.trainEpochs) => {
     setState((current) => {
       if (!current.modelInitialized) return current;
       const result = runTrainingSimulation(
@@ -399,9 +456,10 @@ export function createBlueprintDataActions({
         current.epoch,
         current.lossHistory,
         {
+          optimizer: controls.training.optimizer,
           learningRate: controls.training.learningRate,
           regularizationRate: controls.training.regularizationRate,
-          steps: controls.training.trainSteps,
+          epochs: Math.max(1, Math.floor(epochCount)),
           datasetCollection: current.datasetCollection,
           trainingRandomState: current.trainingRandomState,
         },
@@ -439,6 +497,8 @@ export function createBlueprintDataActions({
             epoch,
             trainLoss: loss.graphTrainLoss,
             valLoss: loss.graphValLoss,
+            trainAccuracy: loss.graphTrainAccuracy,
+            valAccuracy: loss.graphValAccuracy,
           },
         ].slice(-80),
       };
@@ -463,17 +523,14 @@ export function createBlueprintDataActions({
     setEdgeMemory,
     setNodeAdaptationRequirement,
     setEdgeAdaptationRequirement,
+    setNodeAdaptationAxis,
+    setEdgeAdaptationAxis,
     setGraphViewport,
     initializeNeuralMemory,
-    runTrainingStep,
+    runTrainingEpochs,
     applyPerfectAllocation: () => applyAllocation(perfectAllocation),
     applyTransferAllocation: () => applyAllocation((graph, memory) => (
-      transferAllocation(
-        graph,
-        memory,
-        controls.network.initializationSeed,
-        stabilityPercent(),
-      )
+      transferAllocation(graph, memory)
     )),
   };
 }
@@ -482,20 +539,42 @@ function withAdaptationRequirement<
   T extends { adaptationRequirements: KnowledgeNode['adaptationRequirements'] },
 >(
   target: T,
-  route: KnowledgeAdaptationRoute,
-  band: ReceptiveFieldBand | DistanceIndexBand,
+  axis: SpatialAxis,
+  route: SpatialAdaptationRoute,
+  band: SpatialBand,
   value: AdaptationRequirementValue,
 ): T {
   return {
     ...target,
     adaptationRequirements: {
       ...target.adaptationRequirements,
-      [route]: {
-        ...target.adaptationRequirements[route],
-        [band]: normalizeAdaptationRequirement(value),
+      [axis]: {
+        ...(target.adaptationRequirements[axis]
+          ?? createEmptyAxisAdaptation()),
+        [route]: {
+          ...(target.adaptationRequirements[axis]?.[route]
+            ?? createEmptyAxisAdaptation()[route]),
+          [band]: normalizeAdaptationRequirement(value),
+        },
       },
     },
   };
+}
+
+function withAdaptationAxis<
+  T extends { adaptationRequirements: KnowledgeNode['adaptationRequirements'] },
+>(
+  target: T,
+  axis: SpatialAxis,
+  enabled: boolean,
+): T {
+  const adaptationRequirements = { ...target.adaptationRequirements };
+  if (enabled) {
+    adaptationRequirements[axis] ??= createEmptyAxisAdaptation();
+  } else {
+    delete adaptationRequirements[axis];
+  }
+  return { ...target, adaptationRequirements };
 }
 
 function replaceKnowledgeNode(

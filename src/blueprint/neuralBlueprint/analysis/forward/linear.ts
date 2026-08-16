@@ -55,6 +55,7 @@ export function forwardLinearStats(
       height: inputShape.height,
       width: inputShape.width,
     },
+    spatialView: input.spatialView,
     adaptation: {
       repetition: preserveRepetitionStats(input, effectiveRank),
       distanceIndex: createEmptyDistanceIndexRank(),

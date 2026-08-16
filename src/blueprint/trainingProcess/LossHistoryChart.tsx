@@ -1,12 +1,22 @@
 import { useState } from 'react';
-import { useLabels } from '../../i18n/LanguageContext';
+import { useLabels } from '../../i18n/useLanguage';
 import type { KnowledgeLossPoint } from '../knowledgeGraph/model/types';
 import './TrainingProcess.css';
 
 type ChartPoint = {
   epoch: number;
-  loss: number;
+  value: number;
   series: 'train' | 'val';
+};
+
+type MetricChartLabels = {
+  title: string;
+  empty: string;
+  epoch: string;
+  train: string;
+  validation: string;
+  ariaTrainValidationHistory: string;
+  best: string;
 };
 
 const WIDTH = 860;
@@ -18,28 +28,75 @@ export function LossHistoryChart({
 }: {
   history: KnowledgeLossPoint[];
 }) {
-  const chartLabels = useLabels().trainingProcess.lossChart;
+  const labels = useLabels().trainingProcess.lossChart;
+
+  return (
+    <MetricHistoryChart
+      best="minimum"
+      formatTick={formatLossTick}
+      formatValue={(value) => value.toFixed(4)}
+      history={history}
+      labels={labels}
+      trainValue={(point) => point.trainLoss}
+      validationValue={(point) => point.valLoss}
+    />
+  );
+}
+
+export function AccuracyHistoryChart({
+  history,
+}: {
+  history: KnowledgeLossPoint[];
+}) {
+  const labels = useLabels().trainingProcess.accuracyChart;
+  const hasAccuracy = history.some((point) => (
+    isFiniteNumber(point.trainAccuracy)
+    || isFiniteNumber(point.valAccuracy)
+  ));
+  if (!hasAccuracy) return null;
+
+  return (
+    <MetricHistoryChart
+      best="maximum"
+      fixedMaximum={1}
+      formatTick={formatAccuracyTick}
+      formatValue={(value) => `${(value * 100).toFixed(1)}%`}
+      history={history}
+      labels={labels}
+      trainValue={(point) => point.trainAccuracy}
+      validationValue={(point) => point.valAccuracy}
+    />
+  );
+}
+
+function MetricHistoryChart({
+  best,
+  fixedMaximum,
+  formatTick,
+  formatValue,
+  history,
+  labels,
+  trainValue,
+  validationValue,
+}: {
+  best: 'minimum' | 'maximum';
+  fixedMaximum?: number;
+  formatTick: (value: number) => string;
+  formatValue: (value: number) => string;
+  history: KnowledgeLossPoint[];
+  labels: MetricChartLabels;
+  trainValue: (point: KnowledgeLossPoint) => number | null | undefined;
+  validationValue: (point: KnowledgeLossPoint) => number | null | undefined;
+}) {
   const [hovered, setHovered] = useState<ChartPoint | null>(null);
-  const train = history
-    .filter((point) => Number.isFinite(point.trainLoss))
-    .map((point) => ({
-      epoch: point.epoch,
-      loss: point.trainLoss,
-      series: 'train' as const,
-    }));
-  const validation = history
-    .filter((point): point is KnowledgeLossPoint & { valLoss: number } => (
-      typeof point.valLoss === 'number' && Number.isFinite(point.valLoss)
-    ))
-    .map((point) => ({
-      epoch: point.epoch,
-      loss: point.valLoss,
-      series: 'val' as const,
-    }));
+  const train = toChartPoints(history, trainValue, 'train');
+  const validation = toChartPoints(history, validationValue, 'val');
   const points = [...train, ...validation];
   const firstEpoch = history[0]?.epoch ?? 0;
   const lastEpoch = history.at(-1)?.epoch ?? firstEpoch;
-  const maxLoss = niceMaximum(Math.max(0, ...points.map((point) => point.loss)));
+  const maximum = fixedMaximum ?? niceMaximum(
+    Math.max(0, ...points.map((point) => point.value)),
+  );
   const x = (epoch: number) => (
     PADDING
     + (lastEpoch === firstEpoch
@@ -48,33 +105,40 @@ export function LossHistoryChart({
         / (lastEpoch - firstEpoch)
         * (WIDTH - PADDING * 2))
   );
-  const y = (loss: number) => (
+  const y = (value: number) => (
     HEIGHT - PADDING
-    - loss / maxLoss * (HEIGHT - PADDING * 2)
+    - Math.max(0, Math.min(maximum, value))
+      / maximum
+      * (HEIGHT - PADDING * 2)
   );
   const yTicks = Array.from({ length: 6 }, (_, index) => (
-    maxLoss * index / 5
+    maximum * index / 5
   ));
-  const bestVal = validation.reduce<ChartPoint | null>((best, point) => (
-    !best || point.loss < best.loss ? point : best
-  ), null);
+  const bestValidation = validation.reduce<ChartPoint | null>(
+    (currentBest, point) => (
+      !currentBest || isBetter(point.value, currentBest.value, best)
+        ? point
+        : currentBest
+    ),
+    null,
+  );
   const seriesLabel = (series: ChartPoint['series']) => (
-    series === 'train' ? chartLabels.train : chartLabels.validation
+    series === 'train' ? labels.train : labels.validation
   );
 
   return (
-    <section className="training-loss-chart">
-      <div className="training-loss-chart-header">
-        <strong>{chartLabels.title}</strong>
+    <section className="training-metric-chart">
+      <div className="training-metric-chart-header">
+        <strong>{labels.title}</strong>
         <span>
           {history.length > 0
-            ? `${chartLabels.epoch} ${lastEpoch}`
-            : chartLabels.empty}
+            ? `${labels.epoch} ${lastEpoch}`
+            : labels.empty}
         </span>
       </div>
 
       <svg
-        aria-label={chartLabels.ariaTrainValidationHistory}
+        aria-label={labels.ariaTrainValidationHistory}
         role="img"
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
       >
@@ -109,29 +173,29 @@ export function LossHistoryChart({
           </g>
         ))}
 
-        {bestVal && (
+        {bestValidation && (
           <g className="training-chart-best">
             <line
               x1={PADDING}
-              x2={x(bestVal.epoch)}
-              y1={y(bestVal.loss)}
-              y2={y(bestVal.loss)}
+              x2={x(bestValidation.epoch)}
+              y1={y(bestValidation.value)}
+              y2={y(bestValidation.value)}
             />
             <line
-              x1={x(bestVal.epoch)}
-              x2={x(bestVal.epoch)}
-              y1={y(bestVal.loss)}
+              x1={x(bestValidation.epoch)}
+              x2={x(bestValidation.epoch)}
+              y1={y(bestValidation.value)}
               y2={HEIGHT - PADDING}
             />
-            <text x={PADDING - 10} y={y(bestVal.loss) - 5}>
-              {bestVal.loss.toFixed(3)}
+            <text x={PADDING - 10} y={y(bestValidation.value) - 5}>
+              {formatValue(bestValidation.value)}
             </text>
             <text
               className="training-chart-best-epoch"
-              x={x(bestVal.epoch)}
+              x={x(bestValidation.epoch)}
               y={HEIGHT - PADDING + 38}
             >
-              {chartLabels.best} {bestVal.epoch}
+              {labels.best} {bestValidation.epoch}
             </text>
           </g>
         )}
@@ -154,7 +218,7 @@ export function LossHistoryChart({
           <circle
             className="training-chart-hit"
             cx={x(point.epoch)}
-            cy={y(point.loss)}
+            cy={y(point.value)}
             key={`${point.series}-${point.epoch}`}
             onMouseEnter={() => setHovered(point)}
             onMouseLeave={() => setHovered(null)}
@@ -169,13 +233,13 @@ export function LossHistoryChart({
               y1={PADDING}
               y2={HEIGHT - PADDING}
             />
-            <circle cx={x(hovered.epoch)} cy={y(hovered.loss)} r="4" />
+            <circle cx={x(hovered.epoch)} cy={y(hovered.value)} r="4" />
           </g>
         )}
         {validation.map((point) => (
           <path
             className="training-chart-val-marker"
-            d={trianglePath(x(point.epoch), y(point.loss), 4)}
+            d={trianglePath(x(point.epoch), y(point.value), 4)}
             key={`marker-${point.epoch}`}
           />
         ))}
@@ -186,31 +250,54 @@ export function LossHistoryChart({
           className="training-chart-tooltip"
           style={{
             left: `${x(hovered.epoch) / WIDTH * 100}%`,
-            top: `${y(hovered.loss) / HEIGHT * 100}%`,
+            top: `${y(hovered.value) / HEIGHT * 100}%`,
           }}
         >
           <strong>{seriesLabel(hovered.series)}</strong>
-          <span>{chartLabels.epoch} {hovered.epoch}</span>
-          <span>{hovered.loss.toFixed(4)}</span>
+          <span>{labels.epoch} {hovered.epoch}</span>
+          <span>{formatValue(hovered.value)}</span>
         </div>
       )}
 
-      <div className="training-loss-chart-legend">
-        <span className="train">{chartLabels.train}</span>
-        <span className="validation">{chartLabels.validation}</span>
+      <div className="training-metric-chart-legend">
+        <span className="train">{labels.train}</span>
+        <span className="validation">{labels.validation}</span>
       </div>
     </section>
   );
 }
 
+function toChartPoints(
+  history: KnowledgeLossPoint[],
+  valueOf: (point: KnowledgeLossPoint) => number | null | undefined,
+  series: ChartPoint['series'],
+) {
+  return history.flatMap((point): ChartPoint[] => {
+    const value = valueOf(point);
+    return isFiniteNumber(value)
+      ? [{ epoch: point.epoch, value, series }]
+      : [];
+  });
+}
+
+function isBetter(
+  value: number,
+  currentBest: number,
+  direction: 'minimum' | 'maximum',
+) {
+  return direction === 'minimum'
+    ? value < currentBest
+    : value > currentBest;
+}
+
 function pathFor(
   points: ChartPoint[],
   x: (epoch: number) => number,
-  y: (loss: number) => number,
+  y: (value: number) => number,
 ) {
   return points.map((point, index) => (
     `${index === 0 ? 'M' : 'L'} ${x(point.epoch).toFixed(2)} ${
-      y(point.loss).toFixed(2)
+      y(point.value).toFixed(2)
     }`
   )).join(' ');
 }
@@ -230,8 +317,16 @@ function niceMaximum(value: number) {
   return Math.ceil(value / magnitude * 2) / 2 * magnitude;
 }
 
-function formatTick(value: number) {
+function formatLossTick(value: number) {
   return value >= 10 ? value.toFixed(0) : value.toFixed(2);
+}
+
+function formatAccuracyTick(value: number) {
+  return `${Math.round(value * 100)}%`;
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
 }
 
 function trianglePath(x: number, y: number, radius: number) {

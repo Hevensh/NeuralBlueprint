@@ -1,30 +1,19 @@
-export interface InferenceRepetitionAdaptationPoints {
-  small: number;
-  medium: number;
-  large: number;
-  extraLarge: number;
-  global: number;
-}
-
-export interface InferenceDistanceAdaptationPoints {
-  none: number;
-  short: number;
-  medium: number;
-  long: number;
-  global: number;
-}
-
-export interface InferenceAdaptationPoints {
-  repetition: InferenceRepetitionAdaptationPoints;
-  distance: InferenceDistanceAdaptationPoints;
-}
+import {
+  createSpatialAdaptationCapability,
+  flattenSpatialAdaptationCapability,
+  type SpatialAdaptationCapability,
+} from './SpatialAdaptationTypes';
+import {
+  EMPTY_TRAINING_RESOURCE_PROFILE,
+  type TrainingResourceProfile,
+} from './neuralBlueprint/analysis/trainingResources';
 
 export interface InferenceMemoryGroup {
   id: string;
   nodeIds: string[];
   inferenceStages: number[];
   memoryPoint: number;
-  adaptationPoints: InferenceAdaptationPoints;
+  adaptationCapability: SpatialAdaptationCapability;
   varianceLogDistance: number;
   nodeWeights: InferenceMemoryNodeWeight[];
   aggregationPairs: InferenceMemoryAggregationPair[];
@@ -48,24 +37,34 @@ export interface InferenceMemoryAggregationPair {
 export interface InferenceMemoryStageSegment {
   groupId: string;
   memoryPoint: number;
-  adaptationPoints: InferenceAdaptationPoints;
+  adaptationCapability: SpatialAdaptationCapability;
   ratio: number;
 }
 
 export interface InferenceMemoryStage {
   stage: number;
   memoryPoint: number;
-  adaptationPoints: InferenceAdaptationPoints;
+  adaptationCapability: SpatialAdaptationCapability;
   ratio: number;
   segments: InferenceMemoryStageSegment[];
 }
 
 export interface InferenceMemoryProfile {
   networkSignature: string;
+  pretrainingModules: InferencePretrainingModule[];
   totalMemoryPoint: number;
-  totalAdaptationPoints: InferenceAdaptationPoints;
+  totalAdaptationCapability: SpatialAdaptationCapability;
   groups: InferenceMemoryGroup[];
   stages: InferenceMemoryStage[];
+  trainingResources: TrainingResourceProfile;
+}
+
+export interface InferencePretrainingModule {
+  nodeId: string;
+  order: number;
+  memoryPointsPerDependency: number;
+  aggregationWeight: number;
+  inferenceStages: number[];
 }
 
 export interface InferenceMemoryModel {
@@ -79,25 +78,12 @@ export interface InferenceMemoryModel {
 
 export const EMPTY_INFERENCE_MEMORY_PROFILE: InferenceMemoryProfile = {
   networkSignature: '',
+  pretrainingModules: [],
   totalMemoryPoint: 0,
-  totalAdaptationPoints: {
-    repetition: {
-      small: 0,
-      medium: 0,
-      large: 0,
-      extraLarge: 0,
-      global: 0,
-    },
-    distance: {
-      none: 0,
-      short: 0,
-      medium: 0,
-      long: 0,
-      global: 0,
-    },
-  },
+  totalAdaptationCapability: createSpatialAdaptationCapability(),
   groups: [],
   stages: [],
+  trainingResources: EMPTY_TRAINING_RESOURCE_PROFILE,
 };
 
 export function getInferenceMemoryProfileSignature(
@@ -111,9 +97,7 @@ export function getInferenceMemoryProfileSignature(
       [
         group.id,
         group.memoryPoint,
-        ...Object.values(group.adaptationPoints.repetition)
-          .map(formatSignatureNumber),
-        ...Object.values(group.adaptationPoints.distance)
+        ...flattenSpatialAdaptationCapability(group.adaptationCapability)
           .map(formatSignatureNumber),
         group.inferenceStages.join(','),
         formatSignatureNumber(group.varianceLogDistance),

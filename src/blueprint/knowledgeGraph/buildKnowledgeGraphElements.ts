@@ -70,8 +70,8 @@ export function buildKnowledgeGraphElements(
         showMemoryPreview: true,
         showMetricPreview: true,
         showUtilityPreview: true,
-        showReceptiveFieldPreview: true,
-        showDistanceIndexPreview: true,
+        showScalePreview: true,
+        showIndexPreview: true,
         showGlobalDebugPreview: true,
         properties: {
           dataAmount: node.dataAmount,
@@ -171,8 +171,8 @@ export function buildKnowledgeGraphElements(
         showMemoryPreview: true,
         showMetricPreview: true,
         showUtilityPreview: true,
-        showReceptiveFieldPreview: true,
-        showDistanceIndexPreview: true,
+        showScalePreview: true,
+        showIndexPreview: true,
         showGlobalDebugPreview: true,
         properties: {
           requiredMemory: edge.properties.requiredMemory,

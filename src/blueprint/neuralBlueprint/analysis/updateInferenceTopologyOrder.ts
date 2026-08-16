@@ -21,11 +21,22 @@ export function updateInferenceTopologyOrders(nodes: ModuleBaseNode[]) {
       });
     }
 
+    const stageAdvance = data.kind === 'ReLU'
+      ? 1
+      : data.kind === 'ResNetStage'
+        ? 1
+        : 0;
     const inferenceTopologyOrder = data.inCycle
       ? new Set<number>()
       : new Set([...inheritedOrders].map(
-        (order) => order + Number(data.kind === 'ReLU'),
+        (order) => order + stageAdvance,
       ));
+
+    if (data.kind === 'ResNetStage') {
+      data.internalInferenceTopologyOrder = data.inCycle
+        ? new Set<number>()
+        : new Set(inheritedOrders);
+    }
 
     data.inferenceTopologyOrder = inferenceTopologyOrder;
     inferenceOrdersByNodeId.set(data.id, inferenceTopologyOrder);

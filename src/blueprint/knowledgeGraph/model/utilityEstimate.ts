@@ -33,7 +33,7 @@ type RawUtility = {
 };
 
 const EPS = 1e-9;
-const OVERFIT_WEIGHT = 0.1;
+const OVERFIT_WEIGHT = 0;
 
 export function estimateUtilityReport(
   graph: KnowledgeGraphDefinition,
@@ -53,6 +53,17 @@ export function estimateUtilityReport(
       ),
     ])) as Record<NodeId, RawUtility>
   ));
+  reasoning.stages.forEach((stage, index) => {
+    graph.depEdges.forEach((edge) => {
+      const sourceUtility = nodeStages[index][edge.source.id];
+      if (!sourceUtility) return;
+      const sourceGap = 1 - mastery(stage, edge.source);
+      const targetGap = 1 - mastery(stage, edge.target);
+      sourceUtility.adjacent += positive(
+        sourceGap * targetGap * (weights[edge.target.id] ?? 0),
+      );
+    });
+  });
   const rawStages = reasoning.stages.map((stage, index) => ({
       stage: stage.stage,
       nodes: nodeStages[index],

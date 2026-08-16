@@ -110,10 +110,9 @@ function toDesktopFile(stored: StoredDesktopFile): DesktopFile | null {
 
   const definition = definitionById.get(stored.id);
   if (!definition) return null;
-  const { initialPosition: _, ...fileDefinition } = definition;
 
   return {
-    ...fileDefinition,
+    ...createDesktopFileFromDefinition(definition),
     name: stored.nameOverride ?? definition.name,
     localizedNames: stored.nameOverride
       ? undefined

@@ -1,5 +1,8 @@
 import { NumberField } from '../../../NumberField';
-import { useLabels } from '../../../i18n/LanguageContext';
+import type { CSSProperties } from 'react';
+import { useLabels } from '../../../i18n/useLanguage';
+import { PropertyDropdown } from '../../../PropertyDropdown';
+import type { OptimizerKind } from '../../knowledgeGraph/model/types';
 import {
   ControlGrid,
   ControlSection,
@@ -9,12 +12,19 @@ export interface TrainingConfigurationControlsProps {
   disabled?: boolean;
   trainDisabled?: boolean;
   showAllocationButtons?: boolean;
+  optimizer: OptimizerKind;
   learningRate: number;
   regularizationRate: number;
-  trainSteps: number;
+  trainEpochs: number;
+  training: boolean;
+  trainingMinutes: number;
+  trainingMinutesPerEpoch: number;
+  trainingProgress: number;
+  trainingResourceError?: 'invalid-model' | 'insufficient-vram';
   onLearningRateChange: (value: number) => void;
+  onOptimizerChange: (value: OptimizerKind) => void;
   onRegularizationRateChange: (value: number) => void;
-  onTrainStepsChange: (value: number) => void;
+  onTrainEpochsChange: (value: number) => void;
   onTrain: () => void;
   onTransfer: () => void;
   onPerfect: () => void;
@@ -33,6 +43,18 @@ export function TrainingConfigurationControls(
       resetDisabled={props.disabled}
       resetLabel={labels.reset}
     >
+      <div className="property-field" title={labels.optimizerHint}>
+        <span className="property-label">{labels.optimizer}</span>
+        <PropertyDropdown<OptimizerKind>
+          disabled={props.disabled}
+          options={[
+            { label: 'SGD', value: 'sgd' },
+            { label: 'Adam', value: 'adam' },
+          ]}
+          value={props.optimizer}
+          onChange={props.onOptimizerChange}
+        />
+      </div>
       <ControlGrid>
         <NumberField
           label={`${labels.learningRate} (10^)`}
@@ -46,22 +68,33 @@ export function TrainingConfigurationControls(
         />
       </ControlGrid>
       <NumberField
-        guideTarget="training-train-steps"
-        label={labels.trainSteps}
+        guideTarget="training-train-epochs"
+        label={labels.trainEpochs}
         min={1}
-        value={props.trainSteps}
-        onChange={(value) => props.onTrainStepsChange(Math.max(1, Math.floor(value)))}
+        value={props.trainEpochs}
+        onChange={(value) => props.onTrainEpochsChange(Math.max(1, Math.floor(value)))}
       />
       <button
-        className="action-button"
+        className={`action-button training-action-button ${props.training ? 'training' : ''}`}
         data-guide-target="training-train-button"
         disabled={props.disabled || props.trainDisabled}
         onClick={props.onTrain}
-        title={props.trainDisabled ? labels.initializeBeforeTraining : undefined}
+        style={{
+          '--training-progress': `${Math.max(0, Math.min(1, props.trainingProgress)) * 100}%`,
+        } as CSSProperties}
+        title={getTrainDisabledTitle(props, labels)}
         type="button"
       >
-        {labels.train}
+        {props.training
+          ? `${labels.training} ${Math.round(props.trainingProgress * 100)}%`
+          : labels.train}
       </button>
+      <div className="training-duration-preview">
+        <span>{labels.epochDuration}</span>
+        <strong>{props.trainingMinutesPerEpoch} {labels.gameMinutes}</strong>
+        <span>{labels.totalDuration}</span>
+        <strong>{props.trainingMinutes} {labels.gameMinutes}</strong>
+      </div>
       {props.showAllocationButtons !== false && (
         <>
           <button
@@ -84,4 +117,17 @@ export function TrainingConfigurationControls(
       )}
     </ControlSection>
   );
+}
+
+function getTrainDisabledTitle(
+  props: TrainingConfigurationControlsProps,
+  labels: ReturnType<typeof useLabels>['knowledgeGraph']['controls']['trainingConfiguration'],
+) {
+  if (props.trainingResourceError === 'invalid-model') {
+    return labels.invalidModelResources;
+  }
+  if (props.trainingResourceError === 'insufficient-vram') {
+    return labels.insufficientVram;
+  }
+  return props.trainDisabled ? labels.initializeBeforeTraining : undefined;
 }

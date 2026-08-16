@@ -1,5 +1,8 @@
 import type { KnowledgeLossPoint } from '../knowledgeGraph/model/types';
-import { LossHistoryChart } from './LossHistoryChart';
+import {
+  AccuracyHistoryChart,
+  LossHistoryChart,
+} from './LossHistoryChart';
 import './TrainingProcess.css';
 
 export function TrainingProcessView({
@@ -9,7 +12,10 @@ export function TrainingProcessView({
 }) {
   return (
     <main className="canvas-wrap training-process-canvas">
-      <LossHistoryChart history={history} />
+      <div className="training-history-grid">
+        <LossHistoryChart history={history} />
+        <AccuracyHistoryChart history={history} />
+      </div>
     </main>
   );
 }

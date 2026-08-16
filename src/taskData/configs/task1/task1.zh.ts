@@ -79,9 +79,9 @@ export function createTask1GuideTextZh({
           title: '打开训练',
           hint: '切换到训练过程标签页。',
         },
-        setTrainSteps: {
-          title: '设置训练步数',
-          hint: `将训练步数设为 ${trainEpochs}。`,
+        setTrainEpochs: {
+          title: '设置训练轮数',
+          hint: `将训练轮数设为 ${trainEpochs}。`,
         },
         train: {
           title: '训练',

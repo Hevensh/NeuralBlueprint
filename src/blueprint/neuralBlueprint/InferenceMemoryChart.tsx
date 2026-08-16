@@ -5,14 +5,20 @@ import {
   type CSSProperties,
 } from 'react';
 import type {
-  InferenceDistanceAdaptationPoints,
   InferenceMemoryAggregationPair,
   InferenceMemoryProfile,
-  InferenceRepetitionAdaptationPoints,
   InferenceMemoryStageSegment,
 } from './analysis/inferenceMemoryProfile';
+import {
+  SPATIAL_AXES,
+  SPATIAL_BANDS,
+  type SpatialAdaptationCapability,
+  type SpatialAxis,
+  type SpatialAdaptationRoute,
+} from '../SpatialAdaptationTypes';
 import { PropertyDropdown } from '../../PropertyDropdown';
-import { useLabels } from '../../i18n/LanguageContext';
+import { useLabels } from '../../i18n/useLanguage';
+import { formatInferenceMemoryPoint } from './inferenceMemoryFormat';
 import './InferenceMemoryChart.css';
 
 const GROUP_COLORS = [
@@ -38,6 +44,10 @@ interface InferenceMemoryChartProps {
     } | null
   ) => void;
   profile: InferenceMemoryProfile;
+  showIndex?: boolean;
+  showMemory?: boolean;
+  showScale?: boolean;
+  spatialAxes?: SpatialAxis[];
 }
 
 export function InferenceMemoryChart({
@@ -46,6 +56,10 @@ export function InferenceMemoryChart({
   onModelChange,
   onActiveGroupFocusChange,
   profile,
+  showIndex = true,
+  showMemory = true,
+  showScale = true,
+  spatialAxes = [...SPATIAL_AXES],
 }: InferenceMemoryChartProps) {
   const labels = useLabels().neuralBlueprint.inferenceMemory;
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
@@ -90,25 +104,23 @@ export function InferenceMemoryChart({
     <section className="inference-memory-section">
       <header className="inference-memory-header">
         <span>{labels.title}</span>
-        <strong>
-          {labels.memory} {formatMemoryPoint(profile.totalMemoryPoint)}
-        </strong>
+        {showMemory && <strong>
+          {labels.memory} {formatInferenceMemoryPoint(profile.totalMemoryPoint)}
+        </strong>}
       </header>
 
-      <div className="inference-adaptation-summary">
-        <AdaptationPointRow
-          label={labels.repetition}
-          points={repetitionPointEntries(
-            profile.totalAdaptationPoints.repetition,
-          )}
+      {(showScale || showIndex) && spatialAxes.length > 0 && (
+        <div className="inference-adaptation-summary">
+        <SpatialCapabilityRows
+          axes={spatialAxes}
+          capability={profile.totalAdaptationCapability}
+          indexLabel={labels.index}
+          scaleLabel={labels.scale}
+          showIndex={showIndex}
+          showScale={showScale}
         />
-        <AdaptationPointRow
-          label={labels.distance}
-          points={distancePointEntries(
-            profile.totalAdaptationPoints.distance,
-          )}
-        />
-      </div>
+        </div>
+      )}
 
       {modelOptions.length > 1 && (
         <div className="property-panel">
@@ -126,7 +138,7 @@ export function InferenceMemoryChart({
         </div>
       )}
 
-      {profile.stages.length > 0 ? (
+      {showMemory && profile.stages.length > 0 ? (
         <>
           <div className="inference-memory-chart">
             {profile.stages.map((stage) => {
@@ -137,7 +149,7 @@ export function InferenceMemoryChart({
               return (
                 <div className="inference-memory-stage" key={stage.stage}>
                   <span className="inference-memory-stage-value">
-                    {formatMemoryPoint(stage.memoryPoint)}
+                    {formatInferenceMemoryPoint(stage.memoryPoint)}
                   </span>
                   <div className="inference-memory-bar-track">
                     <div
@@ -166,50 +178,55 @@ export function InferenceMemoryChart({
           </div>
 
           <div className="inference-memory-axis-label">{labels.axis}</div>
-          <div className="inference-memory-legend">
-            {profile.groups.map((group) => (
-              <button
-                className={[
-                  'inference-memory-legend-item',
-                  activeGroupId === group.id ? 'active' : '',
-                  selectedGroupId === group.id ? 'selected' : '',
-                  activeGroupId && activeGroupId !== group.id ? 'dimmed' : '',
-                ].filter(Boolean).join(' ')}
-                key={group.id}
-                onClick={() => toggleSelectedGroup(group.id)}
-                type="button"
-              >
-                <span
-                  className="inference-memory-swatch"
-                  style={{
-                    '--inference-memory-color': colorByGroupId.get(group.id),
-                  } as CSSProperties}
-                />
-                <span className="inference-memory-legend-stages">
-                  {formatStages(group.inferenceStages)}
-                </span>
-                <strong>
-                  {labels.memory} {formatMemoryPoint(group.memoryPoint)}
-                </strong>
+        </>
+      ) : showMemory && (
+        <div className="inference-memory-empty">{labels.empty}</div>
+      )}
+
+      {profile.groups.length > 0 && (
+        <div className="inference-memory-legend">
+          {profile.groups.map((group) => (
+            <button
+              className={[
+                'inference-memory-legend-item',
+                activeGroupId === group.id ? 'active' : '',
+                selectedGroupId === group.id ? 'selected' : '',
+                activeGroupId && activeGroupId !== group.id ? 'dimmed' : '',
+              ].filter(Boolean).join(' ')}
+              key={group.id}
+              onClick={() => toggleSelectedGroup(group.id)}
+              type="button"
+            >
+              <span
+                className="inference-memory-swatch"
+                style={{
+                  '--inference-memory-color': colorByGroupId.get(group.id),
+                } as CSSProperties}
+              />
+              <span className="inference-memory-legend-stages">
+                {formatStages(group.inferenceStages)}
+              </span>
+              {showMemory && <strong>
+                {labels.memory} {formatInferenceMemoryPoint(group.memoryPoint)}
+              </strong>}
+              {(showScale || showIndex) && spatialAxes.length > 0 && (
                 <div className="inference-memory-legend-resources">
-                  <AdaptationPointRow
-                    label={labels.repetition}
-                    points={repetitionPointEntries(
-                      group.adaptationPoints.repetition,
-                    )}
-                  />
-                  <AdaptationPointRow
-                    label={labels.distance}
-                    points={distancePointEntries(
-                      group.adaptationPoints.distance,
-                    )}
+                  <SpatialCapabilityRows
+                    axes={spatialAxes}
+                    capability={group.adaptationCapability}
+                    indexLabel={labels.index}
+                    scaleLabel={labels.scale}
+                    showIndex={showIndex}
+                    showScale={showScale}
                   />
                 </div>
-              </button>
-            ))}
-          </div>
-        </>
-      ) : (
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {!showMemory && profile.groups.length === 0 && (
         <div className="inference-memory-empty">{labels.empty}</div>
       )}
     </section>
@@ -230,7 +247,7 @@ function AdaptationPointRow({
         {points.map(([band, value]) => (
           <span className="inference-adaptation-point" key={band}>
             <small>{band}</small>
-            {formatMemoryPoint(value)}
+            {formatInferenceMemoryPoint(value)}
           </span>
         ))}
       </span>
@@ -238,28 +255,51 @@ function AdaptationPointRow({
   );
 }
 
-function repetitionPointEntries(
-  points: InferenceRepetitionAdaptationPoints,
-): Array<[string, number]> {
-  return [
-    ['S', points.small],
-    ['M', points.medium],
-    ['L', points.large],
-    ['XL', points.extraLarge],
-    ['G', points.global],
+function SpatialCapabilityRows({
+  axes,
+  capability,
+  indexLabel,
+  scaleLabel,
+  showIndex,
+  showScale,
+}: {
+  axes: SpatialAxis[];
+  capability: SpatialAdaptationCapability;
+  indexLabel: string;
+  scaleLabel: string;
+  showIndex: boolean;
+  showScale: boolean;
+}) {
+  const routes: SpatialAdaptationRoute[] = [
+    ...(showScale ? ['scale' as const] : []),
+    ...(showIndex ? ['index' as const] : []),
   ];
+
+  return axes.flatMap((axis) => (
+    routes.map((route) => (
+      <AdaptationPointRow
+        key={`${axis}-${route}`}
+        label={`${axisLabel(axis)} ${route === 'scale' ? scaleLabel : indexLabel}`}
+        points={spatialPointEntries(capability, axis, route)}
+      />
+    ))
+  ));
 }
 
-function distancePointEntries(
-  points: InferenceDistanceAdaptationPoints,
+function spatialPointEntries(
+  capability: SpatialAdaptationCapability,
+  axis: keyof SpatialAdaptationCapability,
+  route: SpatialAdaptationRoute,
 ): Array<[string, number]> {
-  return [
-    ['N', points.none],
-    ['S', points.short],
-    ['M', points.medium],
-    ['L', points.long],
-    ['G', points.global],
-  ];
+  const labels = ['S', 'M', 'L', 'XL', 'G'];
+  return SPATIAL_BANDS.map((band, index) => [
+    labels[index],
+    capability[axis][route][band],
+  ]);
+}
+
+function axisLabel(axis: keyof SpatialAdaptationCapability) {
+  return axis === 'time' ? 'T' : axis === 'height' ? 'H' : 'W';
 }
 
 function InferenceMemorySegment({
@@ -298,7 +338,7 @@ function InferenceMemorySegment({
         '--inference-memory-color': color,
         height: `${height}%`,
       } as CSSProperties}
-      title={`[${segment.groupId}] ${formatMemoryPoint(segment.memoryPoint)}`}
+      title={`[${segment.groupId}] ${formatInferenceMemoryPoint(segment.memoryPoint)}`}
       type="button"
     />
   );
@@ -306,11 +346,4 @@ function InferenceMemorySegment({
 
 function formatStages(stages: number[]) {
   return `[${stages.join(', ')}]`;
-}
-
-function formatMemoryPoint(value: number) {
-  return new Intl.NumberFormat('en-US', {
-    maximumFractionDigits: 1,
-    notation: value >= 1000 ? 'compact' : 'standard',
-  }).format(value);
 }

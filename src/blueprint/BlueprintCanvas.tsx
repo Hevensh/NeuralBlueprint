@@ -31,15 +31,30 @@ import {
   getInferenceMemoryProfileSignature,
   type InferenceMemoryProfile,
 } from './InferenceMemoryProfileTypes';
-import { useLanguage } from '../i18n/LanguageContext';
+import { useLanguage } from '../i18n/useLanguage';
 import type { TaskGuideStepInfo } from '../taskData/taskGuideTypes';
+import type { GameTime } from '../game/gameTypes';
+import { AcademicTimeIndicator } from '../time/AcademicTimeIndicator';
+import type { AppSettings } from '../dataStorage/appSettingsStorage';
+import { DesktopSettingsDialog } from '../desktop/DesktopSettingsDialog';
 
 interface BlueprintCanvasProp {
+  appSettings: AppSettings;
   file: DesktopFile;
+  gameTime: GameTime;
   closeFile: CloseFileType;
+  onAdvanceGameTime: (minutes: number) => void;
+  setAppSettings: (settings: AppSettings) => void;
 }
 
-export function BlueprintCanvas({ file, closeFile }: BlueprintCanvasProp) {
+export function BlueprintCanvas({
+  appSettings,
+  file,
+  gameTime,
+  closeFile,
+  onAdvanceGameTime,
+  setAppSettings,
+}: BlueprintCanvasProp) {
   const { labels, language } = useLanguage();
   const fileId = file.id;
   const features = resolveBlueprintTaskFeatureConfig(file.config);
@@ -50,6 +65,7 @@ export function BlueprintCanvas({ file, closeFile }: BlueprintCanvasProp) {
   const [activeWorkspace, setActiveWorkspace] = useState<BlueprintPageType>(
     () => getInitialWorkspace(features),
   );
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [visitedWorkspaces, setVisitedWorkspaces] = useState<BlueprintPageType[]>(
     () => [getInitialWorkspace(features)],
   );
@@ -98,6 +114,8 @@ export function BlueprintCanvas({ file, closeFile }: BlueprintCanvasProp) {
   const dataController = useBlueprintDataController({
     fileId,
     inferenceMemoryProfile,
+    onAdvanceGameTime,
+    waitForTraining: appSettings.waitForTraining,
   });
   const changeWorkspace = useCallback((workspace: BlueprintPageType) => {
     setActiveWorkspace(workspace);
@@ -113,12 +131,12 @@ export function BlueprintCanvas({ file, closeFile }: BlueprintCanvasProp) {
       ...trainingProcessSnapshot,
       modelInitialized: !dataController.trainingControls.trainDisabled,
       epoch: dataController.statistics.epoch,
-      trainSteps: dataController.trainingControls.trainSteps,
+      trainEpochs: dataController.trainingControls.trainEpochs,
     },
   }), [
     activeWorkspace,
     dataController.statistics.epoch,
-    dataController.trainingControls.trainSteps,
+    dataController.trainingControls.trainEpochs,
     dataController.trainingControls.trainDisabled,
     neuralBlueprintSnapshot,
     trainingProcessSnapshot,
@@ -189,12 +207,12 @@ export function BlueprintCanvas({ file, closeFile }: BlueprintCanvasProp) {
       completed,
       guideCompletedStepCount: completedStepCount,
     }));
-    if (completed && taskGuide?.completionInfo) {
-      openGuideCompletionInfo(getTaskProgressDotSource(
-        taskGuide.steps.at(-1)?.id,
-      ));
-    }
     const timer = window.setTimeout(() => {
+      if (completed && taskGuide?.completionInfo) {
+        openGuideCompletionInfo(getTaskProgressDotSource(
+          taskGuide.steps.at(-1)?.id,
+        ));
+      }
       setGuideCompletedStepCount(completedStepCount);
     }, 0);
     return () => window.clearTimeout(timer);
@@ -207,12 +225,6 @@ export function BlueprintCanvas({ file, closeFile }: BlueprintCanvasProp) {
     taskGuide?.steps,
     taskGuide?.steps.length,
   ]);
-  const title = {
-    [PageType.NeuralBlueprint]: labels.workspaceTabs.neuralBlueprint,
-    [PageType.KnowledgeGraph]: labels.workspaceTabs.knowledgeGraph,
-    [PageType.TrainingProcess]: labels.workspaceTabs.trainingProcess,
-  }[activeWorkspace];
-
   return (
     <div className="workspace blueprint-workspace">
       <header className="top-bar">
@@ -223,7 +235,17 @@ export function BlueprintCanvas({ file, closeFile }: BlueprintCanvasProp) {
           showKnowledgeGraphTab={features.knowledgeGraph.canOpenTab}
           onWorkspaceChange={changeWorkspace}
         />
-        <div className="title">{title}</div>
+        <div className="blueprint-top-bar-status">
+          <button
+            aria-label={labels.desktop.leftPanel.settings}
+            className="blueprint-settings-button"
+            onClick={() => setSettingsOpen(true)}
+            type="button"
+          >
+            ⚙
+          </button>
+          <AcademicTimeIndicator time={gameTime} />
+        </div>
       </header>
 
       <ReactFlowProvider key={activeWorkspace}>
@@ -260,6 +282,13 @@ export function BlueprintCanvas({ file, closeFile }: BlueprintCanvasProp) {
           />
         )}
       </ReactFlowProvider>
+      {settingsOpen && (
+        <DesktopSettingsDialog
+          appSettings={appSettings}
+          onClose={() => setSettingsOpen(false)}
+          setAppSettings={setAppSettings}
+        />
+      )}
 
       {taskGuide && (
         <TaskProgressBar

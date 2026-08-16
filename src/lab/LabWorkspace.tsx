@@ -9,7 +9,8 @@ import {
 import { exitApplication } from '../appActions';
 import { DesktopSettingsDialog } from '../desktop/DesktopSettingsDialog';
 import type { GameProgress } from '../game/gameTypes';
-import { useLanguage } from '../i18n/LanguageContext';
+import type { AppSettings } from '../dataStorage/appSettingsStorage';
+import { useLanguage } from '../i18n/useLanguage';
 import { AcademicTimeIndicator } from '../time/AcademicTimeIndicator';
 import { createCommonTableDecorations } from './decorations/decorationPlacement';
 import {
@@ -43,16 +44,20 @@ import { createLabWorkstationGeometry } from './labWorkstationGeometry';
 import { useLabSceneViewport } from './useLabSceneViewport';
 
 interface LabWorkspaceProps {
+  appSettings: AppSettings;
   gameProgress: GameProgress;
   setGameProgress: Dispatch<SetStateAction<GameProgress>>;
+  setAppSettings: (settings: AppSettings) => void;
   onOpenDesktop: () => void;
 }
 
 type LabNotice = 'whiteboard' | 'server' | 'bookshelf' | null;
 
 export function LabWorkspace({
+  appSettings,
   gameProgress,
   setGameProgress,
+  setAppSettings,
   onOpenDesktop,
 }: LabWorkspaceProps) {
   const { labels } = useLanguage();
@@ -81,7 +86,7 @@ export function LabWorkspace({
     ),
     [progress.generationSeed],
   );
-  const floorTiles = useMemo(createLabFloorTiles, []);
+  const floorTiles = useMemo(() => createLabFloorTiles(), []);
   const commonTableDecorations = useMemo(
     () => createCommonTableDecorations(progress.generationSeed),
     [progress.generationSeed],
@@ -301,6 +306,7 @@ export function LabWorkspace({
 
       {settingsOpen && (
         <DesktopSettingsDialog
+          appSettings={appSettings}
           developerActionDescription={labels.lab.decorationShowcaseNote}
           developerActionLabel={showDecorationShowcase
             ? labels.lab.hideDecorationShowcase
@@ -311,6 +317,7 @@ export function LabWorkspace({
           onResetCurrent={resetLaboratory}
           resetDescription={labels.desktop.settingsDialog.resetLabDescription}
           resetLabel={labels.desktop.settingsDialog.resetLab}
+          setAppSettings={setAppSettings}
         />
       )}
     </main>

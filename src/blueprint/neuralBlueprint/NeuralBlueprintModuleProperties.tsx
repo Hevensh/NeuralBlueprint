@@ -1,6 +1,6 @@
 import { NumberField } from '../../NumberField';
 import { PropertyDropdown } from '../../PropertyDropdown';
-import { useLabels } from '../../i18n/LanguageContext';
+import { useLabels } from '../../i18n/useLanguage';
 import type { AppLabelSet } from '../../i18n/label.en';
 import type {
   BiasInitializationMode,
@@ -8,12 +8,16 @@ import type {
   DropoutNodeData,
   InputNodeData,
   InputNormalizationMode,
+  FeatureNormalizationMode,
   LinearNodeData,
   LinearInitializationMode,
   ModuleNodeData,
   ModuleDimension,
   PoolMode,
   PoolingNodeData,
+  NormalizationNodeData,
+  PatchEmbeddingNodeData,
+  ResNetStageNodeData,
   ThreeDInputNodeData,
 } from './ModuleBaseNodeTypes';
 
@@ -66,9 +70,39 @@ export function NeuralBlueprintModuleProperties({
     );
   }
 
+  if (selectedNode.kind === 'ResNetStage') {
+    return (
+      <ResNetStageProperties
+        labels={labels}
+        node={selectedNode}
+        updateNode={updateSelectedNode}
+      />
+    );
+  }
+
+  if (selectedNode.kind === 'PatchEmbedding') {
+    return (
+      <PatchEmbeddingProperties
+        labels={labels}
+        node={selectedNode}
+        updateNode={updateSelectedNode}
+      />
+    );
+  }
+
   if (selectedNode.kind === 'Pooling') {
     return (
       <PoolingProperties labels={labels} node={selectedNode} updateNode={updateSelectedNode} />
+    );
+  }
+
+  if (selectedNode.kind === 'Normalization') {
+    return (
+      <NormalizationProperties
+        labels={labels}
+        node={selectedNode}
+        updateNode={updateSelectedNode}
+      />
     );
   }
 
@@ -124,18 +158,25 @@ function InputProperties({
       )}
 
       {node.kind === '3DInput' && (
-        <div className="property-field-pair">
-          <SpatialDimensionField
-            label={labels.height}
-            value={node.height}
-            onChange={(height) => updateNode(node, { height })}
+        <>
+          <OptionalSpatialDimensionField
+            label={labels.time}
+            value={node.time}
+            onChange={(time) => updateNode(node, { time })}
           />
-          <SpatialDimensionField
-            label={labels.width}
-            value={node.width}
-            onChange={(width) => updateNode(node, { width })}
-          />
-        </div>
+          <div className="property-field-pair">
+            <SpatialDimensionField
+              label={labels.height}
+              value={node.height}
+              onChange={(height) => updateNode(node, { height })}
+            />
+            <SpatialDimensionField
+              label={labels.width}
+              value={node.width}
+              onChange={(width) => updateNode(node, { width })}
+            />
+          </div>
+        </>
       )}
 
       <div className="property-field">
@@ -148,6 +189,30 @@ function InputProperties({
           value={node.normalizationMode}
           onChange={(normalizationMode) => updateNode(node, { normalizationMode })}
         />
+      </div>
+    </>
+  );
+}
+
+function PatchEmbeddingProperties({
+  labels,
+  node,
+  updateNode,
+}: {
+  labels: PropertyLabels;
+  node: PatchEmbeddingNodeData;
+  updateNode: UpdateSelectedNode;
+}) {
+  return (
+    <>
+      <LinearProperties labels={labels} node={node} updateNode={updateNode} />
+      <div className="property-field-pair">
+        <PositiveIntegerField label={labels.patchHeight} value={node.patchHeight} onChange={(patchHeight) => updateNode(node, { patchHeight })} />
+        <PositiveIntegerField label={labels.patchWidth} value={node.patchWidth} onChange={(patchWidth) => updateNode(node, { patchWidth })} />
+      </div>
+      <div className="property-field-pair">
+        <PositiveIntegerField label={labels.strideHeight} value={node.strideHeight} onChange={(strideHeight) => updateNode(node, { strideHeight })} />
+        <PositiveIntegerField label={labels.strideWidth} value={node.strideWidth} onChange={(strideWidth) => updateNode(node, { strideWidth })} />
       </div>
     </>
   );
@@ -169,6 +234,55 @@ function CNNProperties({
       <PositiveIntegerField label={labels.stride} value={node.stride} onChange={(stride) => updateNode(node, { stride })} />
       <NonNegativeIntegerField label={labels.padding} value={node.padding} onChange={(padding) => updateNode(node, { padding })} />
       <PositiveIntegerField label={labels.dilation} value={node.dilation} onChange={(dilation) => updateNode(node, { dilation })} />
+    </>
+  );
+}
+
+function ResNetStageProperties({
+  labels,
+  node,
+  updateNode,
+}: {
+  labels: PropertyLabels;
+  node: ResNetStageNodeData;
+  updateNode: UpdateSelectedNode;
+}) {
+  const isImageNetInitialized = node.pretrainingOrder > 0
+    && node.pretrainedDependencyMemoryPoints > 0;
+
+  return (
+    <>
+      {isImageNetInitialized ? (
+        <div className="property-field">
+          <span className="property-label">{labels.initialization}</span>
+          <div className="property-value">ImageNet</div>
+        </div>
+      ) : (
+        <LinearProperties labels={labels} node={node} updateNode={updateNode} />
+      )}
+      <PositiveIntegerField
+        label={labels.blockCount}
+        value={node.blockCount}
+        onChange={(blockCount) => updateNode(node, { blockCount })}
+      />
+      <PositiveIntegerField
+        label={labels.stride}
+        value={node.stride}
+        onChange={(stride) => updateNode(node, { stride })}
+      />
+      <NonNegativeIntegerField
+        label={labels.pretrainingOrder}
+        value={node.pretrainingOrder}
+        onChange={(pretrainingOrder) => updateNode(node, { pretrainingOrder })}
+      />
+      <NonNegativeIntegerField
+        label={labels.pretrainedDependencyMemoryPoints}
+        value={node.pretrainedDependencyMemoryPoints}
+        onChange={(pretrainedDependencyMemoryPoints) => updateNode(
+          node,
+          { pretrainedDependencyMemoryPoints },
+        )}
+      />
     </>
   );
 }
@@ -199,6 +313,30 @@ function PoolingProperties({
       <PositiveIntegerField label={labels.stride} value={node.stride} onChange={(stride) => updateNode(node, { stride })} />
       <NonNegativeIntegerField label={labels.padding} value={node.padding} onChange={(padding) => updateNode(node, { padding })} />
     </>
+  );
+}
+
+function NormalizationProperties({
+  labels,
+  node,
+  updateNode,
+}: {
+  labels: PropertyLabels;
+  node: NormalizationNodeData;
+  updateNode: UpdateSelectedNode;
+}) {
+  return (
+    <div className="property-field">
+      <span className="property-label">{labels.normalizationMode}</span>
+      <PropertyDropdown<FeatureNormalizationMode>
+        options={[
+          { label: labels.batchNorm, value: 'batch' },
+          { label: labels.layerNorm, value: 'layer' },
+        ]}
+        value={node.normalizationMode}
+        onChange={(normalizationMode) => updateNode(node, { normalizationMode })}
+      />
+    </div>
   );
 }
 
@@ -262,6 +400,48 @@ function SpatialDimensionField({
   );
 }
 
+function OptionalSpatialDimensionField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: ModuleDimension;
+  onChange: (value: ModuleDimension) => void;
+}) {
+  return (
+    <div className="property-field">
+      <span className="property-label">{label}</span>
+      <div className="dimension-field-input">
+        <NumberField
+          className="dimension-number-field"
+          key={typeof value === 'number' ? 'known' : value}
+          label={label}
+          min={1}
+          placeholder={value === 'unknown' ? '?' : '—'}
+          value={typeof value === 'number' ? value : undefined}
+          onClear={() => onChange('absent')}
+          onChange={(next) => onChange(Math.max(1, Math.round(next)))}
+        />
+        <button
+          className="dimension-state-button"
+          onClick={() => onChange(
+            value === 'absent'
+              ? 'unknown'
+              : value === 'unknown'
+                ? 1
+                : 'absent'
+          )}
+          title={`Change ${label} state`}
+          type="button"
+        >
+          {value === 'absent' ? '—' : value === 'unknown' ? '?' : '1'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function PositiveIntegerField({
   label,
   value,
@@ -292,7 +472,7 @@ function LinearProperties({
   updateNode,
 }: {
   labels: PropertyLabels;
-  node: LinearNodeData | CNNNodeData;
+  node: LinearNodeData | CNNNodeData | PatchEmbeddingNodeData | ResNetStageNodeData;
   updateNode: UpdateSelectedNode;
 }) {
   return (

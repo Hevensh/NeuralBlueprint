@@ -18,7 +18,27 @@ export type KnowledgeDataset = {
   enabled: boolean;
   color: string;
   splitRatio: DatasetSplitRatio;
+  /** Unique samples used for compute estimates; node amounts may overlap. */
+  sampleCount?: number;
   nodeDataAmounts: Record<NodeId, number>;
+  evaluation?: DatasetEvaluationProfile;
+  capacity?: DatasetCapacityProfile;
+};
+
+export type DatasetEvaluationProfile = {
+  classCount: number;
+  difficulty: number;
+  ceiling: number;
+  accuracyCurve?: 'power' | 'saturating';
+  curveStrength?: number;
+  curveExponent?: number;
+  learningEfficiency?: number;
+};
+
+export type DatasetCapacityProfile = {
+  optimalMemoryPoints?: number;
+  undercapacityLossScale?: number;
+  excessCapacityLossScale?: number;
 };
 
 export type KnowledgeDatasetCollection = {
@@ -38,6 +58,9 @@ export type DatasetSplitResult = {
   ratios: DatasetSplitRatio;
   nodes: Record<NodeId, NodeDatasetSplit>;
   totals: NodeDatasetSplit;
+  samples: NodeDatasetSplit;
+  evaluation?: DatasetEvaluationProfile;
+  capacity?: DatasetCapacityProfile;
 };
 
 const DATASET_COLORS = [
@@ -258,6 +281,17 @@ export function splitEnabledKnowledgeDatasets(
 
   enabled.forEach((dataset) => {
     const ratio = sanitizeRatio(dataset.splitRatio);
+    const sampleCount = Math.max(
+      0,
+      Math.floor(dataset.sampleCount ?? Object.values(
+        dataset.nodeDataAmounts,
+      ).reduce((sum, amount) => sum + Math.max(0, amount), 0)),
+    );
+    addSplit(result.samples, {
+      nodeId: 'samples',
+      total: sampleCount,
+      ...allocate(sampleCount, ratio),
+    });
     Object.values(graph.nodes).forEach((node) => {
       const total = Math.max(
         0,
@@ -272,7 +306,88 @@ export function splitEnabledKnowledgeDatasets(
       addSplit(result.totals, split);
     });
   });
+  const evaluated = enabled.filter((dataset) => dataset.evaluation);
+  if (evaluated.length > 0) {
+    const datasetWeight = (dataset: KnowledgeDataset) => (
+      Object.values(dataset.nodeDataAmounts).reduce(
+        (sum, amount) => sum + Math.max(0, amount),
+        0,
+      )
+    );
+    const totalWeight = evaluated.reduce(
+      (sum, dataset) => sum + datasetWeight(dataset),
+      0,
+    );
+    const weighted = (read: (profile: DatasetEvaluationProfile) => number) => (
+      evaluated.reduce((sum, dataset) => (
+        sum + read(dataset.evaluation!) * datasetWeight(dataset)
+      ), 0) / Math.max(1, totalWeight)
+    );
+    result.evaluation = {
+      classCount: Math.max(2, Math.round(weighted((profile) => profile.classCount))),
+      difficulty: Math.max(0.1, weighted((profile) => profile.difficulty)),
+      ceiling: Math.max(0, Math.min(1, weighted((profile) => profile.ceiling))),
+      accuracyCurve: dominantEvaluationProfile(evaluated).accuracyCurve,
+      curveStrength: Math.max(
+        0.1,
+        weighted((profile) => profile.curveStrength ?? profile.difficulty),
+      ),
+      curveExponent: Math.max(
+        0.1,
+        weighted((profile) => profile.curveExponent ?? 1),
+      ),
+      learningEfficiency: Math.max(
+        0.01,
+        weighted((profile) => profile.learningEfficiency ?? 1),
+      ),
+    };
+  }
+  const capacityDatasets = enabled.filter((dataset) => dataset.capacity);
+  if (capacityDatasets.length > 0) {
+    const datasetWeight = (dataset: KnowledgeDataset) => (
+      Object.values(dataset.nodeDataAmounts).reduce(
+        (sum, amount) => sum + Math.max(0, amount),
+        0,
+      )
+    );
+    const totalWeight = capacityDatasets.reduce(
+      (sum, dataset) => sum + datasetWeight(dataset),
+      0,
+    );
+    const weighted = (read: (profile: DatasetCapacityProfile) => number) => (
+      capacityDatasets.reduce((sum, dataset) => (
+        sum + read(dataset.capacity!) * datasetWeight(dataset)
+      ), 0) / Math.max(1, totalWeight)
+    );
+    result.capacity = {
+      optimalMemoryPoints: Math.max(
+        1,
+        weighted((profile) => profile.optimalMemoryPoints ?? 1),
+      ),
+      undercapacityLossScale: Math.max(
+        0,
+        weighted((profile) => profile.undercapacityLossScale ?? 0),
+      ),
+      excessCapacityLossScale: Math.max(
+        0,
+        weighted((profile) => profile.excessCapacityLossScale ?? 0),
+      ),
+    };
+  }
   return result;
+}
+
+function dominantEvaluationProfile(datasets: KnowledgeDataset[]) {
+  return [...datasets].sort((left, right) => (
+    Object.values(right.nodeDataAmounts).reduce(
+      (sum, amount) => sum + Math.max(0, amount),
+      0,
+    )
+    - Object.values(left.nodeDataAmounts).reduce(
+      (sum, amount) => sum + Math.max(0, amount),
+      0,
+    )
+  ))[0].evaluation!;
 }
 
 function allocate(total: number, ratio: DatasetSplitRatio) {
@@ -323,6 +438,7 @@ function emptySplit(
       ]),
     ),
     totals: { nodeId: 'total', total: 0, train: 0, val: 0, test: 0 },
+    samples: { nodeId: 'samples', total: 0, train: 0, val: 0, test: 0 },
   };
 }
 

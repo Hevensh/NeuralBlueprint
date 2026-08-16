@@ -2,8 +2,72 @@
   position: relative;
   z-index: 1;
   display: grid;
-  gap: 12px;
+  gap: 10px;
   margin-top: 16px;
+}
+
+.module-group {
+  border: 1px solid rgba(34, 211, 238, 0.18);
+  border-radius: 14px;
+  background: rgba(8, 47, 73, 0.16);
+  overflow: hidden;
+}
+
+.module-group.open {
+  padding-bottom: 10px;
+}
+
+.module-group-summary {
+  min-height: 38px;
+  width: 100%;
+  padding: 0 11px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: #bae6fd;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  border: 0;
+  background: transparent;
+  user-select: none;
+}
+
+.module-group-summary::before {
+  content: '›';
+  color: #67e8f9;
+  font-size: 16px;
+  transform: rotate(0deg);
+  transition: transform 0.16s ease;
+}
+
+.module-group.open > .module-group-summary::before {
+  transform: rotate(90deg);
+}
+
+.module-group-summary > span:first-child {
+  margin-right: auto;
+}
+
+.module-group-count {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(34, 211, 238, 0.12);
+  color: #94a3b8;
+  font-size: 10px;
+}
+
+.module-group-list {
+  display: grid;
+  gap: 10px;
+  padding: 0 10px;
 }
 
 .module-card {

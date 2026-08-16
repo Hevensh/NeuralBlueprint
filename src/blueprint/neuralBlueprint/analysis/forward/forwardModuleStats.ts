@@ -12,6 +12,9 @@ import { forwardPoolingStats } from './pool';
 import { readTensorShape, sameTensorShape } from './spatial';
 import { forwardFlattenStats } from './flatten';
 import { forwardGlobalPoolingStats } from './globalPooling';
+import { forwardPatchEmbeddingStats } from './patchEmbedding';
+import { forwardResNetStageStats } from './resNetStage';
+import { forwardNormalizationStats } from './normalization';
 import { aggregateForwardStats } from '../aggregation/forward';
 import { getInvalidInferenceStats } from './utils/moduleStats';
 
@@ -42,6 +45,24 @@ export function forwardModuleStats(
         ),
       };
     }
+    case 'ResNetStage': {
+      const stats = forwardResNetStageStats(context.node, input);
+      return {
+        stats: stats ?? getInvalidInferenceStats(
+          context.node,
+          'shape-mismatch',
+        ),
+      };
+    }
+    case 'PatchEmbedding': {
+      const stats = forwardPatchEmbeddingStats(context.node, input);
+      return {
+        stats: stats ?? getInvalidInferenceStats(
+          context.node,
+          'shape-mismatch',
+        ),
+      };
+    }
     case 'Pooling': {
       const stats = forwardPoolingStats(context.node, input);
       return {
@@ -51,6 +72,10 @@ export function forwardModuleStats(
         ),
       };
     }
+    case 'Normalization':
+      return {
+        stats: forwardNormalizationStats(input),
+      };
     case 'Flatten':
       return {
         stats: forwardFlattenStats(input),

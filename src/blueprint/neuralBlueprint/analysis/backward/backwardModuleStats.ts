@@ -10,6 +10,9 @@ import {
   backwardGlobalPoolingStats,
   backwardPoolingStats,
 } from './pooling';
+import { backwardPatchEmbeddingStats } from './patchEmbedding';
+import { backwardResNetStageStats } from './resNetStage';
+import { backwardNormalizationStats } from './normalization';
 
 export function backwardModuleStats(
   node: ModuleNodeData,
@@ -20,8 +23,14 @@ export function backwardModuleStats(
       return backwardLinearStats(node, gradient);
     case 'CNN':
       return backwardCNNStats(node, gradient);
+    case 'ResNetStage':
+      return backwardResNetStageStats(node, gradient);
+    case 'PatchEmbedding':
+      return backwardPatchEmbeddingStats(node, gradient);
     case 'Pooling':
       return backwardPoolingStats(node, gradient);
+    case 'Normalization':
+      return backwardNormalizationStats(gradient);
     case 'ReLU':
       return backwardReLUStats(node, gradient);
     case 'Dropout':

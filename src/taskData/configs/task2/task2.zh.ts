@@ -6,6 +6,7 @@ import type {
 export function createTask2GuideTextZh({
   trainEpochs,
   targetValLoss,
+  tunedHiddenDim,
   retryEpochs, 
 }: Task2GuideTextValues): Task2GuideText {
   return {
@@ -88,9 +89,9 @@ export function createTask2GuideTextZh({
           title: '初始化网络',
           hint: '点击 Initialize Model。',
         },
-        setTrainSteps: {
-          title: '设置训练步数',
-          hint: `将 Train Steps 设为 ${trainEpochs}。`,
+        setTrainEpochs: {
+          title: '设置训练轮数',
+          hint: `将 Train Epochs 设为 ${trainEpochs}。`,
         },
         train: {
           title: '训练',
@@ -107,7 +108,7 @@ export function createTask2GuideTextZh({
         hint: `增大第一个 Linear 的 Output Dim，重新训练，让 Best Val Loss 小于 ${targetValLoss}。`,
         info: {
           title: '更大的隐藏维度会给非线性拟合更多分段。',
-          body: '第一个 Linear 控制隐藏宽度。如果它太小，ReLU 能提供的弯折段数也会太少。增大它后重新训练，直到验证损失足够低。',
+          body: `第一个 Linear 控制隐藏宽度。宽度 64 的 Best Val Loss 会高于 1.0，128 约为 0.5，${tunedHiddenDim} 约为 0.3；继续增宽会因容量盈余开始过拟合。`,
         },
         selectFirstLinear: {
           title: '选择第一个 Linear',
@@ -119,7 +120,7 @@ export function createTask2GuideTextZh({
         },
         setOutputDim: {
           title: '增大 Output Dim',
-          hint: '增大这个 Linear 节点的 Output Dim。',
+          hint: `将这个 Linear 节点的 Output Dim 设为 ${tunedHiddenDim}。`,
         },
         initializeNetwork: {
           title: '重新初始化网络',

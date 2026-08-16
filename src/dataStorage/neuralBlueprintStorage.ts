@@ -49,7 +49,7 @@ export interface StoredNeuralBlueprintGraph {
   };
 }
 
-const NEURAL_BLUEPRINT_STORAGE_PREFIX = 'neuralBlueprint:';
+const NEURAL_BLUEPRINT_STORAGE_PREFIX = 'neuralBlueprint:v5:';
 
 function getStorageKey(fileId: string) {
   return `${NEURAL_BLUEPRINT_STORAGE_PREFIX}${fileId}`;
@@ -63,8 +63,15 @@ export function loadNeuralBlueprintGraph(
   const parsedGraph = raw ? parseStoredGraph(raw) : undefined;
   const graph = parsedGraph
     && (parsedGraph.nodes.length > 0 || initialGraph.nodes.length === 0)
+    && hasAllRequiredInitialNodes(parsedGraph, initialGraph)
     ? parsedGraph
     : initialGraph;
+  return createRuntimeNeuralBlueprintGraph(graph);
+}
+
+export function createRuntimeNeuralBlueprintGraph(
+  graph: StoredNeuralBlueprintGraph,
+) {
   const nodes = buildNodes(graph.nodes, graph.edges);
   const nodeIds = new Set(nodes.map((node) => node.id));
   const edges = graph.edges
@@ -76,6 +83,16 @@ export function loadNeuralBlueprintGraph(
     }));
 
   return { nodes, edges };
+}
+
+function hasAllRequiredInitialNodes(
+  graph: StoredNeuralBlueprintGraph,
+  initialGraph: StoredNeuralBlueprintGraph,
+) {
+  const nodeIds = new Set(graph.nodes.map((node) => node.id));
+  return initialGraph.nodes.every((node) => (
+    node.locked?.deletion !== true || nodeIds.has(node.id)
+  ));
 }
 
 function parseStoredGraph(raw: string): StoredNeuralBlueprintGraph {
@@ -134,6 +151,7 @@ function isStoredModuleNode(value: unknown): value is StoredModuleNode {
       return isInputConfig(config);
     case '3DInput':
       return isInputConfig(config)
+        && (config.time === undefined || isDimension(config.time))
         && isSpatialInputDimension(config.height)
         && isSpatialInputDimension(config.width);
     case 'Linear':
@@ -145,11 +163,26 @@ function isStoredModuleNode(value: unknown): value is StoredModuleNode {
         && isPositive(config.stride)
         && isNonNegative(config.padding)
         && isPositive(config.dilation);
+    case 'ResNetStage':
+      return isLearnedConfig(config)
+        && isPositive(config.blockCount)
+        && isPositive(config.stride)
+        && isNonNegative(config.pretrainingOrder)
+        && isNonNegative(config.pretrainedDependencyMemoryPoints);
+    case 'PatchEmbedding':
+      return isLearnedConfig(config)
+        && isPositive(config.patchHeight)
+        && isPositive(config.patchWidth)
+        && isPositive(config.strideHeight)
+        && isPositive(config.strideWidth);
     case 'Pooling':
       return isPoolMode(config.poolMode)
         && isPositive(config.kernelSize)
         && isPositive(config.stride)
         && isNonNegative(config.padding);
+    case 'Normalization':
+      return config.normalizationMode === 'batch'
+        || config.normalizationMode === 'layer';
     case 'GlobalPooling':
       return isPoolMode(config.poolMode);
     case 'Dropout':
@@ -353,6 +386,7 @@ function toStoredNode(node: ModuleBaseNode): StoredModuleNode {
           normalizationMode: node.data.normalizationMode,
           outFeatures: node.data.outFeatures,
           inputEffectiveRank: node.data.inputEffectiveRank,
+          time: node.data.time,
           height: node.data.height,
           width: node.data.width,
         },
@@ -384,6 +418,37 @@ function toStoredNode(node: ModuleBaseNode): StoredModuleNode {
           useBias: node.data.useBias,
         },
       };
+    case 'ResNetStage':
+      return {
+        ...base,
+        kind: 'ResNetStage',
+        config: {
+          initializationMode: node.data.initializationMode,
+          biasInitializationMode: node.data.biasInitializationMode,
+          outFeatures: node.data.outFeatures,
+          blockCount: node.data.blockCount,
+          stride: node.data.stride,
+          useBias: node.data.useBias,
+          pretrainingOrder: node.data.pretrainingOrder,
+          pretrainedDependencyMemoryPoints:
+            node.data.pretrainedDependencyMemoryPoints,
+        },
+      };
+    case 'PatchEmbedding':
+      return {
+        ...base,
+        kind: 'PatchEmbedding',
+        config: {
+          initializationMode: node.data.initializationMode,
+          biasInitializationMode: node.data.biasInitializationMode,
+          outFeatures: node.data.outFeatures,
+          patchHeight: node.data.patchHeight,
+          patchWidth: node.data.patchWidth,
+          strideHeight: node.data.strideHeight,
+          strideWidth: node.data.strideWidth,
+          useBias: node.data.useBias,
+        },
+      };
     case 'Pooling':
       return {
         ...base,
@@ -394,6 +459,12 @@ function toStoredNode(node: ModuleBaseNode): StoredModuleNode {
           stride: node.data.stride,
           padding: node.data.padding,
         },
+      };
+    case 'Normalization':
+      return {
+        ...base,
+        kind: 'Normalization',
+        config: { normalizationMode: node.data.normalizationMode },
       };
     case 'GlobalPooling':
       return {

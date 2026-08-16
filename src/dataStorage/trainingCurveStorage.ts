@@ -1,7 +1,7 @@
 import type { KnowledgeLossPoint } from '../blueprint/knowledgeGraph/model/types';
 import { appStorage } from './storageAdapter';
 
-const STORAGE_PREFIX = 'trainingCurves:v2:';
+const STORAGE_PREFIX = 'trainingCurves:v4:';
 
 export type TrainingCurveSnapshot = {
   id: string;

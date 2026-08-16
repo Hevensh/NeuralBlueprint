@@ -11,12 +11,31 @@ import {
   configTask2,
   createGuideTask2,
 } from './task2';
+import {
+  configCnnScaleBaseline,
+  configCnnScaleMultiSize,
+  configFileCnnScaleExperiment,
+} from './cnnScaleExperiments';
+import {
+  configFileTask3,
+  configTask3Pretrained,
+  configTask3Scratch,
+} from './task3';
 
-export { configFileTask1, configFileTask2 };
+export {
+  configFileCnnScaleExperiment,
+  configFileTask1,
+  configFileTask2,
+  configFileTask3,
+};
 
 export const TASK_FILE_CONFIGS: Record<string, TaskFileConfig> = {
   task1: configTask1,
   task2: configTask2,
+  cnn_scale12_baseline: configCnnScaleBaseline,
+  cnn_scale12_multisize: configCnnScaleMultiSize,
+  task3_cifar_scratch: configTask3Scratch,
+  task3_cifar_pretrained: configTask3Pretrained,
 };
 
 export const TASK_GUIDE_CONFIGS: Record<

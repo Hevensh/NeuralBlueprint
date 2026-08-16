@@ -2,7 +2,6 @@ import type {
   CNNNodeData,
   ModuleStats,
 } from '../../ModuleBaseNodeTypes';
-import { cnnRepetitionStats } from '../repetitionRank';
 import { createEmptyDistanceIndexRank } from '../distanceIndexRank';
 import { EPS, LINEAR_SATURATION_GAIN } from './utils/constants';
 import { negativeRateFromNormal } from './utils/math';
@@ -12,6 +11,10 @@ import {
   inferSpatialOutputShape,
   readTensorShape,
 } from './spatial';
+import {
+  advanceSpatialView,
+  spatialViewRepetitionStats,
+} from '../spatialView';
 
 export function forwardCNNStats(
   node: CNNNodeData,
@@ -52,6 +55,15 @@ export function forwardCNNStats(
     * weightVariance
     * (input.distribution.variance + input.distribution.mean ** 2)
     + biasVariance;
+  const spatialView = advanceSpatialView(input.spatialView, shape, {
+    kernel: { height: node.kernelSize, width: node.kernelSize },
+    reachKernel: {
+      height: node.dilation * (node.kernelSize - 1) + 1,
+      width: node.dilation * (node.kernelSize - 1) + 1,
+    },
+    stride: { height: node.stride, width: node.stride },
+    learned: true,
+  });
 
   return {
     status: 'valid',
@@ -72,12 +84,9 @@ export function forwardCNNStats(
       negativeRate: negativeRateFromNormal(mean, variance),
     },
     shape,
+    spatialView,
     adaptation: {
-      repetition: cnnRepetitionStats(
-        input,
-        effectiveRank,
-        node.kernelSize,
-      ),
+      repetition: spatialViewRepetitionStats(spatialView),
       distanceIndex: createEmptyDistanceIndexRank(),
     },
   };

@@ -111,3 +111,7 @@
       color-mix(in srgb, var(--knowledge-node-color) 34%, transparent);
 }
 
+.knowledge-adaptation-preview-row {
+  display: block;
+  white-space: nowrap;
+}

@@ -14,6 +14,7 @@ import {
 } from '../forward/spatial';
 import { DEFAULT_INPUT_STATS, EPS } from '../forward/utils/constants';
 import { estimateSumNegativeRate, isNonNegative } from '../forward/utils/math';
+import { mergeSpatialViews } from '../spatialView';
 import {
   getEmptyStats,
   getInvalidInferenceStats,
@@ -89,6 +90,9 @@ function aggregateForwardSumStats({
       ...sumRankState,
       status: 'valid',
       shape: mergeTensorShapes(validInputs.map(readTensorShape)),
+      spatialView: mergeSpatialViews(
+        validInputs.map((input) => input.spatialView),
+      ),
       adaptation: {
         repetition: maxRepetitionStats(
           validInputs,

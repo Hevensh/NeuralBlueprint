@@ -1,5 +1,5 @@
 import { memo, useMemo, type CSSProperties } from 'react';
-import { useLanguage } from '../i18n/LanguageContext';
+import { useLanguage } from '../i18n/useLanguage';
 import { LabDeskDecorations } from './decorations/LabDeskDecorations';
 import { createDeskDecorations } from './decorations/decorationPlacement';
 import { projectLabDepthGroup } from './labDepth';

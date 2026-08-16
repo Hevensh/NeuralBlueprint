@@ -38,6 +38,7 @@ export function forwardDropoutStats(
         saturation: 1,
       },
       shape: input.shape,
+      spatialView: input.spatialView,
       adaptation: {
         repetition: createEmptyRepetitionStats(),
         distanceIndex: createEmptyDistanceIndexRank(),
@@ -64,6 +65,7 @@ export function forwardDropoutStats(
       saturation,
     },
     shape: input.shape,
+    spatialView: input.spatialView,
     adaptation: {
       repetition: preserveRepetitionStats(input, effectiveRank),
       distanceIndex: createEmptyDistanceIndexRank(),
