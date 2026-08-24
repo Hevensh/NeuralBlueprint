@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import { createServer } from 'vite';
 
+const RESNET_STAGE_IDS = [
+  'cifar_res2', 'cifar_res3', 'cifar_res4', 'cifar_res5',
+];
+
 const server = await createServer({
   appType: 'custom',
   logLevel: 'error',
@@ -24,10 +28,57 @@ try {
     transferWeights: report.transferWeights,
     initialAllocated: report.initialAllocated,
     finalAllocated: report.finalAllocated,
+    edgeMemory: report.edgeMemory,
     valAccuracy: percent(report.valAccuracy),
     bestValAccuracy: percent(report.bestValAccuracy),
     peakVramMiB: report.peakVramMiB.toFixed(1),
     epochMinutes: report.epochMinutes,
+  })));
+
+  const selectedStageCases = [
+    ['res2-res3', ['cifar_res2', 'cifar_res3']],
+    ['res2-res4', ['cifar_res2', 'cifar_res4']],
+    ['res3-res4-res5', ['cifar_res3', 'cifar_res4', 'cifar_res5']],
+  ];
+  const selectedReports = selectedStageCases.flatMap(([label, stageIds]) => (
+    [false, true].map((pretrained) => runStageVariant(
+      modules,
+      stageIds,
+      pretrained,
+      label,
+    ))
+  ));
+  console.log('\nSelected ResNet stages');
+  console.table(selectedReports.map((report) => ({
+    selection: report.variant,
+    initialization: report.pretrained ? 'ImageNet' : 'scratch',
+    stages: report.stageIds.map(shortStageId).join(' -> '),
+    inferenceStages: report.inferenceStageCount,
+    capacity: report.capacity,
+    valAccuracy: percent(report.valAccuracy),
+    bestValAccuracy: percent(report.bestValAccuracy),
+  })));
+
+  const swappedStageCases = [
+    ['swap-res3-res4', [
+      'cifar_res2', 'cifar_res4', 'cifar_res3', 'cifar_res5',
+    ]],
+    ['swap-res4-res5', [
+      'cifar_res2', 'cifar_res3', 'cifar_res5', 'cifar_res4',
+    ]],
+  ];
+  const swappedReports = swappedStageCases.map(([label, stageIds]) => (
+    runStageVariant(modules, stageIds, true, label)
+  ));
+  console.log('\nSwapped ResNet stages');
+  console.table(swappedReports.map((report) => ({
+    order: report.variant,
+    stages: report.stageIds.map(shortStageId).join(' -> '),
+    capacity: report.capacity,
+    transferWeights: report.transferWeights,
+    edgeMemory: report.edgeMemory,
+    valAccuracy: percent(report.valAccuracy),
+    bestValAccuracy: percent(report.bestValAccuracy),
   })));
 
   const fullScratch = reports.find((report) => (
@@ -53,7 +104,12 @@ try {
       `Pretraining regressed the best ${stageCount}-stage checkpoint`,
     );
   }
-  assert.ok(reports.every((report) => report.peakVramMiB <= 1024));
+  assert.ok(
+    reports.every((report) => report.peakVramMiB <= 2560),
+    'ResNet prefix runs should remain within the task3 2.5 GiB recommendation',
+  );
+  assertSelectedStageCases(selectedReports, fullScratch, fullPretrained);
+  assertSwappedStageCases(swappedReports, fullPretrained);
 
   console.log('\nResNet prefix experiment completed.');
 } finally {
@@ -82,12 +138,21 @@ async function loadModules(vite) {
 }
 
 function runPrefix(modules, stageCount, pretrained) {
+  return runStageVariant(
+    modules,
+    RESNET_STAGE_IDS.slice(0, stageCount),
+    pretrained,
+    `prefix-${stageCount}`,
+  );
+}
+
+function runStageVariant(modules, stageIds, pretrained, variant) {
   const fileId = pretrained
     ? 'task3_cifar_pretrained'
     : 'task3_cifar_scratch';
   const initial = modules.task.getTaskFileInitialState(fileId);
   assert.ok(initial?.neuralBlueprint?.graph && initial.knowledgeGraph);
-  const storedGraph = prefixGraph(initial.neuralBlueprint.graph, stageCount);
+  const storedGraph = selectedStageGraph(initial.neuralBlueprint.graph, stageIds);
   const runtime = modules.storage.createRuntimeNeuralBlueprintGraph(storedGraph);
   const nodes = modules.update.updateState(runtime.nodes);
   const profile = modules.profile.buildInferenceMemoryProfile(nodes);
@@ -144,10 +209,15 @@ function runPrefix(modules, stageCount, pretrained) {
     dataset.samples.train,
     'sgd',
   );
+  const edgeMemory = graph.depEdges.reduce((sum, edge) => (
+    sum + modules.memoryOperations.readEntityTotalMemory(result.memory, edge)
+  ), 0);
 
   return {
+    variant,
     pretrained,
-    stageCount,
+    stageIds,
+    stageCount: stageIds.length,
     inferenceStageCount: profile.stages.length,
     capacity: profile.totalMemoryPoint,
     transferWeights: profile.pretrainingModules.map((module) => (
@@ -155,6 +225,7 @@ function runPrefix(modules, stageCount, pretrained) {
     )).join(','),
     initialAllocated,
     finalAllocated: modules.memoryOperations.totalAllocatedMemory(result.memory),
+    edgeMemory,
     valAccuracy: loss.graphValAccuracy,
     bestValAccuracy: Math.max(...result.lossHistory.map((point) => (
       Number.isFinite(point.valAccuracy) ? point.valAccuracy : -Infinity
@@ -164,12 +235,12 @@ function runPrefix(modules, stageCount, pretrained) {
   };
 }
 
-function prefixGraph(graph, stageCount) {
-  const stageIds = ['cifar_res2', 'cifar_res3', 'cifar_res4', 'cifar_res5']
-    .slice(0, stageCount);
+function selectedStageGraph(graph, stageIds) {
   const chainIds = [
     'cifar_input',
+    'cifar_resize',
     'cifar_stem',
+    'cifar_pool',
     ...stageIds,
     'cifar_global_pool',
     'cifar_classifier',
@@ -189,6 +260,55 @@ function prefixGraph(graph, stageCount) {
       target,
     })),
   };
+}
+
+function shortStageId(stageId) {
+  return stageId.replace('cifar_', '');
+}
+
+function assertSelectedStageCases(reports, fullScratch, fullPretrained) {
+  reports.forEach((report) => {
+    assert.equal(
+      report.inferenceStageCount,
+      report.stageCount + 1,
+      `${report.variant} should preserve one inference stage per retained block chain`,
+    );
+    assert.ok(
+      report.capacity < fullScratch.capacity,
+      `${report.variant} should have lower capacity than the full ResNet`,
+    );
+    if (report.pretrained) {
+      assert.ok(
+        report.valAccuracy <= fullPretrained.valAccuracy + 0.001,
+        `${report.variant} should not outperform the canonical pretrained model`,
+      );
+    }
+    assert.ok(
+      Number.isFinite(report.valAccuracy)
+        && Number.isFinite(report.bestValAccuracy),
+      `${report.variant} should produce finite validation metrics`,
+    );
+  });
+}
+
+function assertSwappedStageCases(reports, fullPretrained) {
+  reports.forEach((report) => {
+    assert.equal(report.stageCount, 4);
+    assert.equal(report.inferenceStageCount, fullPretrained.inferenceStageCount);
+    assert.ok(
+      Number.isFinite(report.valAccuracy)
+        && Number.isFinite(report.bestValAccuracy),
+      `${report.variant} should produce finite validation metrics`,
+    );
+    assert.ok(
+      report.valAccuracy <= fullPretrained.valAccuracy + 0.001,
+      `${report.variant} should not outperform the canonical stage order`,
+    );
+    assert.ok(
+      report.edgeMemory < fullPretrained.edgeMemory,
+      `${report.variant} should lose edge memory after stage-order mismatch`,
+    );
+  });
 }
 
 function percent(value) {

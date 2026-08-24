@@ -30,9 +30,11 @@ export function createDroppedModuleGroup(
       : `${kind}_${timestamp}_${stageNumber}`;
     const isPretrainedResNet = kind === 'ResNetStage'
       && palettePreset === 'pretrained-resnet-stage';
-    const name = kind === 'ResNetStage'
-      ? `ResNetStage ${stageNumber}`
-      : kind;
+    const name = isPretrainedResNet
+      ? `Pretrained ${stageNumber}`
+      : kind === 'ResNetStage'
+        ? `ResNetStage ${stageNumber}`
+        : kind;
     const data = createModuleNodeData(kind, {
       id,
       name,

@@ -26,6 +26,7 @@ interface InferenceMemorySelectorProps {
   showIndex: boolean;
   showMemory: boolean;
   showScale: boolean;
+  showVariance: boolean;
   spatialAxes: SpatialAxis[];
 }
 
@@ -38,6 +39,7 @@ export function InferenceMemorySelector({
   showIndex,
   showMemory,
   showScale,
+  showVariance,
   spatialAxes,
 }: InferenceMemorySelectorProps) {
   const labels = useLabels().neuralBlueprint.inferenceMemory;
@@ -64,6 +66,7 @@ export function InferenceMemorySelector({
           showIndex,
           showMemory,
           showScale,
+          showVariance,
         })}</span>
         <span>{open ? labels.hide : labels.show}</span>
       </button>
@@ -79,6 +82,7 @@ export function InferenceMemorySelector({
             showIndex={showIndex}
             showMemory={showMemory}
             showScale={showScale}
+            showVariance={showVariance}
             spatialAxes={spatialAxes}
           />
         </div>
@@ -93,12 +97,14 @@ function formatActiveAnalyses({
   showIndex,
   showMemory,
   showScale,
+  showVariance,
 }: {
   labels: ReturnType<typeof useLabels>['neuralBlueprint']['inferenceMemory'];
   profile: InferenceMemoryProfile;
   showIndex: boolean;
   showMemory: boolean;
   showScale: boolean;
+  showVariance: boolean;
 }) {
   return [
     showMemory
@@ -106,5 +112,6 @@ function formatActiveAnalyses({
       : null,
     showScale ? labels.scale : null,
     showIndex ? labels.index : null,
+    showVariance ? labels.variance : null,
   ].filter(Boolean).join(' · ');
 }

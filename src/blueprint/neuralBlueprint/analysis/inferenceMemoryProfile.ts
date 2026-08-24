@@ -11,6 +11,7 @@ import type {
   InferenceMemoryModel,
   InferenceMemoryProfile,
   InferenceMemoryStageSegment,
+  InferenceVarianceSummary,
 } from '../../InferenceMemoryProfileTypes';
 import type {
   SpatialAdaptationCapability,
@@ -110,7 +111,8 @@ export function buildInferenceMemoryProfile(
         adaptationCapability: floorSpatialCapability(
           stats.adaptationCapability,
         ),
-        varianceLogDistance: stats.varianceLogDistance,
+        variance: stats.variance,
+        varianceLogDistance: stats.variance.logDistance ?? 0,
         nodeWeights: stats.nodeWeights,
         aggregationPairs: stats.aggregationPairs,
       };
@@ -220,6 +222,7 @@ function computePretrainingAggregationWeights(
   groups: InferenceMemoryGroup[],
   nodes: ModuleNodeData[],
 ) {
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
   const transferByNodeId = new Map(nodes.flatMap((node) => (
     node.kind === 'ResNetStage'
       && node.pretrainingOrder > 0
@@ -253,7 +256,12 @@ function computePretrainingAggregationWeights(
           ? sum + Math.max(0, pair.rho)
           : sum;
       }, 0);
-      weights.set(nodeId, 1 / (1 + correlationSum));
+      const spatialResolutionFit = nodeById.get(nodeId)?.stats
+        ?.spatialResolutionFit ?? 1;
+      weights.set(
+        nodeId,
+        spatialResolutionFit / (1 + correlationSum),
+      );
     });
   });
   return weights;
@@ -311,6 +319,7 @@ function nodeConfigSignature(data: ModuleNodeData) {
         data.outFeatures,
         data.kernelSize,
         data.stride,
+        data.groups,
         data.padding,
         data.dilation,
         data.initializationMode,
@@ -392,12 +401,12 @@ export function computeInferenceGroupProfile(
 ) {
   const aggregation = computeGroupAggregation(nodes, allNodes);
   const nodeWeights = [...aggregation.weights.values()];
-  const normalizedWeights = normalizeNodeWeights(nodes, aggregation.weights);
+  const variance = weightedVarianceSummary(nodes, aggregation.weights);
 
   return {
     memoryPoint: weightedMemoryPoint(nodes, aggregation.weights),
     adaptationCapability: weightedSpatialCapability(nodes, allNodes),
-    varianceLogDistance: weightedVarianceLogDistance(nodes, normalizedWeights),
+    variance,
     nodeWeights,
     aggregationPairs: aggregation.pairs,
   };
@@ -453,7 +462,9 @@ function weightedSpatialCapability(
       const points = spatialViewAxisPoints(node.stats!.spatialView, axis);
       Object.entries(points).forEach(([band, value]) => {
         const key = band as keyof SpatialBandPoints;
-        capability[axis].scale[key] += sanitizePoint(value) * weight;
+        capability[axis].scale[key] += sanitizePoint(value)
+          * sanitizePoint(node.stats?.spatialResolutionFit ?? 1)
+          * weight;
       });
     });
   });
@@ -465,18 +476,62 @@ function weightedSpatialCapability(
   return capability;
 }
 
-function weightedVarianceLogDistance(
+function weightedVarianceSummary(
   nodes: TrainableNodeData[],
-  normalizedWeights: Map<string, number>,
-) {
-  return nodes.reduce((sum, node) => (
+  weights: Map<string, { weight: number }>,
+): InferenceVarianceSummary {
+  const validNodes = nodes.filter((node) => (
+    isNonNegativeFiniteNumber(node.stats?.distribution.variance)
+    && isNonNegativeFiniteNumber(node.statsBackward?.distribution.variance)
+  ));
+  if (validNodes.length === 0) {
+    return {
+      forwardStd: null,
+      backwardStd: null,
+      ratio: null,
+      logDistance: null,
+      validWeight: 0,
+    };
+  }
+
+  const normalizedWeights = normalizeNodeWeights(validNodes, weights);
+  const totalRawWeight = nodes.reduce(
+    (sum, node) => sum + Math.max(0, weights.get(node.id)?.weight ?? 1),
+    0,
+  );
+  const validRawWeight = validNodes.reduce(
+    (sum, node) => sum + Math.max(0, weights.get(node.id)?.weight ?? 1),
+    0,
+  );
+  const forwardVariance = validNodes.reduce((sum, node) => (
+    sum
+    + node.stats!.distribution.variance
+    * (normalizedWeights.get(node.id) ?? 0)
+  ), 0);
+  const backwardVariance = validNodes.reduce((sum, node) => (
+    sum
+    + node.statsBackward!.distribution.variance
+    * (normalizedWeights.get(node.id) ?? 0)
+  ), 0);
+  const logDistance = validNodes.reduce((sum, node) => (
     sum
     + computeVarianceLogDistance(
-      node.stats?.distribution.variance,
-      node.statsBackward?.distribution.variance,
+      node.stats!.distribution.variance,
+      node.statsBackward!.distribution.variance,
     )
     * (normalizedWeights.get(node.id) ?? 0)
   ), 0);
+  const ratio = forwardVariance === 0 && backwardVariance === 0
+    ? 1
+    : Math.max(1e-12, forwardVariance) / Math.max(1e-12, backwardVariance);
+
+  return {
+    forwardStd: Math.sqrt(Math.max(0, forwardVariance)),
+    backwardStd: Math.sqrt(Math.max(0, backwardVariance)),
+    ratio,
+    logDistance,
+    validWeight: totalRawWeight > 0 ? validRawWeight / totalRawWeight : 1,
+  };
 }
 
 function normalizeNodeWeights(
@@ -499,6 +554,10 @@ function normalizeNodeWeights(
       ? item.weight / totalWeight
       : fallbackWeight,
   ]));
+}
+
+function isNonNegativeFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
 }
 
 function collectConnectedNodeIslands(nodes: ModuleBaseNode[]) {

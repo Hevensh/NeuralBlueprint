@@ -162,19 +162,29 @@ function isStoredModuleNode(value: unknown): value is StoredModuleNode {
         && isPositive(config.kernelSize)
         && isPositive(config.stride)
         && isNonNegative(config.padding)
-        && isPositive(config.dilation);
+        && isPositive(config.dilation)
+        && (config.groups === undefined || isPositive(config.groups));
     case 'ResNetStage':
       return isLearnedConfig(config)
         && isPositive(config.blockCount)
         && isPositive(config.stride)
         && isNonNegative(config.pretrainingOrder)
-        && isNonNegative(config.pretrainedDependencyMemoryPoints);
+        && isNonNegative(config.pretrainedDependencyMemoryPoints)
+        && (config.referenceHeight === undefined
+          || isPositive(config.referenceHeight))
+        && (config.referenceWidth === undefined
+          || isPositive(config.referenceWidth));
     case 'PatchEmbedding':
       return isLearnedConfig(config)
         && isPositive(config.patchHeight)
         && isPositive(config.patchWidth)
         && isPositive(config.strideHeight)
         && isPositive(config.strideWidth);
+    case 'Resize':
+      return isPositive(config.targetHeight)
+        && isPositive(config.targetWidth)
+        && (config.interpolation === 'nearest'
+          || config.interpolation === 'bilinear');
     case 'Pooling':
       return isPoolMode(config.poolMode)
         && isPositive(config.kernelSize)
@@ -415,6 +425,7 @@ function toStoredNode(node: ModuleBaseNode): StoredModuleNode {
           stride: node.data.stride,
           padding: node.data.padding,
           dilation: node.data.dilation,
+          groups: node.data.groups,
           useBias: node.data.useBias,
         },
       };
@@ -428,6 +439,8 @@ function toStoredNode(node: ModuleBaseNode): StoredModuleNode {
           outFeatures: node.data.outFeatures,
           blockCount: node.data.blockCount,
           stride: node.data.stride,
+          referenceHeight: node.data.referenceHeight,
+          referenceWidth: node.data.referenceWidth,
           useBias: node.data.useBias,
           pretrainingOrder: node.data.pretrainingOrder,
           pretrainedDependencyMemoryPoints:
@@ -447,6 +460,16 @@ function toStoredNode(node: ModuleBaseNode): StoredModuleNode {
           strideHeight: node.data.strideHeight,
           strideWidth: node.data.strideWidth,
           useBias: node.data.useBias,
+        },
+      };
+    case 'Resize':
+      return {
+        ...base,
+        kind: 'Resize',
+        config: {
+          targetHeight: node.data.targetHeight,
+          targetWidth: node.data.targetWidth,
+          interpolation: node.data.interpolation,
         },
       };
     case 'Pooling':

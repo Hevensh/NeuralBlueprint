@@ -64,6 +64,19 @@ export function advanceSpatialView(
   };
 }
 
+export function resizeSpatialView(
+  input: SpatialViewStats,
+  outputShape: ModuleTensorShape,
+): SpatialViewStats {
+  // Resize establishes the model's new spatial coordinate system. The source
+  // image remains the same sample, but subsequent learned kernels operate on
+  // the resized grid (e.g. CIFAR-10 32 -> ImageNet-style 224).
+  return {
+    ...createSpatialViewFromShape(outputShape),
+    viewRank: input.viewRank,
+  };
+}
+
 export function createPatchFrame(
   view: SpatialViewStats,
   patchSize: Pick<Record<SpatialAxis, number>, 'height' | 'width'>,

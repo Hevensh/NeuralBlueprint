@@ -18,6 +18,8 @@ export const configFileTask3: BlueprintTaskFeatureConfig = {
     canOpenTab: true,
     availableModuleKinds: [
       'CNN',
+      'Resize',
+      'Pooling',
       'ResNetStage',
       'GlobalPooling',
       'Normalization',
@@ -72,37 +74,56 @@ function createResNet18Blueprint(
       deletable: false,
     },
     {
+      id: 'cifar_resize',
+      kind: 'Resize',
+      position: { x: 1, y: 0 },
+      name: 'Resize',
+      targetHeight: 224,
+      targetWidth: 224,
+      interpolation: 'bilinear',
+      deletable: false,
+    },
+    {
       id: 'cifar_stem',
       kind: 'CNN',
-      position: { x: 1, y: 0 },
+      position: { x: 2, y: 0 },
       outFeatures: 64,
-      kernelSize: 3,
-      stride: 1,
-      padding: 1,
+      kernelSize: 7,
+      stride: 2,
+      padding: 3,
       dilation: 1,
       useBias: false,
     },
-    createStage('cifar_res2', 2, 64, 1, 1, pretrained),
-    createStage('cifar_res3', 3, 64, 2, 2, pretrained),
-    createStage('cifar_res4', 4, 64, 2, 3, pretrained),
-    createStage('cifar_res5', 5, 64, 2, 4, pretrained),
+    {
+      id: 'cifar_pool',
+      kind: 'Pooling',
+      position: { x: 3, y: 0 },
+      poolMode: 'max',
+      kernelSize: 3,
+      stride: 2,
+      padding: 1,
+    },
+    createStage('cifar_res2', 4, 64, 1, 1, pretrained),
+    createStage('cifar_res3', 5, 64, 2, 2, pretrained),
+    createStage('cifar_res4', 6, 64, 2, 3, pretrained),
+    createStage('cifar_res5', 7, 64, 2, 4, pretrained),
     {
       id: 'cifar_global_pool',
       kind: 'GlobalPooling',
-      position: { x: 6, y: 0 },
+      position: { x: 8, y: 0 },
       poolMode: 'average',
     },
     {
       id: 'cifar_classifier',
       kind: 'Linear',
-      position: { x: 7, y: 0 },
+      position: { x: 9, y: 0 },
       outFeatures: CIFAR_CLASSES,
       useBias: true,
     },
     {
       id: 'cifar_output',
       kind: 'Output',
-      position: { x: 8, y: 0 },
+      position: { x: 10, y: 0 },
       neededOutputDim: CIFAR_CLASSES,
       deletable: false,
     },
@@ -127,12 +148,16 @@ function createStage(
 ): TaskModuleNodeConfig {
   return {
     id,
-    name: `ResNetStage ${pretrainingOrder}`,
+    name: pretrained
+      ? `Pretrained ${pretrainingOrder}`
+      : `ResNetStage ${pretrainingOrder}`,
     kind: 'ResNetStage',
     position: { x, y: 0 },
     outFeatures,
     blockCount: 2,
     stride,
+    referenceHeight: [56, 28, 14, 7][pretrainingOrder - 1],
+    referenceWidth: [56, 28, 14, 7][pretrainingOrder - 1],
     useBias: false,
     pretrainingOrder: pretrained
       ? pretrainingOrder
@@ -159,16 +184,16 @@ function createCifarKnowledgeGraph() {
   return {
     nodes,
     edges: [
-      dep('edge_orientation', 'local_texture'),
-      dep('color_contrast', 'local_texture'),
-      dep('edge_orientation', 'corner_parts'),
-      dep('local_texture', 'part_layout'),
-      dep('corner_parts', 'part_layout'),
-      dep('corner_parts', 'object_shape'),
-      dep('part_layout', 'object_shape'),
-      dep('object_shape', 'class_prototype'),
-      dep('color_contrast', 'background_context'),
-      dep('part_layout', 'background_context'),
+      dep('edge_orientation', 'local_texture', 'medium'),
+      dep('color_contrast', 'local_texture', 'medium'),
+      dep('edge_orientation', 'corner_parts', 'medium'),
+      dep('local_texture', 'part_layout', 'large'),
+      dep('corner_parts', 'part_layout', 'large'),
+      dep('corner_parts', 'object_shape', 'large'),
+      dep('part_layout', 'object_shape', 'large'),
+      dep('object_shape', 'class_prototype', 'extraLarge'),
+      dep('color_contrast', 'background_context', 'extraLarge'),
+      dep('part_layout', 'background_context', 'extraLarge'),
     ],
     datasets: [{
       id: 'cifar10',
@@ -224,7 +249,7 @@ function scaleRequirement(band: SpatialBand): AxisSpatialAdaptation {
   };
 }
 
-function dep(source: string, target: string) {
+function dep(source: string, target: string, band: SpatialBand) {
   return {
     kind: 'dependency' as const,
     source,
@@ -232,6 +257,10 @@ function dep(source: string, target: string) {
     requiredMemory: DEPENDENCY_MEMORY_REQUIREMENT,
     lambda: 1.6,
     overfitCoefficient: 1,
+    adaptationRequirements: {
+      height: scaleRequirement(band),
+      width: scaleRequirement(band),
+    },
   };
 }
 

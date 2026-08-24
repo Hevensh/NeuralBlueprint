@@ -6,9 +6,15 @@ import {
 } from 'react';
 import type {
   InferenceMemoryAggregationPair,
+  InferenceMemoryGroup,
   InferenceMemoryProfile,
   InferenceMemoryStageSegment,
 } from './analysis/inferenceMemoryProfile';
+import {
+  standardDeviationDisplayTone,
+  varianceRatioDisplayTone,
+  type VarianceDisplayTone,
+} from '../InferenceMemoryVariance';
 import {
   SPATIAL_AXES,
   SPATIAL_BANDS,
@@ -47,6 +53,7 @@ interface InferenceMemoryChartProps {
   showIndex?: boolean;
   showMemory?: boolean;
   showScale?: boolean;
+  showVariance?: boolean;
   spatialAxes?: SpatialAxis[];
 }
 
@@ -59,6 +66,7 @@ export function InferenceMemoryChart({
   showIndex = true,
   showMemory = true,
   showScale = true,
+  showVariance = false,
   spatialAxes = [...SPATIAL_AXES],
 }: InferenceMemoryChartProps) {
   const labels = useLabels().neuralBlueprint.inferenceMemory;
@@ -73,6 +81,7 @@ export function InferenceMemoryChart({
       GROUP_COLORS[index % GROUP_COLORS.length],
     ]),
   );
+  const groupById = new Map(profile.groups.map((group) => [group.id, group]));
   const maxStageMemoryPoint = Math.max(
     ...profile.stages.map((stage) => stage.memoryPoint),
     0,
@@ -164,7 +173,9 @@ export function InferenceMemoryChart({
                           onClick={() => toggleSelectedGroup(segment.groupId)}
                           segment={segment}
                           selected={selectedGroupId === segment.groupId}
+                          showVariance={showVariance}
                           stageMemoryPoint={stage.memoryPoint}
+                          variance={groupById.get(segment.groupId)?.variance}
                         />
                       ))}
                     </div>
@@ -206,6 +217,9 @@ export function InferenceMemoryChart({
               <span className="inference-memory-legend-stages">
                 {formatStages(group.inferenceStages)}
               </span>
+              {showVariance && (
+                <InferenceVarianceChips group={group} labels={labels} />
+              )}
               {showMemory && <strong>
                 {labels.memory} {formatInferenceMemoryPoint(group.memoryPoint)}
               </strong>}
@@ -308,14 +322,18 @@ function InferenceMemorySegment({
   onClick,
   segment,
   selected,
+  showVariance,
   stageMemoryPoint,
+  variance,
 }: {
   color: string;
   dimmed: boolean;
   onClick: () => void;
   segment: InferenceMemoryStageSegment;
   selected: boolean;
+  showVariance: boolean;
   stageMemoryPoint: number;
+  variance: InferenceMemoryGroup['variance'] | undefined;
 }) {
   const height = stageMemoryPoint > 0
     ? (segment.memoryPoint / stageMemoryPoint) * 100
@@ -338,10 +356,76 @@ function InferenceMemorySegment({
         '--inference-memory-color': color,
         height: `${height}%`,
       } as CSSProperties}
-      title={`[${segment.groupId}] ${formatInferenceMemoryPoint(segment.memoryPoint)}`}
+      title={[
+        `[${segment.groupId}] ${formatInferenceMemoryPoint(segment.memoryPoint)}`,
+        showVariance && variance
+          ? `Fσ ${formatVarianceValue(variance.forwardStd)}  Bσ ${formatVarianceValue(variance.backwardStd)}  F/B ${formatVarianceValue(variance.ratio)}`
+          : null,
+      ].filter(Boolean).join('\n')}
       type="button"
     />
   );
+}
+
+function InferenceVarianceChips({
+  group,
+  labels,
+}: {
+  group: InferenceMemoryGroup;
+  labels: ReturnType<typeof useLabels>['neuralBlueprint']['inferenceMemory'];
+}) {
+  const chips: Array<{
+    abbreviation: string;
+    label: string;
+    tone: VarianceDisplayTone;
+    value: number | null;
+  }> = [
+    {
+      abbreviation: 'Fσ',
+      label: labels.forwardStd,
+      tone: standardDeviationDisplayTone(group.variance.forwardStd),
+      value: group.variance.forwardStd,
+    },
+    {
+      abbreviation: 'Bσ',
+      label: labels.backwardStd,
+      tone: standardDeviationDisplayTone(group.variance.backwardStd),
+      value: group.variance.backwardStd,
+    },
+    {
+      abbreviation: 'F/B',
+      label: labels.varianceRatio,
+      tone: varianceRatioDisplayTone(group.variance.ratio),
+      value: group.variance.ratio,
+    },
+  ];
+
+  return (
+    <span className="inference-variance-chips">
+      {chips.map((chip) => (
+        <span
+          className={`inference-variance-chip tone-${chip.tone}`}
+          key={chip.abbreviation}
+          title={`${chip.label}: ${formatVarianceValue(chip.value)}`}
+        >
+          <small>{chip.abbreviation}</small>
+          <strong>{formatVarianceValue(chip.value)}</strong>
+        </span>
+      ))}
+    </span>
+  );
+}
+
+function formatVarianceValue(value: number | null | undefined) {
+  if (value === null || value === undefined || !Number.isFinite(value)) return '---';
+  if (value === 0) return '0';
+  const absoluteValue = Math.abs(value);
+  if (absoluteValue < 0.01 || absoluteValue >= 1000) {
+    return value.toExponential(1);
+  }
+  if (absoluteValue < 10) return value.toFixed(2);
+  if (absoluteValue < 100) return value.toFixed(1);
+  return value.toFixed(0);
 }
 
 function formatStages(stages: number[]) {

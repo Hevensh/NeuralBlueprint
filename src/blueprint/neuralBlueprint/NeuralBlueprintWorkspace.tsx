@@ -100,6 +100,7 @@ export function NeuralBlueprintWorkspace({
   const showInferenceIndex = effectiveShowDistanceIndexAnalysis
     && inferenceSpatialAxes.length > 0;
   const showInferenceMemorySelector = effectiveShowRankAnalysis
+    || effectiveShowVarianceAnalysis
     || showInferenceScale
     || showInferenceIndex;
 
@@ -142,6 +143,7 @@ export function NeuralBlueprintWorkspace({
             showIndex={showInferenceIndex}
             showMemory={effectiveShowRankAnalysis}
             showScale={showInferenceScale}
+            showVariance={effectiveShowVarianceAnalysis}
             spatialAxes={inferenceSpatialAxes}
           />
         ) : null}

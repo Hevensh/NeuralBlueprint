@@ -11,6 +11,12 @@ try {
   const { optimizerVarianceLearningFactor } = await server.ssrLoadModule(
     '/src/blueprint/knowledgeGraph/model/trainingSimulation.ts',
   );
+  const {
+    standardDeviationDisplayTone,
+    varianceRatioDisplayTone,
+  } = await server.ssrLoadModule(
+    '/src/blueprint/InferenceMemoryVariance.ts',
+  );
 
   const distances = [0, 1, 2, 3, 4];
   const rows = distances.map((varianceLogDistance) => ({
@@ -26,6 +32,20 @@ try {
   assert.equal(rows[2].sgd, 0.5);
   assert.ok(rows.every((row) => row.adam === 1));
   assert.equal(optimizerVarianceLearningFactor('adam', undefined), 1);
+  assert.equal(standardDeviationDisplayTone(1), 'stable');
+  assert.equal(standardDeviationDisplayTone(0.5), 'stable');
+  assert.equal(standardDeviationDisplayTone(0.1), 'warning');
+  assert.equal(standardDeviationDisplayTone(10), 'warning');
+  assert.equal(standardDeviationDisplayTone(0.01), 'danger');
+  assert.equal(standardDeviationDisplayTone(100), 'danger');
+  assert.equal(standardDeviationDisplayTone(null), 'unknown');
+  assert.equal(varianceRatioDisplayTone(0.5), 'stable');
+  assert.equal(varianceRatioDisplayTone(1), 'stable');
+  assert.equal(varianceRatioDisplayTone(10), 'warning');
+  assert.equal(varianceRatioDisplayTone(0.1), 'warning');
+  assert.equal(varianceRatioDisplayTone(100), 'danger');
+  assert.equal(varianceRatioDisplayTone(0.01), 'danger');
+  assert.equal(varianceRatioDisplayTone(null), 'unknown');
 
   console.table(rows.map((row) => ({
     logVarianceGap: row.varianceLogDistance,

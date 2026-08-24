@@ -74,7 +74,18 @@ export function forwardResNetStageStats(
   }
 
   node.internalConvs = internalConvs;
-  return current;
+  const spatialResolutionFit = stageResolutionFit(node, current);
+  return {
+    ...current,
+    spatialResolutionFit,
+    adaptation: {
+      ...current.adaptation,
+      repetition: scaleRepetitionStats(
+        current.adaptation.repetition,
+        spatialResolutionFit,
+      ),
+    },
+  };
 }
 
 function runInternalConv(
@@ -94,6 +105,7 @@ function runInternalConv(
     stride,
     padding: Math.floor(kernelSize / 2),
     dilation: 1,
+    groups: 1,
   } as CNNNodeData;
   const convolutionStats = forwardCNNStats(config, input);
   if (!convolutionStats) return null;
@@ -163,4 +175,54 @@ function knownChannels(stats: ModuleStats) {
   return typeof stats.shape.channels === 'number'
     ? stats.shape.channels
     : Math.max(1, Math.round(stats.rank.outputRank));
+}
+
+function stageResolutionFit(
+  node: ResNetStageNodeData,
+  output: ModuleStats,
+) {
+  const actualHeight = numericDimension(output.shape.height);
+  const actualWidth = numericDimension(output.shape.width);
+  const referenceHeight = numericDimension(node.referenceHeight);
+  const referenceWidth = numericDimension(node.referenceWidth);
+  if (
+    actualHeight === undefined
+    || actualWidth === undefined
+    || referenceHeight === undefined
+    || referenceWidth === undefined
+  ) return 1;
+
+  const heightDistance = Math.abs(Math.log2(actualHeight / referenceHeight));
+  const widthDistance = Math.abs(Math.log2(actualWidth / referenceWidth));
+  const meanDistance = (heightDistance + widthDistance) / 2;
+  return 1 / (1 + 0.35 * meanDistance);
+}
+
+function scaleRepetitionStats(
+  repetition: ModuleStats['adaptation']['repetition'],
+  factor: number,
+) {
+  const scale = (value: number) => value * factor;
+  return {
+    potential: {
+      small: scale(repetition.potential.small),
+      medium: scale(repetition.potential.medium),
+      large: scale(repetition.potential.large),
+      extraLarge: scale(repetition.potential.extraLarge),
+      global: scale(repetition.potential.global),
+    },
+    effective: {
+      small: scale(repetition.effective.small),
+      medium: scale(repetition.effective.medium),
+      large: scale(repetition.effective.large),
+      extraLarge: scale(repetition.effective.extraLarge),
+      global: scale(repetition.effective.global),
+    },
+  };
+}
+
+function numericDimension(value: number | 'unknown' | 'absent' | undefined) {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? Math.max(1, value)
+    : undefined;
 }

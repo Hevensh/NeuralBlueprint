@@ -80,6 +80,8 @@ try {
     ['task2', (graph) => task2Blueprint(graph, 512), 100, 'task2_512'],
     ['task3_cifar_scratch', undefined, 100],
     ['task3_cifar_pretrained', undefined, 100],
+    ['task4_mobilenet_scratch', undefined, 100],
+    ['task4_mobilenet_multiscale', undefined, 100],
   ];
   const reports = scenarios.map(([fileId, customize, epochs, label]) => (
     runScenario(dependencies, fileId, customize, epochs, label)
@@ -104,7 +106,104 @@ try {
     edgeMemory: report.edgeMemory,
   })));
 
+  const resolutionReports = [32, 128, 224, 384].map((size) => {
+    const report = runScenario(
+      dependencies,
+      'task3_cifar_pretrained',
+      (graph) => resizeTask3Blueprint(graph, size),
+      100,
+      `task3_pretrained_resize_${size}`,
+    );
+    const spatialGroups = report.profile.groups.filter((group) => (
+      Object.values(group.adaptationCapability.height.scale)
+        .some((value) => value > 0)
+    ));
+    const finalGroup = spatialGroups.at(-1);
+    return {
+      resize: `${size} x ${size}`,
+      stageSpatialFits: report.stageSpatialFits,
+      stageFit: report.stageSpatialFits
+        .map(({ fit }) => fit.toFixed(3)).join('/'),
+      rawValAccuracyValue: report.loss.graphValAccuracy,
+      rawValAccuracy: percent(report.loss.graphValAccuracy),
+      edgeMemory: report.edgeMemory,
+      finalAllocated: report.finalAllocatedMemory,
+      finalScale: finalGroup
+        ? Object.values(finalGroup.adaptationCapability.height.scale)
+          .map((value) => value.toFixed(2)).join('/')
+        : 'N/A',
+    };
+  });
+  console.log('\nCIFAR-10 resize propagation through ResNet stages and edge memory');
+  console.table(resolutionReports.map((report) => {
+    const { stageSpatialFits, rawValAccuracyValue, ...visibleReport } = report;
+    return visibleReport;
+  }));
+
+  const mobileNetResolutionReports = [32, 128, 224, 384].map((size) => {
+    const report = runScenario(
+      dependencies,
+      'task4_mobilenet_scratch',
+      (graph) => resizeBlueprint(graph, 'mobilenet_resize', size),
+      100,
+      `task4_mobilenet_resize_${size}`,
+    );
+    return {
+      resize: `${size} x ${size}`,
+      rawValAccuracyValue: report.loss.graphValAccuracy,
+      rawValAccuracy: percent(report.loss.graphValAccuracy),
+      stages: report.profile.stages.length,
+      memory: report.profile.totalMemoryPoint,
+      edgeMemory: report.edgeMemory,
+      finalAllocated: report.finalAllocatedMemory,
+    };
+  });
+  const mobileNetVariants = [
+    runScenario(
+      dependencies,
+      'task4_mobilenet_scratch',
+      undefined,
+      100,
+      'task4_mobilenet_standard',
+    ),
+    runScenario(
+      dependencies,
+      'task4_mobilenet_multiscale',
+      undefined,
+      100,
+      'task4_mobilenet_multiscale',
+    ),
+  ];
+  console.log('\nMobileNet multi-scale propagation');
+  console.table(mobileNetResolutionReports);
+  console.table(mobileNetVariants.map((report) => ({
+    variant: report.fileId,
+    valAccuracy: percent(report.loss.graphValAccuracy),
+    bestValAccuracy: percent(report.bestValAccuracy),
+    stages: report.profile.stages.length,
+    memory: report.profile.totalMemoryPoint,
+    edgeMemory: report.edgeMemory,
+    finalAllocated: report.finalAllocatedMemory,
+  })));
+
+  const nativeScratch = runScenario(
+    dependencies,
+    'task3_cifar_scratch',
+    (graph) => resizeTask3Blueprint(graph, 32),
+    100,
+    'task3_cifar_native_32',
+  );
+  console.log(
+    `Native CIFAR-10 32 x 32 scratch validation accuracy: ${percent(nativeScratch.loss.graphValAccuracy)}`,
+  );
+
   assertScenarioBaselines(reports);
+  assert.ok(
+    between(nativeScratch.loss.graphValAccuracy, 0.76, 0.83),
+    'Native CIFAR-10 32 x 32 baseline left the expected 80% band',
+  );
+  assertResolutionPreference(resolutionReports);
+  assertMobileNetReports(mobileNetResolutionReports, mobileNetVariants);
   console.log('\nAll task training benchmark assertions passed.');
 
   for (const report of process.argv.includes('--verbose') ? reports : []) {
@@ -140,6 +239,12 @@ function runScenario(
     : initial.neuralBlueprint.graph;
   const runtime = dependencies.createRuntimeNeuralBlueprintGraph(storedGraph);
   const nodes = dependencies.updateState(runtime.nodes);
+  const stageSpatialFits = nodes
+    .filter((node) => node.data.kind === 'ResNetStage')
+    .map((node) => ({
+      id: node.data.id,
+      fit: node.data.stats?.spatialResolutionFit ?? 1,
+    }));
   const profile = dependencies.buildInferenceMemoryProfile(nodes);
   const graph = initial.knowledgeGraph.graphDefinition;
   let memory = dependencies.createKnowledgeGraphMemory(graph, 1200, 3);
@@ -226,6 +331,7 @@ function runScenario(
     initialAllocatedMemory,
     finalAllocatedMemory: dependencies.totalAllocatedMemory(result.memory),
     profile,
+    stageSpatialFits,
     loss,
     nodes: knowledgeNodes,
     stageTrace,
@@ -310,6 +416,8 @@ function modelLabel(fileId) {
     task2_512: 'Linear(512)-ReLU-Linear(2)',
     task3_cifar_scratch: 'ResNet-18 scratch',
     task3_cifar_pretrained: 'ResNet-18 ImageNet',
+    task4_mobilenet_scratch: 'MobileNet standard',
+    task4_mobilenet_multiscale: 'MobileNet multi-scale',
   }[fileId] ?? fileId;
 }
 
@@ -345,6 +453,91 @@ function task2Blueprint(graph, hiddenDim) {
       'task2_output',
     ]),
   };
+}
+
+function resizeTask3Blueprint(graph, size) {
+  return resizeBlueprint(graph, 'cifar_resize', size);
+}
+
+function resizeBlueprint(graph, resizeId, size) {
+  return {
+    ...graph,
+    nodes: graph.nodes.map((node) => node.id === resizeId
+      ? {
+          ...node,
+          config: {
+            ...node.config,
+            targetHeight: size,
+            targetWidth: size,
+          },
+        }
+      : node),
+  };
+}
+
+function assertMobileNetReports(resolutionReports, variants) {
+  const bySize = new Map(resolutionReports.map((report) => [
+    Number.parseInt(report.resize, 10),
+    report,
+  ]));
+  const native = bySize.get(32);
+  const canonical = bySize.get(224);
+  const standard = variants.find((report) => (
+    report.fileId === 'task4_mobilenet_standard'
+  ));
+  const multiScale = variants.find((report) => (
+    report.fileId === 'task4_mobilenet_multiscale'
+  ));
+  assert.ok(native && canonical && standard && multiScale);
+  assert.ok(
+    resolutionReports.every((report) => (
+      Number.isFinite(report.rawValAccuracyValue)
+    )),
+    'MobileNet representative-block resize reports should be finite',
+  );
+  assert.ok(
+    Number.isFinite(canonical.rawValAccuracyValue),
+    'MobileNet 224 x 224 representative-block validation accuracy should be finite',
+  );
+  assert.ok(
+    multiScale.profile.trainingResources.parameterCount
+      > standard.profile.trainingResources.parameterCount,
+    'MobileNet multi-scale should carry the expected larger depthwise kernels',
+  );
+}
+
+function assertResolutionPreference(reports) {
+  const bySize = new Map(reports.map((report) => [
+    Number.parseInt(report.resize, 10),
+    report,
+  ]));
+  const native = bySize.get(32);
+  const medium = bySize.get(128);
+  const optimal = bySize.get(224);
+  const oversized = bySize.get(384);
+  assert.ok(native && medium && optimal && oversized);
+  assert.ok(
+    optimal.edgeMemory > native.edgeMemory + 100,
+    'The native 32 x 32 path should receive less edge memory after spatial fitting',
+  );
+  assert.ok(
+    optimal.finalAllocated > medium.finalAllocated
+      && optimal.finalAllocated > oversized.finalAllocated,
+    'The 224 x 224 path should retain the most allocated memory',
+  );
+  assert.ok(
+    optimal.rawValAccuracyValue >= medium.rawValAccuracyValue
+      && optimal.rawValAccuracyValue >= oversized.rawValAccuracyValue,
+    'The 224 x 224 path should achieve the best raw validation accuracy',
+  );
+  assert.ok(
+    optimal.stageSpatialFits.every((stage) => Math.abs(stage.fit - 1) < 1e-9),
+    'The 224 x 224 path should match every ResNet stage reference grid',
+  );
+  assert.ok(
+    native.stageSpatialFits.some((stage) => stage.fit < 0.7),
+    'The native 32 x 32 path should expose a spatial-fit penalty in ResNet stages',
+  );
 }
 
 function storedLinear(id, outFeatures, x, y) {

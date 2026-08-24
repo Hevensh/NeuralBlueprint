@@ -34,6 +34,7 @@ export const MODULE_DEFINITIONS = [
   { kind: 'CNN', icon: 'C', paletteGroup: 'layers' },
   { kind: 'ResNetStage', icon: 'Res', paletteGroup: 'networks' },
   { kind: 'PatchEmbedding', icon: 'PE', paletteGroup: 'shape' },
+  { kind: 'Resize', icon: 'RS', paletteGroup: 'shape' },
   { kind: 'Pooling', icon: 'P', paletteGroup: 'shape' },
   { kind: 'Normalization', icon: 'N', paletteGroup: 'layers' },
   { kind: 'Flatten', icon: 'F', paletteGroup: 'shape' },

@@ -23,6 +23,9 @@ try {
   const { forwardPatchEmbeddingStats } = await server.ssrLoadModule(
     '/src/blueprint/neuralBlueprint/analysis/forward/patchEmbedding.ts',
   );
+  const { forwardResizeStats } = await server.ssrLoadModule(
+    '/src/blueprint/neuralBlueprint/analysis/forward/resize.ts',
+  );
   const { forwardLinearStats } = await server.ssrLoadModule(
     '/src/blueprint/neuralBlueprint/analysis/forward/linear.ts',
   );
@@ -47,6 +50,10 @@ try {
     forwardInputStats,
     forwardLinearStats,
     forwardPatchEmbeddingStats,
+  });
+  runResizeTests({
+    forwardInputStats,
+    forwardResizeStats,
   });
   runExperimentFixtureTests(
     getTaskFileInitialState,
@@ -180,6 +187,43 @@ function runPatchEmbeddingTests({
     grid: '14 x 14',
     viewRank: patch.spatialView.viewRank,
   }]);
+}
+
+function runResizeTests({ forwardInputStats, forwardResizeStats }) {
+  const input = createImageInputStats(forwardInputStats);
+  const sizes = [32, 128, 224, 384];
+  const reports = sizes.map((size) => {
+    const resized = forwardResizeStats({
+      id: `resize_${size}`,
+      name: `Resize ${size}`,
+      type: 'neuralBlueprint',
+      kind: 'Resize',
+      links: { predecessorIds: [], successorIds: [] },
+      predecessors: [],
+      successors: [],
+      targetHeight: size,
+      targetWidth: size,
+      interpolation: 'bilinear',
+    }, input);
+    assert.ok(resized);
+    assert.deepEqual(resized.shape, {
+      time: 'absent',
+      channels: 3,
+      height: size,
+      width: size,
+    });
+    assert.equal(resized.spatialView.axes.height.sourceSize, size);
+    assert.equal(resized.spatialView.axes.width.sourceSize, size);
+    assert.equal(resized.spatialView.viewRank, input.spatialView.viewRank);
+    return {
+      target: `${size} x ${size}`,
+      shape: `${resized.shape.channels} x ${resized.shape.height} x ${resized.shape.width}`,
+      viewRank: resized.spatialView.viewRank,
+    };
+  });
+
+  console.log('\nResize spatial adapter');
+  console.table(reports);
 }
 
 function runAdaptationFormulaTests(adaptation) {

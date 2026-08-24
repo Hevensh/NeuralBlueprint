@@ -213,7 +213,7 @@
 
 .inference-memory-legend-item {
   display: grid;
-  grid-template-columns: 10px minmax(0, 1fr) auto;
+  grid-template-columns: 10px auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
   width: 100%;
@@ -232,6 +232,8 @@
 }
 
 .inference-memory-legend-stages {
+  grid-column: 2;
+  grid-row: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -240,14 +242,84 @@
 .inference-memory-legend-resources {
   display: grid;
   grid-column: 2 / -1;
+  grid-row: 2;
   gap: 4px;
   min-width: 0;
   padding: 3px 0 6px;
 }
 
+.inference-variance-chips {
+  display: grid;
+  grid-column: 3;
+  grid-row: 1;
+  grid-template-columns: repeat(3, minmax(48px, 1fr));
+  gap: 4px;
+  justify-self: center;
+  min-width: 0;
+  width: 100%;
+  max-width: 184px;
+}
+
+.inference-variance-chip {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+  padding: 2px 4px;
+  border: 1px solid rgba(100, 116, 139, 0.28);
+  border-radius: 4px;
+  background: rgba(51, 65, 85, 0.12);
+  color: #94a3b8;
+  font-variant-numeric: tabular-nums;
+}
+
+.inference-variance-chip small {
+  color: currentColor;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.inference-variance-chip strong {
+  overflow: hidden;
+  color: currentColor;
+  font-size: 10px;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inference-variance-chip.tone-stable {
+  border-color: rgba(52, 211, 153, 0.3);
+  background: rgba(52, 211, 153, 0.065);
+  color: #6fd6a0;
+}
+
+.inference-variance-chip.tone-warning {
+  border-color: rgba(251, 146, 60, 0.34);
+  background: rgba(251, 146, 60, 0.075);
+  color: #e9a162;
+}
+
+.inference-variance-chip.tone-danger {
+  border-color: rgba(251, 113, 133, 0.35);
+  background: rgba(251, 113, 133, 0.075);
+  color: #e48291;
+}
+
 .inference-memory-legend-item strong {
   color: #cbd5e1;
   font-size: 11px;
+}
+
+.inference-memory-legend-item > strong {
+  grid-column: 4;
+  grid-row: 1;
+}
+
+.inference-memory-legend-item .inference-variance-chip strong {
+  color: currentColor;
+  font-size: 10px;
 }
 
 .inference-memory-legend-item.active,
@@ -261,6 +333,8 @@
 }
 
 .inference-memory-swatch {
+  grid-column: 1;
+  grid-row: 1;
   width: 9px;
   height: 9px;
   box-sizing: border-box;

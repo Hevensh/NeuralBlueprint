@@ -36,8 +36,9 @@ export function forwardCNNStats(
     ?? (Number.isFinite(input.rank.outputRank)
       ? input.rank.outputRank
       : 1);
-  const fanIn = Math.max(1, inputChannels * kernelArea);
-  const fanOut = Math.max(1, node.outFeatures * kernelArea);
+  const groups = Math.max(1, Math.round(node.groups));
+  const fanIn = Math.max(1, (inputChannels / groups) * kernelArea);
+  const fanOut = Math.max(1, (node.outFeatures / groups) * kernelArea);
   const inputEffectiveRank = input.rank.effectiveRank || node.outFeatures;
   const saturation = 1 - Math.exp(
     (-LINEAR_SATURATION_GAIN * inputEffectiveRank)

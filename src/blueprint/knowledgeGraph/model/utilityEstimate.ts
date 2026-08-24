@@ -126,7 +126,12 @@ function edgeUtility(
   let adjacent: number;
 
   if (edge.kind === 'dependency') {
-    adjacent = sourceM * targetW;
+    adjacent = dependencyCostSavingRatio(
+      edge,
+      stage,
+      sourceM,
+      edgeM,
+    ) * (1 - targetM) * targetW;
   } else if (edge.kind === 'substitute') {
     adjacent = substitute(
       sourceM,
@@ -163,8 +168,37 @@ function edgeUtility(
 
   return {
     self: 0,
-    adjacent: positive(adjacent * edgeNeed),
+    adjacent: positive(
+      adjacent * (
+        edge.kind === 'dependency'
+          ? 1 / Math.max(EPS, positive(edge.properties.requiredMemory))
+          : edgeNeed
+      ),
+    ),
   };
+}
+
+function dependencyCostSavingRatio(
+  edge: AnyKnowledgeEdge,
+  stage: ReasoningStageEstimate,
+  sourceMastery: number,
+  edgeMastery: number,
+) {
+  if (edge.kind !== 'dependency') return 0;
+  const sourceCost = effectiveCost(stage, edge.source);
+  const targetBaseCost = Math.max(EPS, edge.target.requiredMemory);
+  const lambda = positive(edge.properties.lambda);
+  const sourceLogCost = Math.log(Math.max(1, sourceCost));
+  const currentActivation = sourceMastery * edgeMastery;
+  const currentCost = targetBaseCost * Math.exp(
+    lambda * (1 - currentActivation) * sourceLogCost,
+  );
+  const saturatedCost = targetBaseCost * Math.exp(
+    lambda * (1 - sourceMastery) * sourceLogCost,
+  );
+  return clamp01(
+    (currentCost - saturatedCost) / Math.max(EPS, currentCost),
+  );
 }
 
 function substitute(
@@ -209,7 +243,9 @@ function trainWeights(
 ) {
   return Object.fromEntries(nodes.map((node) => [
     node.id,
-    positive(datasetSplit?.nodes[node.id]?.train ?? node.dataAmount) + 1,
+    Math.log1p(positive(
+      datasetSplit?.nodes[node.id]?.train ?? node.dataAmount,
+    )),
   ])) as Record<NodeId, number>;
 }
 

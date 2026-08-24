@@ -17,6 +17,7 @@ import type {
   PoolingNodeData,
   NormalizationNodeData,
   PatchEmbeddingNodeData,
+  ResizeNodeData,
   ResNetStageNodeData,
   ThreeDInputNodeData,
 } from './ModuleBaseNodeTypes';
@@ -33,6 +34,10 @@ type UpdateSelectedNode = <TNode extends ModuleNodeData>(
   patch: Partial<TNode>,
 ) => void;
 type PropertyLabels = AppLabelSet['neuralBlueprint']['propertiesPanel'];
+
+// These values tune the fixed pretrained preset rather than the model itself.
+// Keep them available while developing the preset and omit them from releases.
+const SHOW_PRETRAINING_DEBUG_PROPERTIES = import.meta.env.DEV;
 
 export function NeuralBlueprintModuleProperties({
   effectiveRankDisabled,
@@ -87,6 +92,12 @@ export function NeuralBlueprintModuleProperties({
         node={selectedNode}
         updateNode={updateSelectedNode}
       />
+    );
+  }
+
+  if (selectedNode.kind === 'Resize') {
+    return (
+      <ResizeProperties labels={labels} node={selectedNode} updateNode={updateSelectedNode} />
     );
   }
 
@@ -234,6 +245,7 @@ function CNNProperties({
       <PositiveIntegerField label={labels.stride} value={node.stride} onChange={(stride) => updateNode(node, { stride })} />
       <NonNegativeIntegerField label={labels.padding} value={node.padding} onChange={(padding) => updateNode(node, { padding })} />
       <PositiveIntegerField label={labels.dilation} value={node.dilation} onChange={(dilation) => updateNode(node, { dilation })} />
+      <PositiveIntegerField label={labels.groups} value={node.groups} onChange={(groups) => updateNode(node, { groups })} />
     </>
   );
 }
@@ -270,19 +282,23 @@ function ResNetStageProperties({
         value={node.stride}
         onChange={(stride) => updateNode(node, { stride })}
       />
-      <NonNegativeIntegerField
-        label={labels.pretrainingOrder}
-        value={node.pretrainingOrder}
-        onChange={(pretrainingOrder) => updateNode(node, { pretrainingOrder })}
-      />
-      <NonNegativeIntegerField
-        label={labels.pretrainedDependencyMemoryPoints}
-        value={node.pretrainedDependencyMemoryPoints}
-        onChange={(pretrainedDependencyMemoryPoints) => updateNode(
-          node,
-          { pretrainedDependencyMemoryPoints },
-        )}
-      />
+      {SHOW_PRETRAINING_DEBUG_PROPERTIES && (
+        <>
+          <NonNegativeIntegerField
+            label={labels.pretrainingOrder}
+            value={node.pretrainingOrder}
+            onChange={(pretrainingOrder) => updateNode(node, { pretrainingOrder })}
+          />
+          <NonNegativeIntegerField
+            label={labels.pretrainedDependencyMemoryPoints}
+            value={node.pretrainedDependencyMemoryPoints}
+            onChange={(pretrainedDependencyMemoryPoints) => updateNode(
+              node,
+              { pretrainedDependencyMemoryPoints },
+            )}
+          />
+        </>
+      )}
     </>
   );
 }
@@ -312,6 +328,44 @@ function PoolingProperties({
       <PositiveIntegerField label={labels.kernelSize} value={node.kernelSize} onChange={(kernelSize) => updateNode(node, { kernelSize })} />
       <PositiveIntegerField label={labels.stride} value={node.stride} onChange={(stride) => updateNode(node, { stride })} />
       <NonNegativeIntegerField label={labels.padding} value={node.padding} onChange={(padding) => updateNode(node, { padding })} />
+    </>
+  );
+}
+
+function ResizeProperties({
+  labels,
+  node,
+  updateNode,
+}: {
+  labels: PropertyLabels;
+  node: ResizeNodeData;
+  updateNode: UpdateSelectedNode;
+}) {
+  return (
+    <>
+      <div className="property-field-pair">
+        <PositiveIntegerField
+          label={labels.targetHeight}
+          value={node.targetHeight}
+          onChange={(targetHeight) => updateNode(node, { targetHeight })}
+        />
+        <PositiveIntegerField
+          label={labels.targetWidth}
+          value={node.targetWidth}
+          onChange={(targetWidth) => updateNode(node, { targetWidth })}
+        />
+      </div>
+      <div className="property-field">
+        <span className="property-label">{labels.interpolation}</span>
+        <PropertyDropdown<'nearest' | 'bilinear'>
+          options={[
+            { label: 'Bilinear', value: 'bilinear' },
+            { label: 'Nearest', value: 'nearest' },
+          ]}
+          value={node.interpolation}
+          onChange={(interpolation) => updateNode(node, { interpolation })}
+        />
+      </div>
     </>
   );
 }

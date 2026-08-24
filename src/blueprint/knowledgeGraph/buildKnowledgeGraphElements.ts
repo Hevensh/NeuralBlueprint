@@ -14,8 +14,8 @@ import {
   computeOverfitPercent,
 } from './model/lossMetrics';
 import {
-  readEntityMemory,
   readEntityStageMemory,
+  readEntityTotalMemory,
 } from './model/memoryOperations';
 import type {
   ReasoningMasteryEstimate,
@@ -44,7 +44,7 @@ export function buildKnowledgeGraphElements(
   utilities: UtilityReport,
 ): KnowledgeGraphElements {
   const neighborIds = new Map<string, Set<string>>();
-  const memorySelectionLabel = `[${memory.selectedInferenceStage}]`;
+  const memorySelectionLabel = '[total]';
   const visibleStage = memory.selectedInferenceStage;
   const visibleReasoning = reasoning.stages[visibleStage] ?? reasoning;
   const allEdges = [
@@ -84,7 +84,7 @@ export function buildKnowledgeGraphElements(
           testDataAmount: split?.test ?? 0,
           effectiveRequiredMemory:
             visibleReasoning.effectiveCost[node.id] ?? node.requiredMemory,
-          allocatedMemory: readEntityMemory(memory, node),
+          allocatedMemory: readEntityTotalMemory(memory, node),
           mastery: visibleReasoning.mastery[node.id] ?? 0,
           overfitPercent:
             (visibleReasoning.overfitRate[node.id] ?? 0) * 100,
@@ -227,11 +227,7 @@ function edgeMetrics(
   utilities: UtilityReport,
 ): KnowledgeGraphEdgeMetrics {
   const cumulativeMemory = stage.edges[edge.id]?.allocatedMemory ?? 0;
-  const visibleMemory = readEntityStageMemory(
-    memory,
-    edge,
-    memory.selectedInferenceStage,
-  );
+  const visibleMemory = readEntityTotalMemory(memory, edge);
   const mastery = stage.edges[edge.id]?.mastery ?? 0;
   return {
     allocatedMemory: visibleMemory,

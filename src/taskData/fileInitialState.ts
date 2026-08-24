@@ -174,6 +174,7 @@ function toStoredModuleNodeConfig(
         stride: node.stride ?? 1,
         padding: node.padding ?? 1,
         dilation: node.dilation ?? 1,
+        groups: node.groups ?? 1,
         useBias: node.useBias ?? true,
         initializationMode: node.initializationMode ?? 'xavier_normal',
         biasInitializationMode: node.biasInitializationMode ?? 'zeros',
@@ -189,6 +190,8 @@ function toStoredModuleNodeConfig(
         outFeatures: node.outFeatures ?? 64,
         blockCount: node.blockCount ?? 2,
         stride: node.stride ?? 1,
+        referenceHeight: node.referenceHeight,
+        referenceWidth: node.referenceWidth,
         useBias: node.useBias ?? false,
         pretrainingOrder: node.pretrainingOrder ?? 0,
         pretrainedDependencyMemoryPoints:
@@ -212,6 +215,18 @@ function toStoredModuleNodeConfig(
         useBias: node.useBias ?? true,
         initializationMode: node.initializationMode ?? 'xavier_normal',
         biasInitializationMode: node.biasInitializationMode ?? 'zeros',
+      },
+    };
+  }
+
+  if (node.kind === 'Resize') {
+    return {
+      ...base,
+      kind: 'Resize',
+      config: {
+        targetHeight: node.targetHeight ?? DEFAULT_3D_INPUT_SIZE,
+        targetWidth: node.targetWidth ?? DEFAULT_3D_INPUT_SIZE,
+        interpolation: node.interpolation ?? 'bilinear',
       },
     };
   }

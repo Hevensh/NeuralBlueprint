@@ -14,10 +14,19 @@ export interface InferenceMemoryGroup {
   inferenceStages: number[];
   memoryPoint: number;
   adaptationCapability: SpatialAdaptationCapability;
+  variance: InferenceVarianceSummary;
   varianceLogDistance: number;
   nodeWeights: InferenceMemoryNodeWeight[];
   aggregationPairs: InferenceMemoryAggregationPair[];
   ratio: number;
+}
+
+export interface InferenceVarianceSummary {
+  forwardStd: number | null;
+  backwardStd: number | null;
+  ratio: number | null;
+  logDistance: number | null;
+  validWeight: number;
 }
 
 export interface InferenceMemoryNodeWeight {

@@ -53,11 +53,14 @@ export function NeuralBlueprintNode({
       <div className="neural-blueprint-node-name">{data.name}</div>
       <div className="neural-blueprint-node-preview">
         <ShapePreview
-          alwaysShowSpatial={data.kind === 'CNN' || data.kind === 'ResNetStage' || data.kind === 'Pooling'}
+          alwaysShowSpatial={data.kind === 'CNN' || data.kind === 'ResNetStage' || data.kind === 'Resize' || data.kind === 'Pooling'}
           fallback={outputDim}
           preferFallback={!isBackward && data.stats?.status !== 'valid'}
           shape={data.stats?.shape}
           unavailableDimensions={!isBackward && hasNoInputConnection}
+          convolution={data.kind === 'CNN'
+            ? { kernelSize: data.kernelSize, stride: data.stride }
+            : undefined}
         />
         <NodePreviewItem className="rank-analysis-preview" label="rank" value={effectiveRank} />
         <NodePreviewItem className="rank-analysis-preview" label="sat" value={saturation} />
@@ -91,12 +94,17 @@ function ShapePreview({
   preferFallback = false,
   shape,
   unavailableDimensions = false,
+  convolution,
 }: {
   alwaysShowSpatial?: boolean;
   fallback: string;
   preferFallback?: boolean;
   shape: ModuleTensorShape | undefined;
   unavailableDimensions?: boolean;
+  convolution?: {
+    kernelSize: number;
+    stride: number;
+  };
 }) {
   const dimensions: Array<readonly [string, string]> = [];
   if (shape?.time !== undefined && shape.time !== 'absent') {
@@ -120,20 +128,38 @@ function ShapePreview({
     ]);
   }
   if (dimensions.length === 0) {
-    return <NodePreviewItem label="dim" value={fallback} />;
+    return (
+      <>
+        {convolution ? (
+          <div className="neural-blueprint-node-convolution-grid">
+            <NodePreviewItem label="kernel size" value={String(convolution.kernelSize)} />
+            <NodePreviewItem label="stride" value={String(convolution.stride)} />
+          </div>
+        ) : null}
+        <NodePreviewItem label="dim" value={fallback} />
+      </>
+    );
   }
   const hasLeadingDimension = dimensions.length % 2 === 1;
   return (
-    <div className="neural-blueprint-node-shape-grid">
-      {dimensions.map(([label, value], index) => (
-        <NodePreviewItem
-          className={hasLeadingDimension && index === 0 ? 'shape-leading-item' : ''}
-          key={label}
-          label={label}
-          value={value}
-        />
-      ))}
-    </div>
+    <>
+      {convolution ? (
+        <div className="neural-blueprint-node-convolution-grid">
+          <NodePreviewItem label="kernel size" value={String(convolution.kernelSize)} />
+          <NodePreviewItem label="stride" value={String(convolution.stride)} />
+        </div>
+      ) : null}
+      <div className="neural-blueprint-node-shape-grid">
+        {dimensions.map(([label, value], index) => (
+          <NodePreviewItem
+            className={hasLeadingDimension && index === 0 ? 'shape-leading-item' : ''}
+            key={label}
+            label={label}
+            value={value}
+          />
+        ))}
+      </div>
+    </>
   );
 }
 
@@ -197,6 +223,7 @@ function shouldShowSpatialInputRequirement(
       data.kind !== 'CNN'
       && data.kind !== 'ResNetStage'
       && data.kind !== 'Pooling'
+      && data.kind !== 'Resize'
       && data.kind !== 'PatchEmbedding'
     )
   ) {

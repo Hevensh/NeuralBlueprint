@@ -110,10 +110,10 @@ try {
       node.data.pretrainedDependencyMemoryPoints,
     ]),
     [
-      ['ResNetStage 1', 1, 72],
-      ['ResNetStage 2', 2, 72],
-      ['ResNetStage 3', 3, 72],
-      ['ResNetStage 4', 4, 72],
+      ['Pretrained 1', 1, 72],
+      ['Pretrained 2', 2, 72],
+      ['Pretrained 3', 3, 72],
+      ['Pretrained 4', 4, 72],
     ],
   );
 
@@ -133,6 +133,12 @@ try {
     [2, 72],
     [3, 72],
     [4, 72],
+  ]);
+  assert.deepEqual(stageNames(pretrained), [
+    'Pretrained 1',
+    'Pretrained 2',
+    'Pretrained 3',
+    'Pretrained 4',
   ]);
 
   const graph = pretrained.knowledgeGraph.graphDefinition;
@@ -223,6 +229,26 @@ try {
     ]),
     [[1, 0.5], [1, 0.5]],
   );
+  const varianceNodes = parallelPretrainedNodes(createModuleNodeData);
+  setNodeVariances(varianceNodes, 'parallel-left', 1, 0.01);
+  setNodeVariances(varianceNodes, 'parallel-right', 4, 1);
+  const varianceSummary = buildInferenceMemoryProfile(varianceNodes)
+    .groups[0].variance;
+  assertClose(varianceSummary.forwardStd, Math.sqrt(2.5));
+  assertClose(varianceSummary.backwardStd, Math.sqrt(0.505));
+  assertClose(varianceSummary.ratio, 2.5 / 0.505);
+  assertClose(varianceSummary.logDistance, (2 + Math.log10(4)) / 2);
+  assert.equal(varianceSummary.validWeight, 1);
+
+  setNodeVariances(varianceNodes, 'parallel-right', 4, Number.NaN);
+  const partialVarianceSummary = buildInferenceMemoryProfile(varianceNodes)
+    .groups[0].variance;
+  assertClose(partialVarianceSummary.forwardStd, 1);
+  assertClose(partialVarianceSummary.backwardStd, 0.1);
+  assertClose(partialVarianceSummary.ratio, 100);
+  assertClose(partialVarianceSummary.logDistance, 2);
+  assert.equal(partialVarianceSummary.validWeight, 0.5);
+
   const mixedStrengthNodes = parallelPretrainedNodes(createModuleNodeData);
   mixedStrengthNodes.find((node) => node.id === 'parallel-right')
     .data.pretrainedDependencyMemoryPoints = 36;
@@ -307,6 +333,27 @@ function parallelPretrainedNodes(createModuleNodeData) {
   }));
 }
 
+function setNodeVariances(nodes, nodeId, forwardVariance, backwardVariance) {
+  const node = nodes.find((candidate) => candidate.id === nodeId);
+  assert.ok(node, `missing node ${nodeId}`);
+  node.data.stats.distribution.variance = forwardVariance;
+  node.data.statsBackward = {
+    rank: { ...node.data.stats.rank },
+    distribution: {
+      ...node.data.stats.distribution,
+      variance: backwardVariance,
+    },
+  };
+}
+
+function assertClose(actual, expected, epsilon = 1e-10) {
+  assert.ok(actual !== null);
+  assert.ok(
+    Math.abs(actual - expected) <= epsilon,
+    `expected ${actual} to be within ${epsilon} of ${expected}`,
+  );
+}
+
 function requiredState(getTaskFileInitialState, fileId) {
   const state = getTaskFileInitialState(fileId);
   assert.ok(state, `missing task state ${fileId}`);
@@ -322,6 +369,12 @@ function stagePretraining(state) {
       node.config.pretrainingOrder,
       node.config.pretrainedDependencyMemoryPoints,
     ]);
+}
+
+function stageNames(state) {
+  return state.neuralBlueprint.graph.nodes
+    .filter((node) => node.kind === 'ResNetStage')
+    .map((node) => node.name);
 }
 
 function moduleProfile(
@@ -347,6 +400,13 @@ function createProfile(modules, createCapability) {
     inferenceStages: module.inferenceStages,
     memoryPoint: 1000,
     adaptationCapability: createCapability(),
+    variance: {
+      forwardStd: null,
+      backwardStd: null,
+      ratio: null,
+      logDistance: null,
+      validWeight: 0,
+    },
     varianceLogDistance: 0,
     nodeWeights: [],
     aggregationPairs: [],

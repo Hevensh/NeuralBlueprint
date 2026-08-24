@@ -18,6 +18,7 @@ import type {
   PoolMode,
   FeatureNormalizationMode,
   PatchEmbeddingModuleConfig,
+  ResizeModuleConfig,
   ResNetStageModuleConfig,
 } from '../blueprint/neuralBlueprint/ModuleBaseNodeTypes';
 import type { StoredNeuralBlueprintGraph } from '../dataStorage/neuralBlueprintStorage';
@@ -88,6 +89,7 @@ interface TaskCNNNodeConfig extends TaskModuleNodeBase<'CNN'> {
   stride?: number;
   padding?: number;
   dilation?: number;
+  groups?: number;
   initializationMode?: LinearInitializationMode;
   biasInitializationMode?: BiasInitializationMode;
   useBias?: boolean;
@@ -100,6 +102,10 @@ interface TaskResNetStageNodeConfig
 interface TaskPatchEmbeddingNodeConfig
   extends TaskModuleNodeBase<'PatchEmbedding'>,
   Partial<PatchEmbeddingModuleConfig> {}
+
+interface TaskResizeNodeConfig
+  extends TaskModuleNodeBase<'Resize'>,
+  Partial<ResizeModuleConfig> {}
 
 interface TaskPoolingNodeConfig extends TaskModuleNodeBase<'Pooling'> {
   kernelSize?: number;
@@ -141,6 +147,7 @@ export type TaskModuleNodeConfig =
   | TaskCNNNodeConfig
   | TaskResNetStageNodeConfig
   | TaskPatchEmbeddingNodeConfig
+  | TaskResizeNodeConfig
   | TaskPoolingNodeConfig
   | TaskNormalizationNodeConfig
   | TaskGlobalPoolingNodeConfig

@@ -21,12 +21,18 @@ import {
   configTask3Pretrained,
   configTask3Scratch,
 } from './task3';
+import {
+  configFileTask4,
+  configTask4MobileNetMultiScale,
+  configTask4MobileNetScratch,
+} from './task4';
 
 export {
   configFileCnnScaleExperiment,
   configFileTask1,
   configFileTask2,
   configFileTask3,
+  configFileTask4,
 };
 
 export const TASK_FILE_CONFIGS: Record<string, TaskFileConfig> = {
@@ -36,6 +42,8 @@ export const TASK_FILE_CONFIGS: Record<string, TaskFileConfig> = {
   cnn_scale12_multisize: configCnnScaleMultiSize,
   task3_cifar_scratch: configTask3Scratch,
   task3_cifar_pretrained: configTask3Pretrained,
+  task4_mobilenet_scratch: configTask4MobileNetScratch,
+  task4_mobilenet_multiscale: configTask4MobileNetMultiScale,
 };
 
 export const TASK_GUIDE_CONFIGS: Record<

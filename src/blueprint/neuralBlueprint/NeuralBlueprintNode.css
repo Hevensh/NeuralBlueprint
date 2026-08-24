@@ -57,6 +57,12 @@
   gap: 3px;
 }
 
+.neural-blueprint-node-convolution-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 3px;
+}
+
 .neural-blueprint-node-shape-grid .neural-blueprint-node-preview-item {
   gap: 4px;
 }

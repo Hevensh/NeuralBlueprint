@@ -15,8 +15,8 @@ const TRAINING_FLOP_FACTOR = 3;
 
 export const DEFAULT_TRAINING_SERVER = {
   id: 'lab-gpu-1',
-  label: 'Lab GPU 1',
-  vramMiB: 1024,
+  label: 'Research GPU 1T',
+  vramMiB: 1_048_576,
   effectiveTflops: 1,
 } as const;
 
@@ -93,11 +93,13 @@ export function estimateTrainingResourceProfile(
           break;
         }
         const kernelArea = data.kernelSize ** 2;
-        parameterCount += inputChannels * data.outFeatures * kernelArea
+        const groups = Math.max(1, Math.round(data.groups));
+        const groupedInputChannels = inputChannels / groups;
+        parameterCount += groupedInputChannels * data.outFeatures * kernelArea
           + (data.useBias ? data.outFeatures : 0);
         activationElementsPerSample += outputElements;
         forwardFlopsPerSample += outputElements
-          * (2 * inputChannels * kernelArea + (data.useBias ? 1 : 0));
+          * (2 * groupedInputChannels * kernelArea + (data.useBias ? 1 : 0));
         break;
       }
       case 'ResNetStage': {
@@ -138,6 +140,10 @@ export function estimateTrainingResourceProfile(
           * (2 * inputChannels * kernelArea + (data.useBias ? 1 : 0));
         break;
       }
+      case 'Resize':
+        activationElementsPerSample += outputElements;
+        forwardFlopsPerSample += outputElements * 4;
+        break;
       case 'Linear': {
         if (inputChannels === null) {
           valid = false;

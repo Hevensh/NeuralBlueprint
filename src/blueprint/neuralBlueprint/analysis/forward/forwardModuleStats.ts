@@ -15,6 +15,7 @@ import { forwardGlobalPoolingStats } from './globalPooling';
 import { forwardPatchEmbeddingStats } from './patchEmbedding';
 import { forwardResNetStageStats } from './resNetStage';
 import { forwardNormalizationStats } from './normalization';
+import { forwardResizeStats } from './resize';
 import { aggregateForwardStats } from '../aggregation/forward';
 import { getInvalidInferenceStats } from './utils/moduleStats';
 
@@ -56,6 +57,15 @@ export function forwardModuleStats(
     }
     case 'PatchEmbedding': {
       const stats = forwardPatchEmbeddingStats(context.node, input);
+      return {
+        stats: stats ?? getInvalidInferenceStats(
+          context.node,
+          'shape-mismatch',
+        ),
+      };
+    }
+    case 'Resize': {
+      const stats = forwardResizeStats(context.node, input);
       return {
         stats: stats ?? getInvalidInferenceStats(
           context.node,

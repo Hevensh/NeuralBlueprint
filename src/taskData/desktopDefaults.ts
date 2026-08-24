@@ -7,6 +7,7 @@ import {
   configFileTask1,
   configFileTask2,
   configFileTask3,
+  configFileTask4,
 } from './configs';
 
 export const DESKTOP_FILE_DEFINITIONS: DesktopFileDefinition[] = [
@@ -78,6 +79,34 @@ export const DESKTOP_FILE_DEFINITIONS: DesktopFileDefinition[] = [
     dependencyFileIds: [],
     initialPosition: { x: 4, y: 1 },
     config: configFileTask3,
+  },
+  {
+    id: 'task4_mobilenet_scratch',
+    name: 'Task 4A: CIFAR-10 MobileNet (Standard)',
+    localizedNames: {
+      en: 'Task 4A: CIFAR-10 MobileNet (Standard)',
+      zh: '任务 4A：CIFAR-10 MobileNet（标准）',
+    },
+    type: 'nbp',
+    deletable: false,
+    visible: true,
+    dependencyFileIds: [],
+    initialPosition: { x: 5, y: 1 },
+    config: configFileTask4,
+  },
+  {
+    id: 'task4_mobilenet_multiscale',
+    name: 'Task 4B: CIFAR-10 MobileNet (Multi-scale)',
+    localizedNames: {
+      en: 'Task 4B: CIFAR-10 MobileNet (Multi-scale)',
+      zh: '任务 4B：CIFAR-10 MobileNet（多尺度）',
+    },
+    type: 'nbp',
+    deletable: false,
+    visible: true,
+    dependencyFileIds: [],
+    initialPosition: { x: 6, y: 1 },
+    config: configFileTask4,
   },
   {
     id: 'task1',

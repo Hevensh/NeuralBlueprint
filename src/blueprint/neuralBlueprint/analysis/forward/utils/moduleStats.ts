@@ -41,6 +41,7 @@ export function getDisconnectedStats(node: ModuleNodeData): ModuleStats {
     || node.kind === 'Normalization'
     || node.kind === 'Flatten'
     || node.kind === 'GlobalPooling'
+    || node.kind === 'Resize'
   ) {
     return { ...EMPTY_STATS, status: 'disconnected' };
   }

@@ -28,6 +28,14 @@ try {
       'task3_cifar_pretrained',
       requiredGraph(getTaskFileInitialState, 'task3_cifar_pretrained'),
     ],
+    [
+      'task4_mobilenet_scratch',
+      requiredGraph(getTaskFileInitialState, 'task4_mobilenet_scratch'),
+    ],
+    [
+      'task4_mobilenet_multiscale',
+      requiredGraph(getTaskFileInitialState, 'task4_mobilenet_multiscale'),
+    ],
   ];
   const reports = scenarios.map(([id, graph]) => ({
     id,
@@ -48,7 +56,7 @@ try {
   const byId = new Map(reports.map((report) => [report.id, report]));
   assert.equal(byId.get('task1').parameterCount, 66);
   assert.equal(byId.get('task2').parameterCount, 8962);
-  assert.equal(byId.get('task3_cifar_scratch').parameterCount, 606922);
+  assert.equal(byId.get('task3_cifar_scratch').parameterCount, 614602);
   assert.deepEqual(
     comparableResources(byId.get('task3_cifar_scratch')),
     comparableResources(byId.get('task3_cifar_pretrained')),
@@ -56,9 +64,19 @@ try {
   );
   assert.equal(byId.get('task1').recommendedVRAMMiB, 512);
   assert.equal(byId.get('task2').recommendedVRAMMiB, 512);
-  assert.equal(byId.get('task3_cifar_scratch').recommendedVRAMMiB, 1024);
+  assert.equal(byId.get('task3_cifar_scratch').recommendedVRAMMiB, 2560);
+  assert.ok(
+    byId.get('task4_mobilenet_scratch').parameterCount
+      < byId.get('task3_cifar_scratch').parameterCount,
+    'Standard MobileNet should use fewer parameters than ResNet-18',
+  );
+  assert.ok(
+    byId.get('task4_mobilenet_multiscale').parameterCount
+      > byId.get('task4_mobilenet_scratch').parameterCount,
+    'Multi-scale MobileNet should account for larger depthwise kernels',
+  );
 
-  console.log('\nAll four task VRAM estimate assertions passed.');
+  console.log('\nAll task VRAM estimate assertions passed.');
 } finally {
   await server.close();
 }
@@ -81,6 +99,13 @@ function estimateTrainingResources(graph, batchSize) {
         width: numericDimension(config.width),
       };
       activationElementsPerSample += elements(shape);
+    } else if (node.kind === 'Resize') {
+      shape = {
+        ...shape,
+        height: numericDimension(config.targetHeight),
+        width: numericDimension(config.targetWidth),
+      };
+      activationElementsPerSample += elements(shape);
     } else if (node.kind === 'CNN') {
       const outputChannels = config.outFeatures;
       parameterCount += convolutionParameters(
@@ -88,6 +113,7 @@ function estimateTrainingResources(graph, batchSize) {
         outputChannels,
         config.kernelSize,
         config.useBias,
+        config.groups,
       );
       shape = convolutionOutputShape(shape, outputChannels, config);
       activationElementsPerSample += elements(shape);
@@ -188,8 +214,16 @@ function estimateResNetStage(inputShape, config) {
   return { shape, parameterCount, activationElementsPerSample };
 }
 
-function convolutionParameters(inputChannels, outputChannels, kernelSize, bias) {
-  return inputChannels * outputChannels * kernelSize ** 2
+function convolutionParameters(
+  inputChannels,
+  outputChannels,
+  kernelSize,
+  bias,
+  groups = 1,
+) {
+  return (inputChannels / Math.max(1, groups))
+    * outputChannels
+    * kernelSize ** 2
     + (bias ? outputChannels : 0);
 }
 

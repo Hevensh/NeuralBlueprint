@@ -32,7 +32,8 @@ import {
 } from '../knowledgeGraph/model/allocationStrategies';
 import { estimateTrainingRun } from '../neuralBlueprint/analysis/trainingResources';
 
-const REAL_MILLISECONDS_PER_GAME_MINUTE = 100;
+const TRAINING_TIME_SPEED = 3;
+const REAL_MILLISECONDS_PER_GAME_MINUTE = 100 / TRAINING_TIME_SPEED;
 
 interface ActiveTrainingRun {
   totalEpochs: number;

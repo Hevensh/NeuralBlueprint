@@ -8,6 +8,7 @@ export type ModuleBaseNodeKind =
   | 'CNN'
   | 'ResNetStage'
   | 'PatchEmbedding'
+  | 'Resize'
   | 'Pooling'
   | 'Normalization'
   | 'Flatten'
@@ -124,6 +125,8 @@ export interface ModuleStats {
   spatialView: SpatialViewStats;
   distribution: ModuleDistributionStats;
   adaptation: ModuleAdaptationStats;
+  /** Derived fit between the current feature-map size and its stage reference. */
+  spatialResolutionFit?: number;
 
   /**
    * Element-level activation correlation from this output to each direct input
@@ -233,6 +236,8 @@ export interface CNNModuleConfig {
   stride: number;
   padding: number;
   dilation: number;
+  /** Number of convolution groups; equal to input channels for depthwise CNN. */
+  groups: number;
   useBias: boolean;
 }
 
@@ -249,6 +254,9 @@ export interface ResNetStageModuleConfig {
   pretrainingOrder: number;
   /** Transfer memory contributed to each dependency at the matching depth. */
   pretrainedDependencyMemoryPoints: number;
+  /** Expected feature-map size for the reference input resolution. */
+  referenceHeight?: number;
+  referenceWidth?: number;
 }
 
 export interface ResNetInternalConvAnalysis {
@@ -273,6 +281,12 @@ export interface PatchEmbeddingModuleConfig {
   strideHeight: number;
   strideWidth: number;
   useBias: boolean;
+}
+
+export interface ResizeModuleConfig {
+  targetHeight: number;
+  targetWidth: number;
+  interpolation: 'nearest' | 'bilinear';
 }
 
 export interface PoolingModuleConfig {
@@ -308,6 +322,7 @@ export interface ModuleConfigByKind {
   CNN: CNNModuleConfig;
   ResNetStage: ResNetStageModuleConfig;
   PatchEmbedding: PatchEmbeddingModuleConfig;
+  Resize: ResizeModuleConfig;
   Pooling: PoolingModuleConfig;
   Normalization: NormalizationModuleConfig;
   Flatten: Record<string, never>;
@@ -348,6 +363,9 @@ export interface ResNetStageNodeData
 export interface PatchEmbeddingNodeData
   extends ModuleBaseNodeData<'PatchEmbedding'>, PatchEmbeddingModuleConfig {}
 
+export interface ResizeNodeData
+  extends ModuleBaseNodeData<'Resize'>, ResizeModuleConfig {}
+
 export interface PoolingNodeData
   extends ModuleBaseNodeData<'Pooling'>, PoolingModuleConfig {}
 
@@ -384,6 +402,7 @@ export type ModuleNodeData =
   | CNNNodeData
   | ResNetStageNodeData
   | PatchEmbeddingNodeData
+  | ResizeNodeData
   | PoolingNodeData
   | NormalizationNodeData
   | FlattenNodeData

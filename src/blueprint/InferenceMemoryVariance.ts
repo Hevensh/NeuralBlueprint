@@ -2,6 +2,15 @@ const MIN_VARIANCE_COMPONENT = 1e-12;
 const VARIANCE_LOG_DISTANCE_SIGMOID_CENTER = 2;
 const VARIANCE_LOG_DISTANCE_SIGMOID_STEEPNESS = Math.log(99);
 
+export type VarianceDisplayTone =
+  | 'unknown'
+  | 'danger'
+  | 'warning'
+  | 'stable';
+
+const DISPLAY_WARNING_LOG_DISTANCE = 1;
+const DISPLAY_DANGER_LOG_DISTANCE = 2;
+
 export function computeVarianceLogDistance(
   forwardVariance: unknown,
   backwardVariance: unknown,
@@ -41,6 +50,32 @@ export function varianceLogDistanceToLearningFactor(
       * (logDistance - VARIANCE_LOG_DISTANCE_SIGMOID_CENTER),
     )
   );
+}
+
+export function standardDeviationDisplayTone(
+  value: number | null | undefined,
+): VarianceDisplayTone {
+  if (!isFiniteNumber(value)) return 'unknown';
+  const logDistance = value > 0
+    ? Math.abs(Math.log10(value))
+    : Number.POSITIVE_INFINITY;
+  return logDistanceDisplayTone(logDistance);
+}
+
+export function varianceRatioDisplayTone(
+  value: number | null | undefined,
+): VarianceDisplayTone {
+  if (!isFiniteNumber(value) || value < 0) return 'unknown';
+  const logDistance = value > 0
+    ? Math.abs(Math.log10(value))
+    : Number.POSITIVE_INFINITY;
+  return logDistanceDisplayTone(logDistance);
+}
+
+function logDistanceDisplayTone(logDistance: number): VarianceDisplayTone {
+  if (logDistance >= DISPLAY_DANGER_LOG_DISTANCE) return 'danger';
+  if (logDistance >= DISPLAY_WARNING_LOG_DISTANCE) return 'warning';
+  return 'stable';
 }
 
 function isFiniteNumber(value: unknown): value is number {

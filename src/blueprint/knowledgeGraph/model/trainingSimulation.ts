@@ -173,11 +173,13 @@ function trainOneEpoch(
           entity,
           utilities,
           stage,
-        ).total * entityPoolAdaptationFactor(
-          next,
-          entity,
-          pool.id,
-        ),
+        ).total
+          * trainingPriorityScale(entity, datasetSplit)
+          * entityPoolAdaptationFactor(
+            next,
+            entity,
+            pool.id,
+          ),
         random,
         noAllocationWeight,
       );
@@ -333,6 +335,19 @@ function poolOptimizationFactor(
     optimizer,
     pool.varianceLogDistance,
   );
+}
+
+function trainingPriorityScale(
+  entity: KnowledgeEntity,
+  datasetSplit: DatasetSplitResult,
+) {
+  if (entity.kind !== 'node') return 1;
+  const samples = Math.max(
+    0,
+    datasetSplit.nodes[entity.id]?.train ?? entity.dataAmount,
+  );
+  const logWeight = Math.log1p(samples);
+  return logWeight > 0 ? (samples + 1) / logWeight : 1;
 }
 
 export function optimizerVarianceLearningFactor(

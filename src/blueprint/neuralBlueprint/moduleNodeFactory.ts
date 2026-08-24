@@ -16,10 +16,10 @@ export const DEFAULT_3D_INPUT_CHANNELS = 3;
 export const DEFAULT_3D_INPUT_SIZE = 224;
 export const DEFAULT_PRETRAINED_DEPENDENCY_MEMORY_POINTS = 72;
 export const RESNET18_STAGE_SPECS = [
-  { outFeatures: 64, blockCount: 2, stride: 1 },
-  { outFeatures: 64, blockCount: 2, stride: 2 },
-  { outFeatures: 64, blockCount: 2, stride: 2 },
-  { outFeatures: 64, blockCount: 2, stride: 2 },
+  { outFeatures: 64, blockCount: 2, stride: 1, referenceHeight: 56, referenceWidth: 56 },
+  { outFeatures: 64, blockCount: 2, stride: 2, referenceHeight: 28, referenceWidth: 28 },
+  { outFeatures: 64, blockCount: 2, stride: 2, referenceHeight: 14, referenceWidth: 14 },
+  { outFeatures: 64, blockCount: 2, stride: 2, referenceHeight: 7, referenceWidth: 7 },
 ] as const;
 
 export function createModuleNodeData(
@@ -83,6 +83,7 @@ export function createModuleNodeData(
         stride: 1,
         padding: 1,
         dilation: 1,
+        groups: 1,
         useBias: true,
       };
     case 'ResNetStage': {
@@ -106,6 +107,8 @@ export function createModuleNodeData(
         outFeatures: stageSpec.outFeatures,
         blockCount: stageSpec.blockCount,
         stride: stageSpec.stride,
+        referenceHeight: stageSpec.referenceHeight,
+        referenceWidth: stageSpec.referenceWidth,
         useBias: false,
         pretrainingOrder,
         pretrainedDependencyMemoryPoints: isPretrained
@@ -125,6 +128,14 @@ export function createModuleNodeData(
         strideHeight: 16,
         strideWidth: 16,
         useBias: true,
+      };
+    case 'Resize':
+      return {
+        ...base,
+        kind,
+        targetHeight: DEFAULT_3D_INPUT_SIZE,
+        targetWidth: DEFAULT_3D_INPUT_SIZE,
+        interpolation: 'bilinear',
       };
     case 'Pooling':
       return {
