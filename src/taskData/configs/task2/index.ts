@@ -99,6 +99,7 @@ export const configTask2: TaskFileConfig = {
         requiredMemory: 16,
         lambda: 0.1,
         overfitCoefficient: 1,
+        minimumInferenceStages: 0.2,
       },
     ],
     datasets: [

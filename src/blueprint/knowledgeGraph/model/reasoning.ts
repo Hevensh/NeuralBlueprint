@@ -84,6 +84,45 @@ export function estimateStagedMastery(
     effectiveCost,
     edgeEstimates,
   );
+
+  // The simplified game model has one global inference state. Apply the
+  // dependency relief once before measuring mastery so pretrained edge memory
+  // still makes downstream concepts cheaper to learn without a stage loop.
+  if (lastStage === 0) {
+    effectiveCost = nextDependencyCosts(
+      nodes,
+      incoming,
+      effectiveCost,
+      mastery,
+      edgeEstimates,
+    );
+    adjustedMemory = nextNodeMemory(
+      nodes,
+      memory,
+      0,
+      effectiveCost,
+    );
+    overfitRate = nodeOverfitRates(
+      nodes,
+      memory,
+      0,
+      effectiveCost,
+    );
+    preRelationMastery = baseMastery(
+      nodes,
+      adjustedMemory,
+      effectiveCost,
+      overfitRate,
+      mode,
+    );
+    mastery = relationPass(
+      graph,
+      preRelationMastery,
+      effectiveCost,
+      edgeEstimates,
+    );
+  }
+
   const stages: ReasoningStageEstimate[] = [
     stageEstimate(
       0,

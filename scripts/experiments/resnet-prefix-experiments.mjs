@@ -270,8 +270,8 @@ function assertSelectedStageCases(reports, fullScratch, fullPretrained) {
   reports.forEach((report) => {
     assert.equal(
       report.inferenceStageCount,
-      report.stageCount + 1,
-      `${report.variant} should preserve one inference stage per retained block chain`,
+      1,
+      `${report.variant} should use the single global inference state`,
     );
     assert.ok(
       report.capacity < fullScratch.capacity,

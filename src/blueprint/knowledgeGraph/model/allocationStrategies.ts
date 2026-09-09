@@ -145,9 +145,9 @@ export function applyPretrainedModuleAllocation(
       dependencyStage(edge) === matchingDepth
     ));
     const stages = [...module.inferenceStages].sort((left, right) => left - right);
-    const outputStage = stages.at(-1);
-    if (outputStage === undefined) return;
+    if (stages.length === 0) return;
     const poolId = `blueprint:${stages.join(',')}`;
+    const outputStage = 0;
     const modulePoints = Math.max(
       0,
       Math.floor(

@@ -8,6 +8,7 @@ import {
   useViewport,
   useEdgesState,
   useNodesState,
+  useNodesInitialized,
   useReactFlow,
   type Connection,
   type Edge,
@@ -51,6 +52,11 @@ import {
   type CancelNodePositionAnimation,
 } from './utils/animateNodePositions';
 import { arrangeModuleNodes } from './utils/arrangeNodes';
+import {
+  getNodeHeight,
+  mapModuleLayoutPosition,
+  MODULE_LAYOUT_COLUMN_GAP,
+} from './utils/moduleLayoutPosition';
 import {
   createCorrelationLines,
   createInferenceMemoryAggregationLines,
@@ -122,20 +128,28 @@ export function NeuralBlueprintCanvasInner({
     screenToFlowPosition,
   } = useReactFlow<ModuleBaseNode, Edge>();
   const viewport = useViewport();
+  const nodesInitialized = useNodesInitialized();
   const [initialGraph] = useState(() => {
+    const taskInitialGraph = getTaskFileInitialState(fileId)?.neuralBlueprint?.graph;
     const graph = loadNeuralBlueprintGraph(
       fileId,
-      getTaskFileInitialState(fileId)?.neuralBlueprint?.graph,
+      taskInitialGraph,
     );
     return {
       ...graph,
       nodes: updateState(graph.nodes),
+      shouldNormalizeTaskLayout: isTaskInitialLayout(
+        fileId,
+        graph.nodes,
+        taskInitialGraph?.nodes,
+      ),
     };
   });
   const [nodes, setNodes, onNodesChange] = useNodesState<ModuleBaseNode>(initialGraph.nodes);
   const [edges, setEdges] = useEdgesState<Edge>(initialGraph.edges);
   const [hoveredCorrelationNodeKey, setHoveredCorrelationNodeKey] = useState<string | null>(null);
   const historyRef = useRef<NeuralBlueprintGraphSnapshot[]>([]);
+  const initialLayoutAppliedRef = useRef(!initialGraph.shouldNormalizeTaskLayout);
   const hoverTimerRef = useRef<number | null>(null);
   const handledArrangeRequestRef = useRef(0);
   const cancelNodeAnimationRef = useRef<CancelNodePositionAnimation>(() => undefined);
@@ -147,6 +161,14 @@ export function NeuralBlueprintCanvasInner({
     selectedNodeIdRef.current = nodeId;
     setSelectedNodeIdState(nodeId);
   }, []);
+
+  useEffect(() => {
+    if (initialLayoutAppliedRef.current || !nodesInitialized) return;
+    if (!nodes.every((node) => node.measured?.height !== undefined)) return;
+
+    initialLayoutAppliedRef.current = true;
+    setNodes(mapInitialTaskLayout(nodes, initialGraph.nodes));
+  }, [initialGraph.nodes, nodes, nodesInitialized, setNodes]);
   const selectedCorrelationNode = useMemo(() => (
     nodes.find((node) => (
       node.selected && hasCorrelationPairs(node, analysisDirection)
@@ -610,6 +632,77 @@ function getCorrelationNodeKey(
   analysisDirection: ModuleAnalysisDirection,
 ) {
   return `${analysisDirection}:${nodeId}`;
+}
+
+function isTaskInitialLayout(
+  fileId: string,
+  nodes: ModuleBaseNode[],
+  taskInitialNodes: Array<{ id: string; position: { x: number; y: number } }> | undefined,
+) {
+  if (!fileId.startsWith('task3_') && !fileId.startsWith('task4_')) return false;
+  if (!taskInitialNodes || nodes.length !== taskInitialNodes.length) return false;
+
+  const initialPositionById = new Map(
+    taskInitialNodes.map((node) => [node.id, node.position]),
+  );
+  return nodes.every((node) => {
+    const initialPosition = initialPositionById.get(node.id);
+    return initialPosition
+      && node.position.x === initialPosition.x
+      && node.position.y === initialPosition.y;
+  });
+}
+
+function mapInitialTaskLayout(
+  nodes: ModuleBaseNode[],
+  referenceNodes: ModuleBaseNode[],
+) {
+  const sourceNode = nodes.find((node) => node.data.predecessors.length === 0)
+    ?? nodes[0];
+  const referenceSourceNode = referenceNodes.find((node) => node.id === sourceNode?.id)
+    ?? referenceNodes[0];
+  if (!sourceNode || !referenceSourceNode) return nodes;
+
+  const layoutUnitHeight = Math.max(...nodes.map((node) => getNodeHeight(node)));
+  const sourceCenterOffset = (layoutUnitHeight - getNodeHeight(sourceNode)) / 2;
+  const origin = {
+    x: sourceNode.position.x,
+    y: sourceNode.position.y - sourceCenterOffset,
+  };
+  const referenceLevelStep = getNodeHeight() / 2;
+  const referencePositionById = new Map(
+    referenceNodes.map((node) => [node.id, node.position]),
+  );
+
+  return nodes.map((node) => {
+    const referencePosition = referencePositionById.get(node.id);
+    if (!referencePosition) return node;
+
+    const columnOrder = Math.round(
+      (referencePosition.x - referenceSourceNode.position.x)
+      / MODULE_LAYOUT_COLUMN_GAP,
+    );
+    const level = Math.round(
+      (referencePosition.y - referenceSourceNode.position.y)
+      / referenceLevelStep,
+    );
+    const position = mapModuleLayoutPosition({
+      columnOrder,
+      level,
+      nodeHeight: getNodeHeight(node),
+      layoutUnitHeight,
+      origin,
+    });
+
+    return {
+      ...node,
+      position,
+      data: {
+        ...node.data,
+        position,
+      },
+    };
+  });
 }
 
 function isEditableTarget(target: EventTarget | null) {

@@ -100,8 +100,6 @@ export function KnowledgeGraphWorkspace({
       <KnowledgeDetailPanel
         selectedNode={controller.selectedNode}
         selectedEdge={selectedEdge}
-        inferenceStage={controller.inferenceStage.value}
-        maxInferenceStage={controller.inferenceStage.max}
         enableMemoryAnalysis={enableMemoryAnalysis}
         enableMasteryOverfitAnalysis={enableMasteryOverfitAnalysis}
         enableUtilityAnalysis={enableUtilityAnalysis}
@@ -133,7 +131,6 @@ export function KnowledgeGraphWorkspace({
         }
         onNodeAdaptationAxisChange={controller.setNodeAdaptationAxis}
         onEdgeAdaptationAxisChange={controller.setEdgeAdaptationAxis}
-        onInferenceStageChange={controller.inferenceStage.onChange}
       />
     </>
   );

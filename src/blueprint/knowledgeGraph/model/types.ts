@@ -10,7 +10,10 @@ export type KnowledgeEdgeKind = 'dependency' | 'substitute' | 'interference';
 
 export type AdaptationRequirementValue = number;
 export type KnowledgeAdaptationRequirements =
-  SpatialAdaptationRequirements<AdaptationRequirementValue>;
+  SpatialAdaptationRequirements<AdaptationRequirementValue> & {
+    /** Non-spatial complexity requirement; formerly represented by stages. */
+    complexity?: AdaptationRequirementValue;
+  };
 
 export type KnowledgeAdaptationBalance = {
   comparedCellCount: number;
@@ -42,6 +45,7 @@ export type KnowledgeNode = {
 export type KnowledgeEdgeProperties = {
   requiredMemory: number;
   adaptationRequirements: KnowledgeAdaptationRequirements;
+  minimumInferenceStages?: number;
   overfitCoefficient: number;
   lambda: number;
 };
@@ -86,6 +90,7 @@ export type KnowledgeMemoryBudgetPool = {
   inferenceStages: number[];
   memoryPoint: number;
   adaptationCapability: SpatialAdaptationCapability;
+  complexityCapability?: number;
   varianceLogDistance?: number;
 };
 

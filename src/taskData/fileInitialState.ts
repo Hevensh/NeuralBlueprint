@@ -23,11 +23,12 @@ import {
   createGeneratedKnowledgeNodeColors,
 } from '../blueprint/knowledgeGraph/model/graphGenerator';
 import {
+  getNodeHeight,
+  mapModuleLayoutPosition,
   MODULE_LAYOUT_COLUMN_GAP,
   MODULE_LAYOUT_START_X,
   MODULE_LAYOUT_START_Y,
-  getNodeHeight,
-} from '../blueprint/neuralBlueprint/utils/arrangeNodes';
+} from '../blueprint/neuralBlueprint/utils/moduleLayoutPosition';
 import {
   DEFAULT_3D_INPUT_CHANNELS,
   DEFAULT_3D_INPUT_SIZE,
@@ -54,7 +55,7 @@ const DEFAULT_BLUEPRINT_LAYOUT: ResolvedTaskLayout = {
   },
   gap: {
     x: MODULE_LAYOUT_COLUMN_GAP,
-    y: getNodeHeight(),
+    y: getNodeHeight() / 2,
   },
 };
 
@@ -112,7 +113,7 @@ function toStoredModuleNodeConfig(
     id: node.id,
     name: node.name ?? node.kind,
     kind: node.kind,
-    position: resolvePosition(node.position, layout),
+      position: resolveBlueprintPosition(node.position, layout),
     locked: {
       deletion: node.deletable === false,
       properties: node.lockedProperties,
@@ -375,6 +376,22 @@ function resolveLayout(
   };
 }
 
+function resolveBlueprintPosition(
+  position: TaskGridPosition,
+  layout: ResolvedTaskLayout,
+) {
+  const layoutUnitHeight = layout.gap.y * 2;
+  return mapModuleLayoutPosition({
+    columnOrder: position.x,
+    level: position.y,
+    nodeHeight: layoutUnitHeight,
+    layoutUnitHeight,
+    origin: layout.origin,
+    columnGap: layout.gap.x,
+    levelStep: layout.gap.y,
+  });
+}
+
 function resolvePosition(
   position: TaskGridPosition,
   layout: ResolvedTaskLayout,
@@ -414,6 +431,8 @@ function createKnowledgeEdge(
       adaptationRequirements: config.adaptationRequirements
         ? cloneAdaptationRequirements(config.adaptationRequirements)
         : generatedProperties.adaptationRequirements,
+      minimumInferenceStages: config.minimumInferenceStages
+        ?? generatedProperties.minimumInferenceStages,
     },
   } as DependencyEdge | SubstituteEdge | InterferenceEdge;
 }

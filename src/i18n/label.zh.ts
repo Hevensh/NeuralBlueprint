@@ -289,6 +289,7 @@ export const ZH_LABELS = {
       source: '源',
       target: '目标',
       lambda: 'Lambda',
+      minimumInferenceStages: '最低推理复杂度',
       requiredMemory: '需要记忆点',
       allocatedMemory: '已分配记忆点',
       mastery: '掌握度',

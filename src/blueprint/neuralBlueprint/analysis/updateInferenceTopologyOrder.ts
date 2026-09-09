@@ -1,4 +1,8 @@
 import type { ModuleBaseNode } from '../ModuleBaseNodeTypes';
+import {
+  getDropoutInferenceStageAdvance,
+  getReluInferenceStageAdvance,
+} from './forward/utils/math';
 
 export function updateInferenceTopologyOrders(nodes: ModuleBaseNode[]) {
   const inferenceOrdersByNodeId = new Map<string, Set<number>>();
@@ -22,14 +26,16 @@ export function updateInferenceTopologyOrders(nodes: ModuleBaseNode[]) {
     }
 
     const stageAdvance = data.kind === 'ReLU'
-      ? 1
+      ? getReluInferenceStageAdvance(data.predecessors[0]?.stats)
+      : data.kind === 'Dropout'
+        ? getDropoutInferenceStageAdvance(data.dropoutRate)
       : data.kind === 'ResNetStage'
         ? 1
         : 0;
     const inferenceTopologyOrder = data.inCycle
       ? new Set<number>()
       : new Set([...inheritedOrders].map(
-        (order) => order + stageAdvance,
+        (order) => roundInferenceOrder(order + stageAdvance),
       ));
 
     if (data.kind === 'ResNetStage') {
@@ -41,4 +47,8 @@ export function updateInferenceTopologyOrders(nodes: ModuleBaseNode[]) {
     data.inferenceTopologyOrder = inferenceTopologyOrder;
     inferenceOrdersByNodeId.set(data.id, inferenceTopologyOrder);
   });
+}
+
+function roundInferenceOrder(value: number) {
+  return Number(value.toFixed(3));
 }

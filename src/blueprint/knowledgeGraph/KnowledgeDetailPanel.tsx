@@ -14,8 +14,6 @@ import {
 interface KnowledgeDetailPanelProps {
   selectedNode: KnowledgeGraphNodeData | null;
   selectedEdge: KnowledgeGraphEdgeData | null;
-  inferenceStage: number;
-  maxInferenceStage: number;
   enableMemoryAnalysis: boolean;
   enableMasteryOverfitAnalysis: boolean;
   enableUtilityAnalysis: boolean;
@@ -35,14 +33,11 @@ interface KnowledgeDetailPanelProps {
   onEdgeAdaptationRequirementChange: AdaptationChange;
   onNodeAdaptationAxisChange: AdaptationAxisChange;
   onEdgeAdaptationAxisChange: AdaptationAxisChange;
-  onInferenceStageChange: (stage: number) => void;
 }
 
 export function KnowledgeDetailPanel({
   selectedNode,
   selectedEdge,
-  inferenceStage,
-  maxInferenceStage,
   enableMemoryAnalysis,
   enableMasteryOverfitAnalysis,
   enableUtilityAnalysis,
@@ -62,20 +57,12 @@ export function KnowledgeDetailPanel({
   onEdgeAdaptationRequirementChange,
   onNodeAdaptationAxisChange,
   onEdgeAdaptationAxisChange,
-  onInferenceStageChange,
 }: KnowledgeDetailPanelProps) {
   const labels = useLabels().knowledgeGraph.detail;
 
   return (
     <aside className="right-panel">
       <div className="title">{labels.properties}</div>
-      {enableMemoryAnalysis && (
-        <InferenceStageSlider
-          max={maxInferenceStage}
-          value={inferenceStage}
-          onChange={onInferenceStageChange}
-        />
-      )}
       <div className="property-toggle-group">
         {enableMemoryAnalysis && (
           <AnalysisToggle
@@ -163,37 +150,6 @@ function AnalysisToggle({
   );
 }
 
-function InferenceStageSlider({
-  value,
-  max,
-  onChange,
-}: {
-  value: number;
-  max: number;
-  onChange: (stage: number) => void;
-}) {
-  const labels = useLabels().knowledgeGraph.detail;
-
-  return (
-    <div className="knowledge-stage-control">
-      <div className="knowledge-stage-header">
-        <span>{labels.inferenceStage}</span>
-        <strong>{value} / {max}</strong>
-      </div>
-      <input
-        aria-label={labels.inferenceStage}
-        disabled={max === 0}
-        max={max}
-        min={0}
-        step={1}
-        type="range"
-        value={value}
-        onChange={(event) => onChange(Number(event.target.value))}
-      />
-    </div>
-  );
-}
-
 function EdgeProperties({
   selectedEdge,
   showMemory,
@@ -224,6 +180,10 @@ function EdgeProperties({
       <Value label={labels.source} value={selectedEdge.source.name} />
       <Value label={labels.target} value={selectedEdge.target.name} />
       <Value label={labels.lambda} value={format(selectedEdge.properties.lambda)} />
+      <Value
+        label={labels.minimumInferenceStages}
+        value={format(selectedEdge.properties.minimumInferenceStages ?? 0)}
+      />
       {showMemory && (
         <>
           <Value

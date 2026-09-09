@@ -92,7 +92,8 @@ export function entityPoolAdaptationBalance(
   return pool
     ? computeAdaptationBalance(
         pool.adaptationCapability,
-        entityAdaptationRequirements(entity),
+        withEntityComplexityRequirement(entity),
+        pool.complexityCapability ?? 0,
       )
     : createNeutralAdaptationBalance();
 }
@@ -113,6 +114,20 @@ export function entityAdaptationRequirements(entity: KnowledgeEntity) {
   return entity.kind === 'node'
     ? entity.adaptationRequirements
     : entity.properties.adaptationRequirements;
+}
+
+function withEntityComplexityRequirement(entity: KnowledgeEntity) {
+  const requirements = entityAdaptationRequirements(entity);
+  const minimumInferenceStages = entity.kind === 'node'
+    ? 0
+    : entity.properties.minimumInferenceStages ?? 0;
+  return {
+    ...requirements,
+    complexity: Math.max(
+      requirements.complexity ?? 0,
+      minimumInferenceStages,
+    ),
+  };
 }
 
 function createNeutralAdaptationBalance(): KnowledgeAdaptationBalance {

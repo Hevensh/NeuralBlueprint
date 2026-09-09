@@ -188,6 +188,7 @@ export interface TaskKnowledgeEdgeConfig {
   overfitCoefficient?: number;
   lambda?: number;
   adaptationRequirements?: KnowledgeAdaptationRequirements;
+  minimumInferenceStages?: number;
 }
 
 export interface TaskKnowledgeDatasetConfig {

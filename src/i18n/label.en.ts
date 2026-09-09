@@ -289,6 +289,7 @@ export const EN_LABELS = {
       source: 'Source',
       target: 'Target',
       lambda: 'Lambda',
+      minimumInferenceStages: 'Minimum Inference Complexity',
       requiredMemory: 'Required Memory',
       allocatedMemory: 'Allocated Memory',
       mastery: 'Mastery',

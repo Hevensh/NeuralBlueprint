@@ -32,8 +32,9 @@ export function createKnowledgeGraphMemory(
   availableMemoryPoints: number,
   availableReasoningPoints: number,
 ): KnowledgeGraphMemory {
+  void availableReasoningPoints;
   const memory = normalizeMemoryPoint(availableMemoryPoints);
-  const reasoning = normalizeReasoningPoint(availableReasoningPoints);
+  const reasoning = 0;
   const budgetPools = [createPresetPool(memory, reasoning)];
   return {
     budgetPools,
@@ -55,6 +56,7 @@ export function cloneKnowledgeGraphMemory(
     budgetPools: memory.budgetPools.map((pool) => ({
       ...pool,
       inferenceStages: [...pool.inferenceStages],
+      complexityCapability: pool.complexityCapability,
       adaptationCapability: cloneAdaptationCapability(
         pool.adaptationCapability,
       ),
@@ -77,8 +79,9 @@ export function configurePresetMemoryProfile(
   availableMemoryPoints: number,
   availableReasoningPoints: number,
 ) {
+  void availableReasoningPoints;
   const memoryPoints = normalizeMemoryPoint(availableMemoryPoints);
-  const reasoningPoints = normalizeReasoningPoint(availableReasoningPoints);
+  const reasoningPoints = 0;
   const updated = {
     ...memory,
     presetMemoryPoints: memoryPoints,
@@ -124,12 +127,10 @@ export function setSelectedInferenceStage(
   memory: KnowledgeGraphMemory,
   stage: number,
 ) {
+  void stage;
   return {
     ...memory,
-    selectedInferenceStage: Math.max(
-      0,
-      Math.min(memory.availableReasoningPoints, Math.floor(stage)),
-    ),
+    selectedInferenceStage: 0,
   };
 }
 
@@ -180,14 +181,15 @@ function createPresetPool(
   memoryPoint: number,
   reasoningPoint: number,
 ): KnowledgeMemoryBudgetPool {
+  void reasoningPoint;
   return {
     id: PRESET_POOL_ID,
-    inferenceStages: Array.from(
-      { length: reasoningPoint + 1 },
-      (_, stage) => stage,
-    ),
+    inferenceStages: [0],
     memoryPoint,
     adaptationCapability: createEmptyAdaptationCapability(),
+    // The simplified game keeps one global inference state, so the preset
+    // pool can satisfy the first complexity level without a penalty.
+    complexityCapability: 1,
   };
 }
 
@@ -201,6 +203,7 @@ function createBlueprintPools(profile: InferenceMemoryProfile) {
       adaptationCapability: cloneAdaptationCapability(
         group.adaptationCapability,
       ),
+      complexityCapability: group.complexityCapability ?? 0,
       varianceLogDistance: normalizeFactor(group.varianceLogDistance),
     }));
 }
@@ -296,16 +299,11 @@ function adaptationPointSignature(
 }
 
 function normalizeStages(stages: number[]) {
-  return [...new Set(stages.map(normalizeReasoningPoint))]
-    .sort((left, right) => left - right);
+  return stages.length > 0 ? [0] : [];
 }
 
 function normalizeMemoryPoint(value: number) {
   return Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0;
-}
-
-function normalizeReasoningPoint(value: number) {
-  return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
 }
 
 function normalizeFactor(value: number) {

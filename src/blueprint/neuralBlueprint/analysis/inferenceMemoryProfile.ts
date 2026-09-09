@@ -68,6 +68,7 @@ export function buildInferenceMemoryProfile(
   const nodeData = nodes.map((node) => node.data);
   const groupById = new Map<string, {
     inferenceStages: number[];
+    complexityCapability: number;
     nodes: TrainableNodeData[];
   }>();
 
@@ -87,15 +88,21 @@ export function buildInferenceMemoryProfile(
       (left, right) => left - right,
     );
     const id = inferenceStages.join(',');
+    const complexityCapability = getInferenceComplexity(data);
     const group = groupById.get(id);
 
     if (group) {
       group.nodes.push(data);
+      group.complexityCapability = Math.max(
+        group.complexityCapability,
+        complexityCapability,
+      );
       return;
     }
 
     groupById.set(id, {
       inferenceStages,
+      complexityCapability,
       nodes: [data],
     });
   });
@@ -106,7 +113,11 @@ export function buildInferenceMemoryProfile(
       return {
         id,
         nodeIds: group.nodes.map((node) => node.id),
+        // Keep the measured inference stages in the analysis profile. The
+        // simplified game may normalize them when creating training pools,
+        // but the statistics preview still needs the real stage split.
         inferenceStages: group.inferenceStages,
+        complexityCapability: group.complexityCapability,
         memoryPoint: Math.floor(stats.memoryPoint),
         adaptationCapability: floorSpatialCapability(
           stats.adaptationCapability,
@@ -190,12 +201,12 @@ export function buildInferenceMemoryProfile(
         || data.pretrainingOrder <= 0
         || data.pretrainedDependencyMemoryPoints <= 0
       ) return [];
-      const inferenceStages = [
-        ...(data.internalInferenceTopologyOrder
-          ?? data.inferenceTopologyOrder
-          ?? []),
-      ].sort((left, right) => left - right);
-      return inferenceStages.length > 0
+      const hasInferenceTopology = (
+        data.internalInferenceTopologyOrder?.size
+        ?? data.inferenceTopologyOrder?.size
+        ?? 0
+      ) > 0;
+      return hasInferenceTopology
         ? [{
             nodeId: data.id,
             order: Math.floor(data.pretrainingOrder),
@@ -206,7 +217,9 @@ export function buildInferenceMemoryProfile(
               0,
               aggregationWeightByNodeId.get(data.id) ?? 1,
             ),
-            inferenceStages,
+            // Pretraining allocation remains global in the simplified game;
+            // the analysis groups above retain the real stage split.
+            inferenceStages: [0],
           }]
         : [];
     }),
@@ -272,6 +285,11 @@ function createNetworkSignature(nodes: ModuleBaseNode[]) {
     .map(({ data }) => nodeSignature(data))
     .sort()
     .join('|');
+}
+
+function getInferenceComplexity(data: ModuleNodeData) {
+  const orders = data.inferenceTopologyOrder;
+  return orders?.size ? Math.max(0, ...orders) : 0;
 }
 
 function nodeSignature(data: ModuleNodeData) {

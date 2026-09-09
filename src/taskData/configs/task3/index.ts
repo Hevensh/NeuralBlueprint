@@ -133,7 +133,7 @@ function createResNet18Blueprint(
     edges: createChainEdges(nodes.map((node) => node.id)),
     layout: {
       origin: { x: 110, y: 430 },
-      gap: { x: 185, y: 130 },
+      gap: { x: 240, y: 52 },
     },
   };
 }

@@ -72,15 +72,15 @@ function createMobileNetBlueprint(multiScale: boolean) {
   addNode({
     id: 'mobilenet_resize',
     kind: 'Resize',
-    position: { x: 0, y: 1 },
+    position: { x: 1, y: 0 },
     name: 'Resize',
     targetHeight: 224,
     targetWidth: 224,
     interpolation: 'bilinear',
     deletable: false,
   });
-  addNode(cnn('mobilenet_stem', 32, 3, 2, 1, { x: 1, y: 0 }));
-  addNode(relu('mobilenet_stem_relu', { x: 2, y: 0 }));
+  addNode(cnn('mobilenet_stem', 32, 3, 2, 1, { x: 2, y: 0 }));
+  addNode(relu('mobilenet_stem_relu', { x: 3, y: 0 }));
   connect('mobilenet_input', 'mobilenet_resize');
   connect('mobilenet_resize', 'mobilenet_stem');
   connect('mobilenet_stem', 'mobilenet_stem_relu');
@@ -112,20 +112,20 @@ function createMobileNetBlueprint(multiScale: boolean) {
   addNode({
     id: 'mobilenet_global_pool',
     kind: 'GlobalPooling',
-    position: { x: 18, y: 0 },
+    position: { x: multiScale ? 18 : 17, y: 0 },
     poolMode: 'average',
   });
   addNode({
     id: 'mobilenet_classifier',
     kind: 'Linear',
-    position: { x: 19, y: 0 },
+    position: { x: multiScale ? 19 : 18, y: 0 },
     outFeatures: CIFAR_CLASSES,
     useBias: true,
   });
   addNode({
     id: 'mobilenet_output',
     kind: 'Output',
-    position: { x: 20, y: 0 },
+    position: { x: multiScale ? 20 : 19, y: 0 },
     neededOutputDim: CIFAR_CLASSES,
     deletable: false,
   });
@@ -138,7 +138,7 @@ function createMobileNetBlueprint(multiScale: boolean) {
     edges,
     layout: {
       origin: { x: 120, y: 300 },
-      gap: { x: 170, y: 150 },
+      gap: { x: 240, y: 52 },
     },
   };
 
@@ -160,12 +160,14 @@ function createMobileNetBlueprint(multiScale: boolean) {
     useMultiScale: boolean,
     blockIndex: number,
   ) {
-    const x = 4 + blockIndex * 7;
+    const blockLevel = blockIndex;
+    const blockWidth = useMultiScale ? 7 : 6;
+    const x = 4 + blockIndex * blockWidth;
     const expandedChannels = inputChannels * 3;
     const expandId = `${id}_expand`;
     const expandReluId = `${id}_expand_relu`;
-    addNode(cnn(expandId, expandedChannels, 1, 1, 1, { x, y: 0 }));
-    addNode(relu(expandReluId, { x, y: -1 }));
+    addNode(cnn(expandId, expandedChannels, 1, 1, 1, { x, y: blockLevel }));
+    addNode(relu(expandReluId, { x: x + 1, y: blockLevel }));
     connect(inputId, expandId);
     connect(expandId, expandReluId);
 
@@ -175,23 +177,25 @@ function createMobileNetBlueprint(multiScale: boolean) {
       const depthwiseId = `${branch}_depthwise`;
       const depthwiseReluId = `${branch}_relu`;
       const projectId = `${branch}_project`;
-      const branchY = useMultiScale ? branchIndex * 2 - 1 : 0;
+      const branchY = useMultiScale
+        ? blockLevel + branchIndex * 2
+        : blockLevel;
       addNode(cnn(
         depthwiseId,
         expandedChannels,
         kernel,
         stride,
         expandedChannels,
-        { x: x + 1, y: branchY },
+        { x: x + 2, y: branchY },
       ));
-      addNode(relu(depthwiseReluId, { x: x + 2, y: branchY }));
+      addNode(relu(depthwiseReluId, { x: x + 3, y: branchY }));
       addNode(cnn(
         projectId,
         outputChannels,
         1,
         1,
         1,
-        { x: x + 3, y: branchY },
+        { x: x + 4, y: branchY },
       ));
       connect(expandReluId, depthwiseId);
       connect(depthwiseId, depthwiseReluId);
@@ -206,7 +210,7 @@ function createMobileNetBlueprint(multiScale: boolean) {
     addNode({
       id: sumId,
       kind: 'Sum',
-      position: { x: x + 4, y: 0 },
+      position: { x: x + 5, y: 0 },
     });
     branchIds.forEach((branchId) => connect(branchId, sumId));
     if (canSkip) connect(inputId, sumId);
@@ -214,7 +218,8 @@ function createMobileNetBlueprint(multiScale: boolean) {
 
     function withActivation(sourceId: string) {
       const activationId = `${id}_relu`;
-      addNode(relu(activationId, { x: x + 5, y: 0 }));
+      const activationX = useMultiScale || canSkip ? x + 6 : x + 5;
+      addNode(relu(activationId, { x: activationX, y: 0 }));
       connect(sourceId, activationId);
       return activationId;
     }

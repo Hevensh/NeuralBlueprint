@@ -14,6 +14,7 @@ export interface InferenceMemoryGroup {
   inferenceStages: number[];
   memoryPoint: number;
   adaptationCapability: SpatialAdaptationCapability;
+  complexityCapability?: number;
   variance: InferenceVarianceSummary;
   varianceLogDistance: number;
   nodeWeights: InferenceMemoryNodeWeight[];
@@ -109,6 +110,7 @@ export function getInferenceMemoryProfileSignature(
         ...flattenSpatialAdaptationCapability(group.adaptationCapability)
           .map(formatSignatureNumber),
         group.inferenceStages.join(','),
+        formatSignatureNumber(group.complexityCapability ?? 0),
         formatSignatureNumber(group.varianceLogDistance),
       ].join(':')
     )).join('|'),

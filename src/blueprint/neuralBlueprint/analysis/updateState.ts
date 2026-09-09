@@ -6,8 +6,8 @@ import { updateModuleStats } from './updateModuleStats';
 
 export function updateState(nodes: ModuleBaseNode[]): ModuleBaseNode[] {
   const nextNodes = applyTopologyOrders(nodes);
-  updateInferenceTopologyOrders(nextNodes);
   updateModuleStats(nextNodes);
+  updateInferenceTopologyOrders(nextNodes);
   updateInferencePoints(nextNodes);
   return nextNodes;
 }

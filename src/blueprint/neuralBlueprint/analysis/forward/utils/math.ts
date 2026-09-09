@@ -63,6 +63,34 @@ export function getConditionalPositiveRate(input: ModuleStats) {
   return 1 - getConditionalNegativeRate(input);
 }
 
+/**
+ * Estimate how much inference complexity a ReLU gate adds to a path.
+ * A balanced positive/negative input activates both sides of the gate and
+ * contributes a quarter point; one-sided input behaves closer to a linear or
+ * constant map. Zero mass is excluded from this score because inference
+ * complexity measures the sign split, while effective rank handles sparsity.
+ */
+export function getReluInferenceStageAdvance(
+  input: Pick<ModuleStats, 'distribution'> | undefined,
+) {
+  if (!input) return 0;
+
+  const zeroRate = finiteProbability(input.distribution.zeroRate);
+  const negativeRate = finiteProbability(input.distribution.negativeRate);
+  const nonZeroRate = 1 - zeroRate;
+  if (nonZeroRate <= EPS) return 0;
+
+  const conditionalNegativeRate = clamp01(negativeRate / nonZeroRate);
+  const gateUncertainty = conditionalNegativeRate
+    * (1 - conditionalNegativeRate);
+  return roundInferenceStage(gateUncertainty);
+}
+
+export function getDropoutInferenceStageAdvance(dropoutRateInput: number) {
+  const dropoutRate = finiteProbability(dropoutRateInput);
+  return roundInferenceStage(dropoutRate * (1 - dropoutRate));
+}
+
 export function getNonZeroTransitionSaturation(
   input: Pick<ModuleStats, 'rank' | 'distribution'>,
   outputZeroRateInput: number,
@@ -136,4 +164,12 @@ function erf(value: number) {
 
 function smoothstep(value: number) {
   return value * value * (3 - 2 * value);
+}
+
+function finiteProbability(value: number | undefined) {
+  return Number.isFinite(value) ? clamp01(value as number) : 0;
+}
+
+function roundInferenceStage(value: number) {
+  return Number(Math.max(0, value).toFixed(3));
 }

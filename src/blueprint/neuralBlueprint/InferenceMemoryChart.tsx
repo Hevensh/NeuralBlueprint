@@ -181,7 +181,7 @@ export function InferenceMemoryChart({
                     </div>
                   </div>
                   <strong className="inference-memory-stage-label">
-                    {stage.stage}
+                    {formatInferenceStage(stage.stage)}
                   </strong>
                 </div>
               );
@@ -429,5 +429,9 @@ function formatVarianceValue(value: number | null | undefined) {
 }
 
 function formatStages(stages: number[]) {
-  return `[${stages.join(', ')}]`;
+  return `[${stages.map(formatInferenceStage).join(', ')}]`;
+}
+
+function formatInferenceStage(stage: number) {
+  return stage.toFixed(1);
 }

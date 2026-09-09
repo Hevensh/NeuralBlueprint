@@ -26,6 +26,9 @@ try {
   const { forwardResizeStats } = await server.ssrLoadModule(
     '/src/blueprint/neuralBlueprint/analysis/forward/resize.ts',
   );
+  const gateComplexity = await server.ssrLoadModule(
+    '/src/blueprint/neuralBlueprint/analysis/forward/utils/math.ts',
+  );
   const { forwardLinearStats } = await server.ssrLoadModule(
     '/src/blueprint/neuralBlueprint/analysis/forward/linear.ts',
   );
@@ -37,6 +40,7 @@ try {
   );
 
   runAdaptationFormulaTests(adaptation);
+  runGateComplexityTests(gateComplexity);
   runCnnCalibrationTests({
     forwardCNNStats,
     forwardInputStats,
@@ -275,6 +279,71 @@ function runAdaptationFormulaTests(adaptation) {
   );
   console.log(
     `One missing cell among five matched requirements => factor ${round(bottleneck.factor, 6)}`,
+  );
+
+  const complexityRequirements = { complexity: 1 };
+  const missingComplexity = computeAdaptationBalance(
+    capability,
+    complexityRequirements,
+    0,
+  );
+  const exactComplexity = computeAdaptationBalance(
+    capability,
+    complexityRequirements,
+    1,
+  );
+  const surplusComplexity = computeAdaptationBalance(
+    capability,
+    complexityRequirements,
+    2,
+  );
+  assertClose(missingComplexity.factor, 0.01, 1e-10, 'missing complexity');
+  assertClose(exactComplexity.factor, 1, 1e-10, 'exact complexity');
+  assertClose(surplusComplexity.factor, 1.1, 1e-10, 'surplus complexity');
+  console.log(
+    `Complexity requirement 1 => factors ${round(missingComplexity.factor, 6)} / ${round(exactComplexity.factor, 6)} / ${round(surplusComplexity.factor, 6)}`,
+  );
+}
+
+function runGateComplexityTests({
+  getDropoutInferenceStageAdvance,
+  getReluInferenceStageAdvance,
+}) {
+  const balanced = getReluInferenceStageAdvance({
+    distribution: { zeroRate: 0, negativeRate: 0.5 },
+  });
+  const oneSided = getReluInferenceStageAdvance({
+    distribution: { zeroRate: 0, negativeRate: 0 },
+  });
+  const sparseBalanced = getReluInferenceStageAdvance({
+    distribution: { zeroRate: 0.5, negativeRate: 0.25 },
+  });
+
+  assert.equal(balanced, 0.25, 'balanced ReLU gate should add a quarter point');
+  assert.equal(oneSided, 0, 'one-sided ReLU gate should add no point');
+  assert.equal(
+    sparseBalanced,
+    0.25,
+    'zero mass should not change conditional ReLU complexity',
+  );
+  assert.equal(
+    getDropoutInferenceStageAdvance(0.5),
+    0.25,
+    'balanced dropout gate should add a quarter point',
+  );
+  assert.equal(
+    getDropoutInferenceStageAdvance(0),
+    0,
+    'disabled dropout should add no point',
+  );
+  const dropout = getDropoutInferenceStageAdvance(0.5);
+  assert.equal(
+    balanced + dropout,
+    sparseBalanced + dropout,
+    'ReLU and dropout gate complexity should be order-invariant',
+  );
+  console.log(
+    `Gate complexity: ReLU ${balanced} / ${sparseBalanced} / ${oneSided}, dropout ${getDropoutInferenceStageAdvance(0.5)}`,
   );
 }
 

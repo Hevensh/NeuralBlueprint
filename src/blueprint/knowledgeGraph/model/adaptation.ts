@@ -9,7 +9,6 @@ import {
   createSpatialBandPoints,
   type AxisSpatialAdaptation,
   type SpatialAdaptationCapability,
-  type SpatialAdaptationRequirements,
   type SpatialAdaptationRoute,
   type SpatialAxis,
   type SpatialBand,
@@ -53,21 +52,26 @@ export function cloneAdaptationCapability(
 }
 
 export function cloneAdaptationRequirements(
-  requirements: SpatialAdaptationRequirements,
-): SpatialAdaptationRequirements {
-  return Object.fromEntries(
+  requirements: KnowledgeAdaptationRequirements,
+): KnowledgeAdaptationRequirements {
+  const cloned = Object.fromEntries(
     SPATIAL_AXES.flatMap((axis) => {
       const requirement = requirements[axis];
       return requirement
         ? [[axis, cloneAxisAdaptation(requirement)]]
         : [];
     }),
-  );
+  ) as KnowledgeAdaptationRequirements;
+  if (typeof requirements.complexity === 'number') {
+    cloned.complexity = normalizeAdaptationRequirement(requirements.complexity);
+  }
+  return cloned;
 }
 
 export function computeAdaptationBalance(
   capability: SpatialAdaptationCapability,
-  requirements: SpatialAdaptationRequirements,
+  requirements: KnowledgeAdaptationRequirements,
+  complexityCapability = 0,
 ): KnowledgeAdaptationBalance {
   const cells = SPATIAL_AXES.flatMap((axis) => {
     const axisRequirement = requirements[axis];
@@ -88,6 +92,21 @@ export function computeAdaptationBalance(
       })
     ));
   });
+
+  const complexityRequirement = sanitizePoint(requirements.complexity ?? 0);
+  if (complexityRequirement > 0) {
+    const ratio = clamp(
+      sanitizePoint(complexityCapability) / complexityRequirement,
+      MIN_RATIO,
+      MAX_RATIO,
+    );
+    const signed = Math.log2(ratio);
+    cells.push({
+      requirement: complexityRequirement,
+      gap: Math.max(0, -signed),
+      surplus: Math.max(0, signed),
+    });
+  }
 
   if (cells.length === 0) return neutralAdaptationBalance();
 

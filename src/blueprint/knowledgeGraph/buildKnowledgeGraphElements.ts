@@ -178,6 +178,7 @@ export function buildKnowledgeGraphElements(
           requiredMemory: edge.properties.requiredMemory,
           adaptationRequirements: edge.properties.adaptationRequirements,
           lambda: edge.properties.lambda,
+          minimumInferenceStages: edge.properties.minimumInferenceStages,
         },
         metrics: edgeMetrics(
           edge,

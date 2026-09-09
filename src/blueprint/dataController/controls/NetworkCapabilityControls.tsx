@@ -12,6 +12,7 @@ import type { MemoryProfileSource } from '../../knowledgeGraph/model/types';
 export interface NetworkCapabilityControlsProps {
   mode?: NetworkCapabilityMode;
   showMemoryReasoningControls?: boolean;
+  showReasoningControl?: boolean;
   memory: number;
   reasoning: number;
   memoryProfileSource: MemoryProfileSource;
@@ -29,6 +30,7 @@ export function NetworkCapabilityControls(props: NetworkCapabilityControlsProps)
   const {
     mode: configuredMode = 'select',
     showMemoryReasoningControls = true,
+    showReasoningControl = false,
     memory,
     reasoning,
     memoryProfileSource,
@@ -93,13 +95,15 @@ export function NetworkCapabilityControls(props: NetworkCapabilityControlsProps)
             value={memory}
             onChange={(value) => onMemoryChange(Math.max(0, Math.floor(value)))}
           />
-          <NumberField
-            disabled={source === 'blueprint'}
-            label={labels.reasoning}
-            min={0}
-            value={reasoning}
-            onChange={(value) => onReasoningChange(Math.max(0, Math.floor(value)))}
-          />
+          {showReasoningControl && (
+            <NumberField
+              disabled={source === 'blueprint'}
+              label={labels.reasoning}
+              min={0}
+              value={reasoning}
+              onChange={(value) => onReasoningChange(Math.max(0, Math.floor(value)))}
+            />
+          )}
         </ControlGrid>
       )}
       <TextField

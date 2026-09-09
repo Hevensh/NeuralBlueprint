@@ -255,11 +255,11 @@ function isSourceSinkPathPreferred(
   candidate: SourceSinkPathScore,
   current: SourceSinkPathScore,
 ) {
-  if (candidate.branchCount !== current.branchCount) {
-    return candidate.branchCount > current.branchCount;
+  if (candidate.edgeCount !== current.edgeCount) {
+    return candidate.edgeCount < current.edgeCount;
   }
 
-  return candidate.edgeCount < current.edgeCount;
+  return candidate.branchCount > current.branchCount;
 }
 
 function pickPreferredSourceSinkPath(paths: SourceSinkPathScore[]) {

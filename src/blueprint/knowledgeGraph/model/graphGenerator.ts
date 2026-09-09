@@ -472,12 +472,13 @@ export function createGeneratedKnowledgeEdgeProperties(
   kind: KnowledgeEdgeKind,
 ): KnowledgeEdgeProperties {
   return kind === 'interference'
-    ? createEdgeProperties(random, 6, 12, 9, 1)
-    : createEdgeProperties(random, 9, 18, 13.5, 1.5);
+    ? createEdgeProperties(random, kind, 6, 12, 9, 1)
+    : createEdgeProperties(random, kind, 9, 18, 13.5, 1.5);
 }
 
 function createEdgeProperties(
   random: Random,
+  kind: KnowledgeEdgeKind,
   min: number,
   max: number,
   mean: number,
@@ -486,9 +487,14 @@ function createEdgeProperties(
   return {
     requiredMemory: clippedNormalInt(random, mean, standardDeviation, min, max),
     adaptationRequirements: createEmptyAdaptationRequirements(),
+    minimumInferenceStages: kindDefaultInferenceStages(kind),
     overfitCoefficient: coefficient(random),
     lambda: coefficient(random),
   };
+}
+
+function kindDefaultInferenceStages(kind: KnowledgeEdgeKind) {
+  return kind === 'interference' ? 0 : 1;
 }
 
 function clippedNormalInt(

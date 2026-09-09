@@ -17,11 +17,17 @@ import {
   getDataTopologyOrder,
   type HeightCollectionResult,
 } from './arrangeNodesUtils';
+import {
+  getNodeHeight,
+  mapModuleLayoutPosition,
+} from './moduleLayoutPosition';
 
-const DEFAULT_NODE_HEIGHT = 72;
-export const MODULE_LAYOUT_COLUMN_GAP = 240;
-export const MODULE_LAYOUT_START_X = 120;
-export const MODULE_LAYOUT_START_Y = 180;
+export {
+  getNodeHeight,
+  MODULE_LAYOUT_COLUMN_GAP,
+  MODULE_LAYOUT_START_X,
+  MODULE_LAYOUT_START_Y,
+} from './moduleLayoutPosition';
 
 interface LayoutState {
   nodeHeights: Map<string, number>;
@@ -39,22 +45,38 @@ export function arrangeModuleNodes(nodes: ModuleBaseNode[]) {
     blockByMemberId,
   } = preprocessArrangeCycleBlocks(nodes);
   const layout = buildLayout(layoutNodes, blockById);
-
-  return nodes.map((node) => {
+  const placements = nodes.map((node) => {
     const block = blockByMemberId.get(node.id)!;
-    if (!layout.visitedNodeIds.has(block.id)) return node;
-
     const memberIndex = block.members.findIndex((member) => member.id === node.id);
     const columnOffset = memberIndex % block.columnWidth;
     const rowOffset = Math.floor(memberIndex / block.columnWidth);
     const blockColumn = layout.nodeColumnOrders.get(block.id) ?? getTopologyOrder(block.node);
-    const blockLevel = layout.nodeHeights.get(block.id) ?? 0;
-    const columnOrder = blockColumn + columnOffset;
-    const level = blockLevel + rowOffset * 2;
-    const position = {
-      x: MODULE_LAYOUT_START_X + columnOrder * MODULE_LAYOUT_COLUMN_GAP,
-      y: MODULE_LAYOUT_START_Y + level * getNodeHeight(node) / 2,
+
+    return {
+      node,
+      columnOrder: blockColumn + columnOffset,
+      blockLevel: layout.nodeHeights.get(block.id) ?? 0,
+      rowOffset,
     };
+  });
+  // All columns must use the same vertical unit.  Using a separate unit per
+  // column makes identical topology levels drift vertically when a CNN card
+  // is taller than a ReLU or Sum card.
+  const layoutUnitHeight = Math.max(
+    ...placements.map(({ node }) => getNodeHeight(node)),
+  );
+  return placements.map(({ node, columnOrder, blockLevel, rowOffset }) => {
+    const block = blockByMemberId.get(node.id)!;
+    if (!layout.visitedNodeIds.has(block.id)) return node;
+
+    const nodeHeight = getNodeHeight(node);
+    const level = blockLevel + rowOffset * 2;
+    const position = mapModuleLayoutPosition({
+      columnOrder,
+      level,
+      nodeHeight,
+      layoutUnitHeight,
+    });
 
     return {
       ...node,
@@ -430,8 +452,4 @@ function getIslandNodeCount(
 
 function getTopologyOrder(node: ModuleBaseNode) {
   return node.data.forwardTopologyOrder ?? 0;
-}
-
-export function getNodeHeight(node?: Pick<ModuleBaseNode, 'measured' | 'height'>) {
-  return (node?.measured?.height ?? node?.height ?? DEFAULT_NODE_HEIGHT) + 32;
 }

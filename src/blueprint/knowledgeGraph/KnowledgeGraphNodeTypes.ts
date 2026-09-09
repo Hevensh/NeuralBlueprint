@@ -65,6 +65,7 @@ export interface KnowledgeGraphEdgeProperties {
   requiredMemory: number;
   adaptationRequirements: KnowledgeAdaptationRequirements;
   lambda: number;
+  minimumInferenceStages?: number;
 }
 
 export interface KnowledgeGraphEdgeMetrics {
